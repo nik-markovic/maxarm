@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Solve the camera-to-arm mapping from the cubes the arm has just put down.
+"""Solve the CPCS-to-AACS mapping from the cubes the arm has just put down.
 
 Run `arm.py` first: it takes three cubes off a stack and places them at
 `CUBE_POSITIONS`, which is the one thing a photograph cannot tell you -- where
 something on the desk is in *arm* millimetres. This takes a snapshot, finds the
 three cubes in it, pairs each one's base with the coordinate the arm placed it
 at, and solves the transform between the two. The result lands in
-`config/calibration.json`, and the demo loads it to turn a cube it has spotted
+`config/calibration.json`, and the demo loads it to turn a piece it has spotted
 into a pose for the cup.
+
+Camera pixels are CPCS; arm millimetres with z measured up from the desk are
+AACS, in which 0 is the cup snug on the surface and a 4 mm tile is gripped at 4.
+`mapping.py` is where both are defined and is worth reading first.
 
     ./calibration/calibrate.py                     # snapshot, fit, write the config
     ./calibration/calibrate.py --image FRAME.jpg   # fit from a frame taken earlier
@@ -128,8 +132,11 @@ def kept(observations: Sequence[Observation]) -> List[Observation]:
     held-out error that flatters itself is worse than none.
     """
     earlier = list(DeskMapping.load(CALIBRATION).observations)
-    already = {observation.ground for observation in earlier}
-    fresh = [observation for observation in observations if observation.ground not in already]
+    # Keyed by place *and* height: a cube contributes a point on the desk and one
+    # on the cube-top plane, and those are not duplicates of each other.
+    already = {(observation.ground, observation.height_mm) for observation in earlier}
+    fresh = [observation for observation in observations
+             if (observation.ground, observation.height_mm) not in already]
     print(f"  keeping {len(earlier)} point pair(s) from the existing calibration; "
           f"{len(fresh)} of this frame's {len(observations)} are new placements")
     return earlier + fresh
@@ -143,15 +150,18 @@ def report(mapping: DeskMapping, detections: Dict[int, detect.CubeDetection]) ->
     and once where the arm has just moved it, and only one of those rows has a
     cube in this frame to measure.
     """
-    print(f"\n{mapping.model} fit over {len(mapping.observations)} point pair(s)\n")
-    print("  cube    pixel                arm mm                 base edges by the fit")
+    desk_points = [obs for obs in mapping.observations if not obs.height_mm]
+    print(f"\n{mapping.model} fit over {len(desk_points)} point pair(s) on the desk"
+          f"{'' if mapping.lifted is None else f', and {len(mapping.observations) - len(desk_points)} on the cube-top plane'}\n")
+    print("  cube    seen at   pixel                arm mm                 base edges by the fit")
     residuals = mapping.residuals_mm()
     for obs, residual in zip(mapping.observations, residuals):
         detection = detections.get(id(obs))
-        edges = edge_lengths_mm(mapping, detection) if detection else None
+        edges = edge_lengths_mm(mapping, detection) if detection and not obs.height_mm else None
         edge_note = ("  ".join(f"{length:5.1f}" for length in edges) + f"  (want {CUBE_SIZE_MM:.0f})"
-                     if edges else "from an earlier frame")
-        print(f"  {obs.colour:6}  ({obs.pixel[0]:7.1f},{obs.pixel[1]:7.1f})  "
+                     if edges else "" if detection else "from an earlier frame")
+        seen = "desk   " if not obs.height_mm else f"+{obs.height_mm:<6.0f}"
+        print(f"  {obs.colour:6}  {seen}  ({obs.pixel[0]:7.1f},{obs.pixel[1]:7.1f})  "
               f"({obs.arm[0]:6.1f},{obs.arm[1]:7.1f},{obs.arm[2]:5.1f})  {edge_note}")
 
     print(f"\n  residual at each point: {'  '.join(f'{value:.2f}' for value in residuals)} mm")
@@ -179,15 +189,27 @@ def report(mapping: DeskMapping, detections: Dict[int, detect.CubeDetection]) ->
               "far cube is where\n  that shows first -- `arm.py --move` is the way to a "
               "fourth point pair.")
 
-    z0, dz_dx, dz_dy = mapping.plane
-    print(f"\n  the desk, in the arm's z: {z0:.1f} {dz_dx:+.4f}*x {dz_dy:+.4f}*y  "
-          f"({mapping.desk_z(0, -90):.1f} mm under the near cube, "
-          f"{mapping.desk_z(0, -254):.1f} under the far ones)")
-    print(f"  a {CUBE_SIZE_MM:.0f} mm cube is grappled {CUBE_SIZE_MM:.0f} mm above that -- "
-          f"{mapping.desk_z(0, -90) + CUBE_SIZE_MM:.0f} near, "
-          f"{mapping.desk_z(0, -254) + CUBE_SIZE_MM:.0f} far, which is what the scene "
-          f"commands.\n  The desk reads lower at reach because the arm's own z reads high "
-          f"there (work/STATUS-condor.md §8.2)")
+    if mapping.lifted is not None:
+        middle = tuple(np.mean([obs.pixel for obs in desk_points], axis=0))
+        full = mapping.parallax_mm(middle, mapping.lift_mm)
+        print(f"\n  Height, in the middle of the calibrated patch: a feature "
+              f"{mapping.lift_mm:.0f} mm above the\n  desk maps {full:.0f} mm from its own "
+              f"footprint, and that scales straight with height --\n  {full / 10:.1f} mm for "
+              f"a 4 mm piece. That is the camera looking along the desk rather than\n  down at "
+              f"it, and it is why a pixel needs a height before it means a position.")
+
+    desk = mapping.plane
+    near, far = (0.0, -90.0), (0.0, -254.0)
+    print(f"\n  AACS zero -- the cup snug on the bare desk -- in board z:"
+          f"\n    {desk.z0:.1f} {desk.dz_dx:+.4f}*x {desk.dz_dy:+.4f}*y"
+          f"   ({desk.board_z(*near):.1f} at the near cube, "
+          f"{desk.board_z(*far):.1f} at the far ones)")
+    print(f"  a piece of height h is gripped at AACS z = h, so a {CUBE_SIZE_MM:.0f} mm cube goes "
+          f"to board z {desk.board_z(*near, CUBE_SIZE_MM):.0f} near and "
+          f"{desk.board_z(*far, CUBE_SIZE_MM):.0f} far,\n  which is what the scene commands. "
+          f"The surface reads lower at reach because the arm's\n  own z reads high there "
+          f"(work/STATUS-condor.md §8.2).\n  That half is `DeskPlane` and needs no camera: "
+          f"`DeskPlane.through(CUBE_POSITIONS.values())`\n  converts AACS to board on its own.")
 
 
 def edge_lengths_mm(mapping: DeskMapping, detection: detect.CubeDetection) -> Tuple[float, float]:
@@ -199,7 +221,7 @@ def edge_lengths_mm(mapping: DeskMapping, detection: detect.CubeDetection) -> Tu
     something other than 40 mm is the mapping being wrong *there* -- which is the
     only local accuracy check available without a fourth point pair.
     """
-    left, near, right = (np.array(mapping.to_ground(corner)) for corner in detection.base_corners)
+    left, near, right = (np.array(mapping.pixel_to_ground(corner)) for corner in detection.base_corners)
     return (float(np.linalg.norm(near - left)), float(np.linalg.norm(right - near)))
 
 
@@ -212,8 +234,17 @@ def pair_up(detections: Sequence[detect.CubeDetection], placements: Dict[str, Po
     colour apart.
     """
     found = {det.colour: det for det in detections}
-    pairs = [(Observation(colour, found[colour].base_center, position), found[colour])
-             for colour, position in sorted(placements.items()) if colour in found]
+    pairs = []
+    for colour, position in sorted(placements.items()):
+        if colour not in found:
+            continue
+        detection = found[colour]
+        # Two pixels per cube, same x and y, one cube-height apart. The second is
+        # the only thing in the scene that says what height does to a pixel, and
+        # without it the mapping can place a cube's base and nothing else.
+        pairs.append((Observation(colour, detection.base_center, position, 0.0), detection))
+        pairs.append((Observation(colour, detection.top_center, position, CUBE_SIZE_MM),
+                      detection))
     return pairs, [colour for colour in sorted(placements) if colour not in found]
 
 
@@ -343,13 +374,13 @@ def check_image(image: np.ndarray, detections: Sequence[detect.CubeDetection],
     # Forty points per line rather than two: a perspective mapping bends a
     # straight line in arm millimetres into a curve on the sensor.
     for x in xs:
-        _polyline(canvas, [mapping.to_pixel((x, y)) for y in np.linspace(ys[0], ys[-1], 40)], scale)
+        _polyline(canvas, [mapping.ground_to_pixel((x, y)) for y in np.linspace(ys[0], ys[-1], 40)], scale)
     for y in ys:
-        _polyline(canvas, [mapping.to_pixel((x, y)) for x in np.linspace(xs[0], xs[-1], 40)], scale)
+        _polyline(canvas, [mapping.ground_to_pixel((x, y)) for x in np.linspace(xs[0], xs[-1], 40)], scale)
     for x in xs:
-        _label(canvas, mapping.to_pixel((x, ys[-1])), f"x={x:.0f}", scale)
+        _label(canvas, mapping.ground_to_pixel((x, ys[-1])), f"x={x:.0f}", scale)
     for y in ys:
-        _label(canvas, mapping.to_pixel((xs[0], y)), f"y={y:.0f}", scale)
+        _label(canvas, mapping.ground_to_pixel((xs[0], y)), f"y={y:.0f}", scale)
     return canvas
 
 

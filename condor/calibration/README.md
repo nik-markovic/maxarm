@@ -38,6 +38,47 @@ waypoints are invented anywhere.
 That is not part of setting the scene. It exists because three cubes are one point pair short
 of what this camera needs (below), and it prints the `calibrate.py` line to run next.
 
+## The three coordinate systems
+
+**CPCS** — camera pixel coordinates. What the detector reports.
+
+**AACS** — application arm coordinates. Millimetres, x and y as the arm has them, and **z
+measured up from the desk**: `z = 0` is the cup snug on the surface where it can seal against
+it, a 4 mm tile is gripped at `z = 4`, a 40 mm cube at `z = 40`. This is what the app should
+think in.
+
+**Board z** — what `MaxArm.move_to()` takes, and neither of the above. The arm's reported z
+drifts upward as it extends, so the same desk reads **48 near the base and 36 at full reach**.
+`mapping.board_z(x, y, z_aacs)` converts; nothing in `maxarm/` knows AACS exists.
+
+**They are two mappings and two objects.** `DeskPlane` is AACS ↔ board and has no camera in it
+— it is the three surface heights the owner measured, and an app that already knows where it
+wants to go needs nothing else, not even a calibration run:
+
+```python
+from arm import CUBE_POSITIONS
+from mapping import DeskPlane
+
+desk = DeskPlane.through(CUBE_POSITIONS.values())
+arm.move_to(*desk.aacs_to_board((100.0, -254.0, 40.0)))   # board z 78, the green drop
+desk.board_to_aacs(arm.get_state().position)              # and back
+```
+
+`DeskMapping` is the camera half, CPCS → AACS x and y. It carries a `DeskPlane`, so it can do
+both steps in one call:
+
+```python
+from mapping import DeskMapping
+
+mapping = DeskMapping.load(Path("../config/calibration.json"))
+
+mapping.pixel_to_aacs(pixel)                 # where a thing lying on the desk is
+mapping.pixel_to_aacs(pixel, seen_at_mm=4)   # ...seen by its top face, 4 mm up
+mapping.pixel_to_board(pixel, grip_height_mm=4, seen_at_mm=4)   # where to send the cup
+mapping.parallax_mm(pixel, 4.0)              # how far height moves the answer: ~9 mm
+mapping.aacs_to_board(pose)                  # the plane's, for convenience
+```
+
 ## What the two halves agree on
 
 ```python
@@ -54,19 +95,36 @@ floats 20 mm up and projects about 40 mm sideways at this camera's elevation. Se
 [`work/STATUS-condor-prototype.md`](../../work/STATUS-condor-prototype.md) §3, which is the most
 important paragraph in that file.
 
-**z is the desk under that cube, and is not a pose the cup can be sent to.** The cup grips a
-cube's top face, so it grapples at base + 40 — which is exactly what the scene commands, 78 at
-the far cubes and 88 at the near one. Two of the three heights are below the library's own z
-floor of 48; they are the desk, which is the point. `mapping.to_grapple(pixel, height_mm)` is
-the call that adds the object's height back, and the height is an argument because the letter
-tiles that come later are 4 mm.
-
-The three heights differ by about 11 mm on one flat desk. That is the arm's own z reading high
-as it extends ([`work/STATUS-condor.md`](../../work/STATUS-condor.md) §8.2); the mapping fits a
-plane through them and interpolates it rather than pretending the desk is level in arm z.
+**z is AACS zero at that x and y** — the board z at which the cup is snug on the *bare desk*
+there, measured with the cube out of the way. It is not a pose for the cup on the cube, which is
+40 mm higher: 78 at the far cubes and 88 at the near one, which is exactly what the scene
+commands. The three differ by about 11 mm on one flat desk, and that difference is the reason
+AACS exists — in AACS all three are zero.
 
 Importing `arm.py` opens no port and moves nothing. The `SCENE` steps are **not** part of what
 it exports — they are a script, not data.
+
+## Height, which is not an offset
+
+A pixel does not name a point, it names a **ray**. Where that ray lands depends on how high the
+thing it shows sits: at this camera's elevation the printed top of a 4 mm tile is about **9 mm**
+from the tile's own footprint. That is bigger than the arm's accuracy, so it cannot be ignored.
+
+So the mapping is fitted on **two planes** — the cubes' base centres at AACS 0 and their top
+centres at AACS 40, both out of the same frame — and interpolates between them. That
+interpolation is **exact, not approximate**: a ray is a straight line, so where it crosses
+`z = h` is linear in `h`. A 4 mm piece is a tenth of the way up that line, which makes it an
+interpolation rather than an extrapolation, and the error at 4 mm is a tenth of the error at 40.
+
+Two heights go into a pickup and they are different numbers:
+
+| argument          | what it means                          | cube by its base | 4 mm tile by its top |
+| ----------------- | -------------------------------------- | ---------------- | -------------------- |
+| `seen_at_mm`      | how high the *feature in the pixel* is | 0                | 4                    |
+| `grip_height_mm`  | how high the *cup* must be to seal     | 40               | 4                    |
+
+A calibration solved without the cube tops cannot answer for any height but zero, and
+`pixel_to_ground()` raises rather than answering 9 mm wrong.
 
 ## calibrate.py
 

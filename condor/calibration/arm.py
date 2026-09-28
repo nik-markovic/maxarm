@@ -53,22 +53,24 @@ CUBE_SIZE_MM = 40.0
 # table plane the camera is being mapped onto; its blob centre floats 20 mm up
 # and projects about 40 mm sideways at this camera's elevation.
 #
-# The heights are the *desk* under each cube, not the height the cube was
-# released at: green is released with the cup at 78 and its 40 mm body stands on
-# a desk that reads 38 there. The far pair read 36-38 and the near one 48, which
-# is about 11 mm of difference on one flat desk -- the arm's own z reading high
-# as it extends (`work/STATUS-condor.md` §8.2).
+# **The height is AACS zero at that x and y: the board z at which the cup is
+# snug on the bare desk there**, measured by the owner with a cube out of the
+# way. It is not where the cup goes to grip the cube, which is 40 mm higher --
+# green is released with the cup at 78 and its 40 mm body stands on a surface
+# that reads 38. The far pair read 36-38 and the near one 48, which is about
+# 11 mm of difference on one flat desk: the arm's own z reading high as it
+# extends (`work/STATUS-condor.md` §8.2). That difference is the reason AACS
+# exists -- in it, all three of these are zero.
 CUBE_POSITIONS: Dict[str, Position] = {
     "green": (100.0, -254.0, 38.0),
     "blue": (-100.0, -254.0, 36.0),
     "red": (0.0, -90.0, 48.0),
 }
 
-# The cup grips a cube's top face, so a cube whose base is at z is grappled at
-# z + CUBE_SIZE_MM. That is where the scene's own placement heights come from --
-# green's base at 38 is set down with the cup at 78 -- and it is why none of the
-# heights above is a pose the arm can be sent to. Two of them are below the
-# library's z floor of 48, which is the desk, which is the point.
+# The cup grips a cube's top face, so a cube standing on the desk is gripped at
+# AACS z = its own height -- board z = CUBE_POSITIONS height + 40. That is where
+# the scene's own placement heights come from: green's surface at 38 is set down
+# with the cup at 78.
 GRAPPLE_ABOVE_BASE_MM = CUBE_SIZE_MM
 
 # Carried this far above the cup's own gripping height, a cube clears the top of
@@ -106,24 +108,24 @@ class Move(NamedTuple):
 # for the same reason -- `None` means "wherever the cup already is" -- and it
 # goes back to zero on the next approach, well clear of anything.
 SCENE = (
-    Move(0, -166, 168, 0, "stacking height",
+    Move(0, -163, 168, 0, "stacking height",
          ask="stack the cubes under the nozzle -- red on the desk, then blue, then green"),
 
-    Move(0, -165, 162, 0, "down onto the green cube", is_slow=True, suction=True),
-    Move(0, -165, 187, None, "lift the green cube clear"),
+    Move(0, -163, 162, 0, "down onto the green cube", is_slow=True, suction=True),
+    Move(0, -163, 187, None, "lift the green cube clear"),
     Move(100, -254, 78, -21.49, "set the green cube down", is_slow=True, suction=False),
     Move(100, -254, 100, None, "lift away from the green cube"),
 
-    Move(0, -162, 130, 0, "above the blue cube"),
-    Move(0, -162, 120, None, "down onto the blue cube", is_slow=True, suction=True),
-    Move(0, -162, 140, None, "lift the blue cube clear"),
+    Move(0, -160, 130, 0, "above the blue cube"),
+    Move(0, -160, 120, None, "down onto the blue cube", is_slow=True, suction=True),
+    Move(0, -160, 140, None, "lift the blue cube clear"),
     Move(-100, -254, 80, 21.49, "set the blue cube down", is_slow=True, suction=False),
     Move(-100, -254, 101, None, "lift away from the blue cube"),
 
-    # the 2 below instead of 0 seem to have something to do with a bug in board's kinematics
-    Move(2, -160, 88, 0, "above the red cube"),
-    Move(2, -160, 78, None, "down onto the red cube", is_slow=True, suction=True),
-    Move(2, -160, 118, None, "lift the red cube clear"),
+# the 2 below instead of 0 seem to have something to do with a bug in board's kinematics
+    Move(2, -159, 88, 0, "above the red cube"),
+    Move(2, -159, 78, None, "down onto the red cube", is_slow=True, suction=True),
+    Move(2, -159, 118, None, "lift the red cube clear"),
     Move(0, -90, 98, None, "approach from above"),
     Move(0, -90, 88, None, "set the red cube down", is_slow=True, suction=False),
     Move(0, -94, 125, None, "lift away from the red cube", is_slow=True),

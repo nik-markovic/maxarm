@@ -63,6 +63,19 @@ class CubeDetection:
     hexagon: list[Point]
 
     @property
+    def top_center(self) -> Point:
+        """The centre of the cube's top face, one cube-height above `base_center`.
+
+        Same construction as the base centre -- the midpoint of the two
+        diagonally opposite corners -- on the other end of the two vertical
+        edges. It is the same x and y as the base centre in the arm's world and a
+        cube's height above it, which makes the pair of them the only thing in
+        the scene that says how the image moves with height.
+        """
+        left, _, right = self.top_corners
+        return ((left[0] + right[0]) / 2, (left[1] + right[1]) / 2)
+
+    @property
     def base_edge_px(self) -> tuple[float, float]:
         left, near, right = self.base_corners
         return math.dist(left, near), math.dist(near, right)

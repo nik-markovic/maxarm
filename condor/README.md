@@ -29,6 +29,10 @@ pixel-to-arm mapping into `config/`. Read [`calibration/README.md`](calibration/
 before running either — in particular, three cubes give an affine fit where the camera's
 perspective wants four point pairs, and that section says what to do about it.
 
+The output is two mappings, and the app will want both. **`DeskPlane` is AACS ↔ board z** —
+height above the desk to the z `move_to()` takes — and it has no camera in it at all, so it
+works straight off `CUBE_POSITIONS`. **`DeskMapping`** is the camera half on top of that.
+
 The rest of this file is the `maxarm/` library's own documentation, inherited from `bison`
 along with the code. It is accurate: nothing in the library was changed.
 
@@ -78,7 +82,7 @@ Four fields, all optional. Anything left `None` takes its default.
 ArmConfig(
     connection=ConnectionMethod.USB,           # UART and BLE raise NotImplementedError
     device="/dev/ttyUSB0",                     # or $MAXARM_DEVICE
-    limits=Limits(x=(0.0, None), z=(48.0, None)),
+    limits=Limits(x=(0.0, None), z=(35.0, None)),
     zones=(ExclusionZone("mug", 80, 140, -220, -160),
            ExclusionZone("card box", 80, 140, -220, -160, z_max=70.0)),
 )
@@ -87,9 +91,12 @@ ArmConfig(
 `MaxArm(ArmConfig(...))` and `MaxArm(limits=..., device=...)` are the same thing; use whichever
 reads better where you are standing.
 
-`Limits` are **the desk, not the arm**: open on every axis except a z floor of 48 mm, which is what
-stops the nozzle scraping. Lower it deliberately (44 or so) to snug onto a card. The arm's own
-limits are computed in `geometry.py`, not configured, and cannot be relaxed.
+`Limits` are **the desk, not the arm**: open on every axis except a z floor, defaulting to 35 mm.
+That is deliberately below the surface — the desk is **not flat in the arm's z**, reading 48 under
+the near cube and 36 at full reach, so no single floor both reaches the far desk and guards the
+near one. 35 reaches all of it and guards none of it. A caller that has a calibration should set
+the floor from it for where it is working; see [`calibration/mapping.py`](calibration/mapping.py).
+The arm's own limits are computed in `geometry.py`, not configured, and cannot be relaxed.
 
 **The base exclusion square (|x| ≤ 70, |y| ≤ 70, at every height) is hardcoded and cannot be
 switched off.** Inside it the cup or its air hose strikes the robot's own casting. Your zones sit
@@ -106,7 +113,7 @@ plausibly need:
 | ----------------------- | ------------------------------------------------ | ------- |
 | `MAXARM_DEVICE`         | serial port                                      | `/dev/ttyUSB0` |
 | `MAXARM_TRAVEL_SPEED`   | mm/s in free space; drop it for a cautious run   | 200     |
-| `MAXARM_Z_FLOOR`        | default floor, when the desk is not this desk    | 48      |
+| `MAXARM_Z_FLOOR`        | default floor, when the desk is not this desk    | 35      |
 | `MAXARM_DESK_SAG`       | mm of droop that counts as touching down         | 3.0     |
 | `MAXARM_RETARGET_LIMIT` | how far a target may be moved to make it legal   | 20      |
 

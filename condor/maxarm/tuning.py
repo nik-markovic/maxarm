@@ -122,17 +122,38 @@ RETARGET_LIMIT_MM = _env("MAXARM_RETARGET_LIMIT", 20.0)
 
 # --- the desk -------------------------------------------------------------
 
-# The nozzle scrapes at about z=34 and barely touches at z=46; 48 leaves room
-# for the arm's own error. This is only the default -- Limits(z=...) is the
-# caller's to set, and that is the one limit they genuinely care about.
-DEFAULT_Z_FLOOR = _env("MAXARM_Z_FLOOR", 48.0)
+# The lowest z the arm will be sent to unless the caller says otherwise. The
+# nozzle scrapes at about z=34 and barely touches at z=46.
+#
+# **This used to be 48 and is now 35, and the reason is that the desk is not
+# flat in the arm's z.** The cup touches down at z=48 under the near cube and at
+# z=36 at full reach, because the arm's reported z drifts upward as it extends
+# (`work/STATUS-condor.md` §8.2). A floor of 48 therefore forbade touching the
+# desk at all over the far half of the work area -- which is most of it.
+#
+# What that costs: the floor is no longer a guard against the desk, because no
+# single number can be. At near reach 35 is about 13 mm *below* the surface, so
+# a caller working there is relying on its own target being right. The thing
+# that does know where the desk is, per point of the work area, is the
+# calibration -- `condor/calibration/mapping.py`, whose `DeskPlane` is exactly
+# this surface and needs no camera to use. A caller that has one should set
+# `Limits(z=(desk.board_z(x, y) - margin, None))` for where it is working rather
+# than trusting this.
+DEFAULT_Z_FLOOR = _env("MAXARM_Z_FLOOR", 35.0)
 
 # Height above the floor to cross the desk at. An XY move commanded near the
 # floor droops into it mid-path even when both endpoints clear it.
 DESK_CLEARANCE_MM = 10.0
 # Band above the floor in which a descent is stepped and watched rather than
 # flown in one go.
-DESK_GUARD_MM = 15.0
+#
+# **This went 15 -> 28 when the floor went 48 -> 35, and the two changes are one
+# change.** The band is measured from the floor but it is about the *surface*,
+# and the surface is at 36 at full reach and 48 near the base. 35 + 28 = 63 is
+# exactly the top the band had before, so nothing about a descent that ends
+# above 50 changed; what it buys is that a descent onto the near desk is still
+# walked for 15 mm rather than for the 2 mm that floor + 15 would now leave.
+DESK_GUARD_MM = 28.0
 DESCENT_STEP_MM = 2.0
 # Droop below the commanded z, net of the droop the first step of the same
 # descent showed, that means the cup is on the surface. Real contact measures

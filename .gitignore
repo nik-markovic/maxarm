@@ -34,5 +34,6 @@ iotcDeviceConfig.json
 # Project-specific - some temprorary
 MaxArm/
 agenttools/
-datacollection/
+!anaconda/agenttools/
+
 
