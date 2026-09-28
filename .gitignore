@@ -1,5 +1,6 @@
-# Jetbrains IDEs
+# IDE and agent files
 .idea/
+.kilo/
 
 # temp work files
 /work*/
