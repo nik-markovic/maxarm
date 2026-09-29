@@ -35,8 +35,8 @@ waypoints are invented anywhere.
 ./calibration/arm.py --move red=120,-180     # afterwards: one cube somewhere else
 ```
 
-That is not part of setting the scene. It exists because three cubes are one point pair short
-of what this camera needs (below), and it prints the `calibrate.py` line to run next.
+That is not part of setting the scene. It exists because a fit with nothing to spare cannot
+report its own error (below), and it prints the `calibrate.py` line to run next.
 
 ## The three coordinate systems
 
@@ -144,23 +144,27 @@ a cube standing on another cube has its base 40 mm in the air and maps to a poin
 where it appears to be. And the camera must not move relative to the arm afterwards — that is
 the whole validity condition of the config.
 
-### Three cubes is one point pair short, and this is the thing to know
+### Three cubes and their tops are a camera, and this is the thing to know
 
-A plane seen by a camera is a perspective transform. That has eight degrees of freedom and
-three point pairs supply six, so a three-cube fit is **affine**: exact at the three cubes, and
-wrong between and beyond them by an amount the residuals cannot show — they are zero by
-construction. At this camera's 23° elevation the scale across one frame swings by 2.7×, which
-is exactly what an affine fit cannot follow.
+A plane seen by a camera is a perspective transform, with eight degrees of freedom, and three
+point pairs on the desk supply only six — alone, they fit an **affine** transform, which cannot
+follow a camera's perspective. But each cube also gives its *top* centre, 40 mm up at the same
+x and y, and points at two heights are enough for the camera itself: a 3×4 projection, eleven
+freedoms, twelve equations from three cubes. `fit()` solves that when the tops are there, and
+both planes come out of it perspective. On the owner's frame the cube base edges, which the
+fit never sees, measure 38.6–43.1 mm through it; the affine fit had them at 28–68.
+
+One equation to spare means the residuals are near zero and say little.
 
 Two things in the output speak to this:
 
 - **The base edge check.** A cube's base is 40 mm square wherever it stands, so the fit should
-  make it 40 mm square. This is the only local accuracy check available from three points, and
-  the far cube is where a failing fit shows first.
-- **The grid on `config/calibration-check.jpg`.** The arm's millimetres drawn where the mapping
-  thinks they are. A grid that shears away from the desk at the far end is the same fault, seen.
+  make it 40 mm square. It uses corners the fit never saw, so it is an independent check.
+- **The grid on `config/calibration-check.jpg`.** The arm's millimetres, x ±120 and y −260 to
+  −80, drawn where the mapping thinks they are. Its squares should shrink with distance; a grid
+  of parallelograms is an affine fit.
 
-**The fix is a fourth point pair**, and `arm.py --move` is how to get one: move a cube to
+**A held-out error needs more points**, and `arm.py --move` is how to get one: move a cube to
 another coordinate the arm chose, leave the camera alone, and
 
 ```
@@ -176,8 +180,9 @@ number that decides whether a side camera can drive this demo at all.
 ```
 ../.venv/bin/python agenttools/test-scene.py         # arm.py against a fake board
 ../.venv/bin/python agenttools/test-calibration.py   # detect.py, mapping.py, calibrate.py
+../.venv/bin/python agenttools/test-detect.py        # detect.py against a known camera
 ```
 
-Neither needs a camera, an arm or a board. The mapping checks work by projecting the arm's
+None needs a camera, an arm or a board. The mapping checks work by projecting the arm's
 coordinates through a *known* perspective transform and asking the fit to find its way back,
 which is the only way to tell a mapping that is right from one that merely reproduces its input.

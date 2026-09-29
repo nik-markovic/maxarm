@@ -15,6 +15,8 @@ across so that condor can check its own library rather than reaching back into a
 | | hyphen in its name means it cannot be imported like the others. |
 | `test-calibration.py` | The camera half: `detect.py`, `mapping.py`, and the parts of |
 | | `calibrate.py` that do not need a device. Also run separately. |
+| `test-detect.py` | The detector alone: cubes rendered through a pinhole camera, and |
+| | the owner's frame `files/cubes2.png`. Also run separately. |
 | `test_geometry.py` | Kinematics against the validated reference, 1 200 poses a run. |
 | `test_motion.py` | Routing: detours, staging, swing splitting. Board-free. |
 | `test_arm.py` | End-to-end against the fake board, including the ways it lies. |
@@ -27,6 +29,7 @@ across so that condor can check its own library rather than reaching back into a
 ../.venv/bin/python agenttools/run-tests.py motion   # just one
 ../.venv/bin/python agenttools/test-scene.py         # the scene playback
 ../.venv/bin/python agenttools/test-calibration.py   # the camera half
+../.venv/bin/python agenttools/test-detect.py        # the cube detector on its own
 ```
 
 ## On the real board

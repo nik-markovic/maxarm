@@ -34,9 +34,11 @@ in it, usable on its own by an app that already knows where it wants to go:
 
 ## What is fitted, and from what
 
-**x and y** come from a plane-to-plane transform through the cube pixels. Three
-point pairs is exactly enough for an affine one and one short of a perspective
-one, which is the whole accuracy story here -- see `fit()`.
+**x and y** come from a camera: one 3x4 projection solved through every cube's
+base centre *and* top centre, which are points at two known heights. Six of
+them fix all eleven of its freedoms with one to spare, so three cubes give a
+full perspective mapping. Without the tops, only a plane-to-plane transform is
+possible, and three points make that affine -- see `fit()`.
 
 **The AACS zero plane** comes from the heights in `CUBE_POSITIONS`: each one is
 the owner's measurement of *the cup snug on the bare desk at that x and y*. Three
@@ -88,6 +90,9 @@ Position = Tuple[float, float, float]
 # seen by a camera is a perspective transform and nothing less, but it has eight
 # degrees of freedom and three point pairs supply six.
 POINTS_FOR_PERSPECTIVE = 4
+
+# A 3x4 camera has eleven freedoms; six points give twelve equations.
+POINTS_FOR_CAMERA = 6
 
 
 @dataclass(frozen=True)
@@ -187,7 +192,7 @@ class Observation:
 
 @dataclass(frozen=True)
 class DeskMapping:
-    model: str                              # "affine" or "perspective"
+    model: str                              # "camera", "perspective" or "affine"
     matrix: np.ndarray                      # 3x3, homogeneous CPCS -> AACS x, y
     plane: DeskPlane                        # AACS <-> board z. Usable on its own
     observations: Tuple[Observation, ...]
@@ -269,9 +274,17 @@ class DeskMapping:
         lifted = self.pixel_to_ground(pixel, height_mm)
         return float(np.hypot(lifted[0] - base[0], lifted[1] - base[1]))
 
-    def ground_to_pixel(self, ground: Tuple[float, float]) -> Pixel:
-        """The way back, on the desk plane, for drawing the fit over a frame."""
-        point = np.linalg.inv(self.matrix) @ np.array([ground[0], ground[1], 1.0])
+    def ground_to_pixel(self, ground: Tuple[float, float], height_mm: float = 0.0) -> Pixel:
+        """The way back, for drawing the fit over a frame: on the desk, or on the
+        plane the cube tops were solved at. Those are the two it holds."""
+        if not height_mm:
+            matrix = self.matrix
+        elif self.lifted is not None and height_mm == self.lift_mm:
+            matrix = self.lifted
+        else:
+            raise ValueError(f"this mapping holds the desk and the {self.lift_mm:g} mm plane, "
+                             f"not {height_mm:g} mm")
+        point = np.linalg.inv(matrix) @ np.array([ground[0], ground[1], 1.0])
         return (float(point[0] / point[2]), float(point[1] / point[2]))
 
     def is_inside(self, pixel: Pixel) -> bool:
@@ -288,7 +301,10 @@ class DeskMapping:
         corners = np.array([obs.pixel for obs in self.observations if not obs.height_mm],
                            dtype=np.float32)
         hull = cv2.convexHull(corners.reshape(-1, 1, 2))
-        return cv2.pointPolygonTest(hull, (float(pixel[0]), float(pixel[1])), False) >= 0
+        # A pixel a whisker outside counts as inside: the calibration points are
+        # themselves on the hull, and float32 rounding in the hull puts them a
+        # fraction of a pixel out, which is not a reason to warn about one.
+        return cv2.pointPolygonTest(hull, (float(pixel[0]), float(pixel[1])), True) >= -1.0
 
     def residuals_mm(self) -> List[float]:
         """How far the fit misses each point it was fitted through.
@@ -382,7 +398,16 @@ class DeskMapping:
 def fit(observations: Sequence[Observation]) -> DeskMapping:
     """Solve the mapping from every point pair given. Three at the least.
 
-    **Four point pairs per plane is the line that matters.** The camera looks
+    **With the cube tops, it is a camera.** Each cube gives two points at the
+    same x and y and two known heights, so the points are not all on one plane,
+    and a 3x4 projection -- a real camera, perspective and all -- can be solved
+    through them: `_solve_camera()`. Both planes are then read off that one
+    projection, so they agree with each other exactly and each is perspective,
+    from three cubes and one frame. Measured on the owner's frame, the cubes'
+    base edges -- which the fit never saw -- come out 38.6-43.1 mm through it,
+    where the per-plane affine fit put them at 28-68.
+
+    **Without the tops, four point pairs per plane is the line that matters.** The camera looks
     along the desk at about 23 degrees, and at that angle the scale across one
     frame swings by 2.7x -- 0.17 mm/px at the near cube against 0.75 mm/px
     receding at the far one (`work/STATUS-condor-prototype.md` §6). Only a
@@ -403,7 +428,8 @@ def fit(observations: Sequence[Observation]) -> DeskMapping:
     """
     desk = [obs for obs in observations if not obs.height_mm]
     lifted = [obs for obs in observations if obs.height_mm]
-    matrix, model = _solve(desk)
+    if len(desk) < 3:
+        raise ValueError(f"need at least three point pairs on the desk, have {len(desk)}")
 
     lift_matrix, lift_mm = None, 0.0
     if lifted:
@@ -413,7 +439,15 @@ def fit(observations: Sequence[Observation]) -> DeskMapping:
                              f"({sorted(heights)}); this solves one plane above the desk, "
                              f"not several")
         lift_mm = lifted[0].height_mm
-        lift_matrix, _ = _solve(lifted)
+
+    if lifted and len(lifted) >= 3:
+        camera = _solve_camera(desk + lifted)
+        matrix, lift_matrix = (np.linalg.inv(_plane_of(camera, height)) for height in (0.0, lift_mm))
+        model = "camera"
+    else:
+        matrix, model = _solve(desk)
+        if lifted:
+            lift_matrix, _ = _solve(lifted)
 
     return DeskMapping(model=model, matrix=matrix,
                        plane=DeskPlane.through([obs.arm for obs in desk]),
@@ -446,6 +480,49 @@ def _solve(observations: Sequence[Observation]) -> Tuple[np.ndarray, str]:
     if abs(float(np.linalg.det(matrix))) < 1e-12:
         raise ValueError("the fit collapsed -- the cubes are probably collinear in the image")
     return np.asarray(matrix, dtype=np.float64), model
+
+
+def _solve_camera(observations: Sequence[Observation]) -> np.ndarray:
+    """The 3x4 projection taking (x, y, height above the desk) to a pixel.
+
+    The direct linear transform, on coordinates shifted and scaled to the unit
+    order first -- raw pixels in the thousands next to millimetres in the tens
+    leave the linear system too badly conditioned to trust.
+    """
+    if len(observations) < POINTS_FOR_CAMERA:
+        raise ValueError(f"a camera needs {POINTS_FOR_CAMERA} points, have {len(observations)}")
+    pixels = np.array([obs.pixel for obs in observations], dtype=np.float64)
+    world = np.array([(*obs.ground, obs.height_mm) for obs in observations], dtype=np.float64)
+    pixel_norm, world_norm = _normaliser(pixels), _normaliser(world)
+    pixels = (pixel_norm @ np.column_stack((pixels, np.ones(len(pixels)))).T).T
+    world = (world_norm @ np.column_stack((world, np.ones(len(world)))).T).T
+
+    rows = []
+    for point, (u, v, _) in zip(world, pixels):
+        rows.append(np.concatenate((point, np.zeros(4), -u * point)))
+        rows.append(np.concatenate((np.zeros(4), point, -v * point)))
+    _, singular, vectors = np.linalg.svd(np.array(rows))
+    # The answer is the null direction. A second one nearly as null means the
+    # points leave the camera undetermined -- all on one plane, or in a line.
+    if singular[-2] < 1e-6 * singular[0]:
+        raise ValueError("the points do not determine a camera; the cubes may be in a line")
+    camera = np.linalg.inv(pixel_norm) @ vectors[-1].reshape(3, 4) @ world_norm
+    return camera / np.linalg.norm(camera)
+
+
+def _normaliser(points: np.ndarray) -> np.ndarray:
+    """Shift to the centroid and scale to unit mean distance, as a homogeneous matrix."""
+    centre = points.mean(axis=0)
+    scale = np.sqrt(points.shape[1]) / max(np.linalg.norm(points - centre, axis=1).mean(), 1e-12)
+    matrix = np.eye(points.shape[1] + 1) * scale
+    matrix[:-1, -1] = -scale * centre
+    matrix[-1, -1] = 1.0
+    return matrix
+
+
+def _plane_of(camera: np.ndarray, height_mm: float) -> np.ndarray:
+    """What the camera does to the plane `height_mm` above the desk: pixel <- x, y."""
+    return np.column_stack((camera[:, 0], camera[:, 1], camera[:, 3] + height_mm * camera[:, 2]))
 
 
 def _project(matrix: np.ndarray, pixel: Pixel) -> Tuple[float, float]:

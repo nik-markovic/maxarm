@@ -122,13 +122,13 @@ SCENE = (
     Move(-100, -254, 80, 21.49, "set the blue cube down", is_slow=True, suction=False),
     Move(-100, -254, 101, None, "lift away from the blue cube"),
 
-# the 2 below instead of 0 seem to have something to do with a bug in board's kinematics
+# the 2's and 1's below instead of 0 seem to have something to do with a bug in board's kinematics
     Move(2, -159, 88, 0, "above the red cube"),
     Move(2, -159, 78, None, "down onto the red cube", is_slow=True, suction=True),
     Move(2, -159, 118, None, "lift the red cube clear"),
     Move(0, -90, 98, None, "approach from above"),
     Move(0, -90, 88, None, "set the red cube down", is_slow=True, suction=False),
-    Move(0, -94, 125, None, "lift away from the red cube", is_slow=True),
+    Move(1, -94, 125, None, "lift away from the red cube", is_slow=True),
 )
 
 

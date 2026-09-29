@@ -22,11 +22,13 @@ cubes must be on the desk -- not on the stack they arrive in. A cube standing on
 another cube has its base 40 mm up in the air and maps to a point 40 mm from
 where it looks like it is.
 
-**Three cubes is one point pair short.** The fit is affine, which is exact at
-the three cubes and drifts between them at a rate the residuals cannot show; see
-`mapping.fit()`. The cube edge check below is what catches that. To get the
-fourth pair, place one cube somewhere else with the arm, leave the camera alone,
-and add that frame to the points already in the config:
+**Three cubes are enough for a camera.** Each cube's base centre and top centre
+are two points at known heights, and six such points solve a full 3x4
+projection -- perspective, not affine; see `mapping.fit()`. The fit has only one
+equation to spare, so its residuals say little; the cube edge check below, which
+uses corners the fit never saw, is what judges it. A held-out error in
+millimetres needs more points: place one cube somewhere else with the arm, leave
+the camera alone, and add that frame to the points already in the config:
 
     ./calibration/calibrate.py --keep --at red=120,-180,44
 """
@@ -48,7 +50,9 @@ from mapping import DeskMapping, Observation, fit                     # noqa: E4
 
 CONFIG = Path(__file__).resolve().parent.parent / "config"
 CALIBRATION = CONFIG / "calibration.json"
-SNAPSHOT = CONFIG / "calibration-frame.jpg"
+# Lossless: this is the frame a later run re-fits from, and JPEG moves the
+# detected base centres by a pixel or so, which is a millimetre on the desk.
+SNAPSHOT = CONFIG / "calibration-frame.png"
 OVERLAY = CONFIG / "calibration-check.jpg"
 
 DEFAULT_DEVICE = "/dev/video1"
@@ -74,9 +78,14 @@ AVERAGED_FRAMES = 5
 # Grid drawn over the check image, in arm millimetres: how the mapping thinks the
 # desk lies under the camera. Wrong perspective shows up here long before it
 # shows up in a residual.
-GRID_STEP_MM = 50.0
-GRID_MARGIN_MM = 60.0
+# The work area around the three cubes, in AACS. Fixed rather than grown from
+# the points, so the check image frames the same patch of desk every time.
+GRID_X_MM = (-120.0, 120.0)
+GRID_Y_MM = (-260.0, -80.0)
+GRID_STEP_MM = 20.0
 GRID_BGR = (255, 255, 0)        # cyan, against the detector's magenta wireframes
+LIFTED_GRID_BGR = (0, 230, 255)  # yellow: the same millimetres one cube-height up
+LIFTED_GRID_ALPHA = 0.5          # see-through, so the desk grid and cubes show under it
 
 
 def main() -> int:
@@ -92,8 +101,8 @@ def main() -> int:
     placements = cube_placements(args.at)
     pairs, missing = pair_up(detections, placements)
     for colour in missing:
-        print(f"  no {colour} cube found -- it is not in the frame, or the light has moved "
-              f"(see work/STATUS-condor-prototype.md §4)")
+        print(f"  no {colour} cube found -- it is not in the frame, it is turned face-on to "
+              f"the camera, or the light has moved (see work/STATUS-condor-prototype.md §4)")
     observations = [observation for observation, _ in pairs]
     if args.keep and CALIBRATION.exists():
         observations = kept(observations)
@@ -165,7 +174,10 @@ def report(mapping: DeskMapping, detections: Dict[int, detect.CubeDetection]) ->
               f"({obs.arm[0]:6.1f},{obs.arm[1]:7.1f},{obs.arm[2]:5.1f})  {edge_note}")
 
     print(f"\n  residual at each point: {'  '.join(f'{value:.2f}' for value in residuals)} mm")
-    if max(residuals) < 0.01:
+    if mapping.model == "camera" and len(mapping.observations) <= 6:
+        print("  -- near zero because a camera through six points has one equation to "
+              "spare, so this says little")
+    elif max(residuals) < 0.01:
         print("  -- which is zero by construction: the fit has as many points as it has "
               "freedoms, so this measures nothing")
     held_out = mapping.held_out_mm()
@@ -183,6 +195,9 @@ def report(mapping: DeskMapping, detections: Dict[int, detect.CubeDetection]) ->
     print(f"\n  The base edge check is the local one: a cube's base is {CUBE_SIZE_MM:.0f} mm "
           f"square wherever it stands,\n  so the fit should make it {CUBE_SIZE_MM:.0f} mm "
           f"square there.")
+    if mapping.model == "camera":
+        print("  The fit used the cubes' centres and never their corners, so this is an "
+              "independent check.")
     if mapping.model == "affine":
         print("  It is also the only check a three-point fit has, since the residuals above "
               "are not\n  one. An affine fit cannot follow this camera's perspective, and the "
@@ -364,47 +379,64 @@ def check_image(image: np.ndarray, detections: Sequence[detect.CubeDetection],
     """The detections, with the arm's coordinate grid drawn where the mapping puts it.
 
     Worth a look every time. The cube wireframes say the detector found the right
-    things; the grid says the mapping agrees with the desk, and a grid that
-    visibly shears away from the desk at the far end is an affine fit failing to
-    keep up with the perspective.
+    things; the grid says the mapping agrees with the desk. Its lines should run
+    with the desk's own -- a board edge, the wood grain -- and its squares shrink
+    with distance; a grid of parallelograms is an affine fit, which cannot.
     """
     canvas = detect.annotate(image, list(detections))
     scale = max(1, round(canvas.shape[1] / 1280))
-    xs, ys = _grid_lines(mapping)
-    # Forty points per line rather than two: a perspective mapping bends a
-    # straight line in arm millimetres into a curve on the sensor.
-    for x in xs:
-        _polyline(canvas, [mapping.ground_to_pixel((x, y)) for y in np.linspace(ys[0], ys[-1], 40)], scale)
-    for y in ys:
-        _polyline(canvas, [mapping.ground_to_pixel((x, y)) for x in np.linspace(xs[0], xs[-1], 40)], scale)
-    for x in xs:
+    xs, ys = _grid_lines()
+    # The desk, and the plane the cube tops were solved at drawn heavier over it:
+    # each cube's top centre should sit on its own coordinate there, the way its
+    # base centre does on the desk.
+    planes = [(0.0, GRID_BGR, scale, 1.0)]
+    if mapping.lifted is not None:
+        planes.append((mapping.lift_mm, LIFTED_GRID_BGR, 2 * scale, LIFTED_GRID_ALPHA))
+    for height, colour, thickness, alpha in planes:
+        layer = canvas.copy()
+        # Forty points per line rather than two: a perspective mapping bends a
+        # straight line in arm millimetres into a curve on the sensor.
+        for x in xs:
+            _polyline(layer, [mapping.ground_to_pixel((x, y), height)
+                              for y in np.linspace(ys[0], ys[-1], 40)], colour, thickness)
+        for y in ys:
+            _polyline(layer, [mapping.ground_to_pixel((x, y), height)
+                              for x in np.linspace(xs[0], xs[-1], 40)], colour, thickness)
+        canvas = cv2.addWeighted(layer, alpha, canvas, 1 - alpha, 0)
+    if mapping.lifted is not None:
+        _label(canvas, mapping.ground_to_pixel((xs[0], ys[0]), mapping.lift_mm),
+               f"z={mapping.lift_mm:.0f}", scale, LIFTED_GRID_BGR)
+        for detection in detections:
+            top = tuple(int(value) for value in detection.top_center)
+            cv2.drawMarker(canvas, top, (0, 0, 0), cv2.MARKER_CROSS, 20 * scale, 3 * scale)
+            cv2.drawMarker(canvas, top, LIFTED_GRID_BGR, cv2.MARKER_CROSS, 20 * scale, scale)
+    # Every other line, and y along the near edge: the far edge is where the
+    # perspective packs the lines too close for a label each.
+    for x in xs[::2]:
         _label(canvas, mapping.ground_to_pixel((x, ys[-1])), f"x={x:.0f}", scale)
-    for y in ys:
-        _label(canvas, mapping.ground_to_pixel((xs[0], y)), f"y={y:.0f}", scale)
+    for y in ys[1:-1:2]:          # not the corner: x has that one
+        _label(canvas, mapping.ground_to_pixel((xs[-1], y)), f"y={y:.0f}", scale)
     return canvas
 
 
-def _grid_lines(mapping: DeskMapping) -> Tuple[np.ndarray, np.ndarray]:
-    ground = np.array([obs.ground for obs in mapping.observations])
-    spans = []
-    for axis in (0, 1):
-        low = np.floor((ground[:, axis].min() - GRID_MARGIN_MM) / GRID_STEP_MM) * GRID_STEP_MM
-        high = np.ceil((ground[:, axis].max() + GRID_MARGIN_MM) / GRID_STEP_MM) * GRID_STEP_MM
-        spans.append(np.arange(low, high + GRID_STEP_MM / 2, GRID_STEP_MM))
-    return spans[0], spans[1]
+def _grid_lines() -> Tuple[np.ndarray, np.ndarray]:
+    return tuple(np.arange(low, high + GRID_STEP_MM / 2, GRID_STEP_MM)
+                 for low, high in (GRID_X_MM, GRID_Y_MM))
 
 
-def _polyline(canvas: np.ndarray, points: Sequence[Tuple[float, float]], scale: int) -> None:
+def _polyline(canvas: np.ndarray, points: Sequence[Tuple[float, float]], colour: Tuple[int, int, int],
+              thickness: int) -> None:
     # Clipped before the cast: a grid line that runs off toward the horizon can
     # come back as a number int32 cannot hold, and OpenCV clips the rest itself.
     line = np.clip(np.array(points), -1e6, 1e6).astype(np.int32).reshape(-1, 1, 2)
-    cv2.polylines(canvas, [line], False, GRID_BGR, scale, cv2.LINE_AA)
+    cv2.polylines(canvas, [line], False, colour, thickness, cv2.LINE_AA)
 
 
-def _label(canvas: np.ndarray, pixel: Tuple[float, float], text: str, scale: int) -> None:
+def _label(canvas: np.ndarray, pixel: Tuple[float, float], text: str, scale: int,
+           colour: Tuple[int, int, int] = GRID_BGR) -> None:
     position = (int(np.clip(pixel[0], -1e6, 1e6)) + 4, int(np.clip(pixel[1], -1e6, 1e6)) - 4)
-    for colour, thickness in (((0, 0, 0), 3 * scale), (GRID_BGR, scale)):
-        cv2.putText(canvas, text, position, cv2.FONT_HERSHEY_SIMPLEX, 0.5 * scale, colour,
+    for ink, thickness in (((0, 0, 0), 3 * scale), (colour, scale)):
+        cv2.putText(canvas, text, position, cv2.FONT_HERSHEY_SIMPLEX, 0.5 * scale, ink,
                     thickness, cv2.LINE_AA)
 
 

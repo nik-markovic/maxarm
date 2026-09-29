@@ -49,12 +49,17 @@ EXPECTED_CUBES = {"green": (100.0, -254.0),
 PLAUSIBLE_DESK_MM = (20.0, 70.0)
 
 
-def load_scene():
-    """Import `calibration/arm.py` the way `calibrate.py` will: as a module."""
-    spec = importlib.util.spec_from_file_location("arm_scene", SCENE_PATH)
+def load_module(name: str, path: Path):
+    """Import a file whose name has a hyphen in it, or that is not on the path."""
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_scene():
+    """Import `calibration/arm.py` the way `calibrate.py` will: as a module."""
+    return load_module("arm_scene", SCENE_PATH)
 
 
 scene = load_scene()

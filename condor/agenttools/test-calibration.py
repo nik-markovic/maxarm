@@ -11,7 +11,8 @@ perspective transform -- project the arm's coordinates through it, and ask the
 fit to find its way back; the answer is known exactly, which is the only way to
 tell a mapping that is right from one that merely reproduces its own input. Some
 run the real detector over `files/cubes1.jpeg` and the real solver over what it
-finds, which is what catches the two files drifting apart. The last few stand a
+finds, which is what catches the two files drifting apart; the detector on its
+own is `test-detect.py`. The last few stand a
 fake V4L2 device in front of the capture code, which is the one part of this that
 cannot be checked against a camera that is not plugged in.
 
@@ -118,6 +119,32 @@ def test_affine_cannot_follow_the_perspective() -> bool:
     error = float(np.hypot(*(np.array(mapping.pixel_to_ground(project(*held))) - np.array(held))))
     return check("an affine fit misses a fourth point by millimetres it cannot see",
                  error > 1.0, f"{error:.1f} mm away from the three it was fitted through")
+
+
+def test_three_cubes_with_their_tops_are_a_camera() -> bool:
+    """Base and top centres are points at two heights, which is enough for a camera.
+
+    Six points, eleven freedoms: the fit is a full 3x4 projection, so three cubes
+    give a perspective mapping -- the fourth point that an affine fit misses by
+    millimetres is exact here, on the desk and a tile's height above it.
+    """
+    points = [(-100.0, -254.0, 36.0), (100.0, -254.0, 38.0), (0.0, -90.0, 48.0)]
+    mapping = fit(synthetic(points, lift_mm=CUBE_SIZE_MM))
+    is_ok = check("three cubes and their tops fit a camera", mapping.model == "camera")
+    worst = 0.0
+    for x, y in ((120.0, -180.0), (-80.0, -120.0), (0.0, -300.0)):
+        for height in (0.0, 4.0, CUBE_SIZE_MM):
+            found = mapping.pixel_to_ground(project(x, y, height), height)
+            worst = max(worst, float(np.hypot(found[0] - x, found[1] - y)))
+    is_ok &= check("points it never saw come back where they are, at any height",
+                   worst < 1e-6, f"worst {worst:.1e} mm")
+    in_a_line = [(0.0, -100.0, 48.0), (0.0, -180.0, 42.0), (0.0, -260.0, 36.0)]
+    try:
+        fit(synthetic(in_a_line, lift_mm=CUBE_SIZE_MM))
+        is_ok &= check("three cubes in a line are refused, tops or not", False, "it fitted")
+    except (ValueError, np.linalg.LinAlgError) as error:
+        is_ok &= check("three cubes in a line are refused, tops or not", True, str(error))
+    return is_ok
 
 
 def test_four_points_recover_the_camera() -> bool:
@@ -392,14 +419,18 @@ def test_collinear_cubes() -> bool:
 
 
 def test_detector_still_finds_the_fixture() -> bool:
-    """The real detector over the real frame, and the pixels it has always given.
+    """The real detector over the real frame, and the pixels it gives.
 
-    These are `work/STATUS-condor-prototype.md`'s numbers. They are here to catch
-    the detector moving, not because they are right to the pixel.
+    Re-pinned when the detector learned perspective (`work/STATUS-condor.md`
+    §10.6): the prototype's numbers were blue (1303.4, 192.4), green (1507.0,
+    636.8) and red (407.5, 382.0) -- the midpoint of two corners rather than where
+    the base's diagonals cross, and red's lower-left corner 25 px up its face.
+    They are here to catch the detector moving; `test-detect.py` is where it is
+    checked against a camera that knows the answer.
     """
     image = cv2.imread(str(ROOT / "files" / "cubes1.jpeg"))
     detections = {det.colour: det for det in detect.find_cubes(image, ["red", "green", "blue"])}
-    expected = {"blue": (1303.4, 192.4), "green": (1507.0, 636.8), "red": (407.5, 382.0)}
+    expected = {"blue": (1299.5, 192.2), "green": (1497.3, 631.3), "red": (422.6, 388.7)}
     is_ok = check("all three cubes are found in cubes1.jpeg", len(detections) == 3)
     for colour, pixel in expected.items():
         if colour not in detections:
@@ -451,8 +482,9 @@ def test_cube_edges_are_40_mm_under_a_true_mapping() -> bool:
     corners = [project(-half_diagonal, -200.0), project(0.0, -200.0 - half_diagonal),
                project(half_diagonal, -200.0)]
     detection = detect.CubeDetection(
-        colour="red", base_center=project(0.0, -200.0), base_corners=tuple(corners),
-        top_corners=tuple(corners), silhouette_center=corners[0], hexagon=list(corners))
+        colour="red", base_corners=tuple(corners), top_corners=tuple(corners),
+        far_base=project(0.0, -200.0 + half_diagonal), near_top=corners[1],
+        silhouette_center=corners[0], hexagon=list(corners))
     lengths = calibrate.edge_lengths_mm(mapping, detection)
     return check("a 40 mm base measures 40 mm through a mapping that is right",
                  all(abs(length - CUBE_SIZE_MM) < 1e-4 for length in lengths),
@@ -615,6 +647,7 @@ class FakeCamera:
 TESTS = [
     test_three_points_are_affine_and_exact,
     test_affine_cannot_follow_the_perspective,
+    test_three_cubes_with_their_tops_are_a_camera,
     test_four_points_recover_the_camera,
     test_round_trip_and_hull,
     test_aacs_zero_plane,

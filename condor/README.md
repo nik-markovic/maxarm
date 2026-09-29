@@ -26,8 +26,8 @@ against a live camera yet.**
 puts them on the desk at coordinates it then exports as `CUBE_POSITIONS`.
 [`calibration/calibrate.py`](calibration/calibrate.py) photographs the result and solves the
 pixel-to-arm mapping into `config/`. Read [`calibration/README.md`](calibration/README.md)
-before running either — in particular, three cubes give an affine fit where the camera's
-perspective wants four point pairs, and that section says what to do about it.
+before running either — in particular, how three cubes and their tops make a full camera fit,
+and what it takes to get a held-out error in millimetres.
 
 The output is two mappings, and the app will want both. **`DeskPlane` is AACS ↔ board z** —
 height above the desk to the z `move_to()` takes — and it has no camera in it at all, so it

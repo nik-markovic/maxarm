@@ -5,7 +5,7 @@ Output of `calibration/calibrate.py`, read by the demo.
 | file                     | what it is                                                       |
 | ------------------------ | ---------------------------------------------------------------- |
 | `calibration.json`       | The mapping. `DeskMapping.load()` reads it.                      |
-| `calibration-frame.jpg`  | The snapshot it was solved from, so it can be re-fitted offline. |
+| `calibration-frame.png`  | The snapshot it was solved from, lossless, so a re-fit matches.  |
 | `calibration-check.jpg`  | The same frame with the detections and the arm's grid drawn on.  |
 
 Nothing here is hand-written. If a file in this directory is edited by hand, the calibration
@@ -23,4 +23,6 @@ Anything bumped means recalibrating — see `work/STATUS-condor-prototype.md`.
 
 **Look at `calibration-check.jpg` after every calibration.** The magenta wireframes say the
 detector found the right things; the cyan grid is where the mapping thinks the arm's
-millimetres are, and it is the fastest way to see a fit that has gone wrong.
+millimetres are on the desk, and the heavier yellow one the same millimetres at AACS z=40,
+where each cube's yellow top-centre cross should sit on its own coordinate. It is the fastest
+way to see a fit that has gone wrong.
