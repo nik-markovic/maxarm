@@ -6,6 +6,9 @@ read with confidence, and where a scene's orientations were confirmed against
 the real tiles by the owner, each tile's baseline must be within a few degrees.
 Positions are matched loosely: a recalibration moves them by millimetres.
 
+And every scene that breaks the rule -- tiles touching along their edges -- must
+be refused with `UnplacedLetters`, naming the letters it could not place.
+
     ./agenttools/test-tiles.py
 """
 
@@ -37,6 +40,8 @@ ORIENTATIONS = {
 }
 SAME_PLACE_MM = 6.0
 SAME_TURN_DEG = 5.0
+# Tiles snug along their edges (a D, E, N clump), on low and high flashlight: must be refused.
+REFUSED = ("tiles-2-low.png", "tiles-2-high.png")
 
 
 def main() -> int:
@@ -46,11 +51,15 @@ def main() -> int:
     for name, letters in SCENES.items():
         frame = cv2.imread(str(ROOT / "files" / name))
         started = time.monotonic()
-        tiles = scene.find_tiles(frame, mapping, reader)
+        problems = []
+        try:
+            tiles = scene.find_tiles(frame, mapping, reader)
+        except scene.UnplacedLetters as refused:
+            tiles = refused.tiles
+            problems.append(f"refused: {refused}")
         elapsed = time.monotonic() - started
         found = "".join(sorted(tile.letter for tile in tiles))
         expected = "".join(sorted(letters))
-        problems = []
         if found != expected:
             problems.append(f"read {found}, desk has {expected}")
         for tile in tiles:
@@ -68,6 +77,14 @@ def main() -> int:
         print(f"{'FAIL' if problems else 'ok  '} {name}: {len(tiles)} tiles in {elapsed:.1f} s")
         for problem in problems:
             print(f"       {problem}")
+    for name in REFUSED:
+        try:
+            tiles = scene.find_tiles(cv2.imread(str(ROOT / "files" / name)), mapping, reader)
+        except scene.UnplacedLetters as refused:
+            print(f"ok   {name}: refused, {''.join(letter.letter for letter in refused.letters)} unplaced")
+            continue
+        failures += 1
+        print(f"FAIL {name}: {len(tiles)} tiles and no refusal; its tiles touch along their edges")
     return 1 if failures else 0
 
 
