@@ -198,6 +198,10 @@ class DeskMapping:
     observations: Tuple[Observation, ...]
     lifted: Optional[np.ndarray] = None     # the same, for the plane at lift_mm
     lift_mm: float = 0.0                    # the height that second plane is at
+    # From a grid-paper refinement (`refine.py`): a camera in true desk
+    # millimetres, and the correction from those to where the arm goes.
+    desk_camera: Optional[np.ndarray] = None    # 3x4: desk (x, y, height, 1) -> pixel
+    desk_to_arm: Optional[np.ndarray] = None    # 3x3 affine: desk (x, y, 1) -> AACS
 
     def pixel_to_aacs(self, pixel: Pixel, seen_at_mm: float = 0.0) -> Position:
         """Where the thing at this pixel is, given how high off the desk it is.
@@ -275,12 +279,16 @@ class DeskMapping:
         return float(np.hypot(lifted[0] - base[0], lifted[1] - base[1]))
 
     def camera(self) -> np.ndarray:
-        """The 3x4 projection, AACS (x, y, height, 1) -> homogeneous pixel.
+        """The 3x4 projection, (x, y, height, 1) -> homogeneous pixel. What vision uses.
 
-        Not stored, and it does not need to be: both planes are exact inverses of
+        With a grid refinement it is the desk camera, in true millimetres: square
+        pixels, the paper's own squares. Without one it is condor's, in AACS, and
+        not stored because it need not be: both planes are exact inverses of
         `_plane_of()` at 0 and `lift_mm`, which share their x and y columns, so the
         height column is their third columns' difference over `lift_mm`.
         """
+        if self.desk_camera is not None:
+            return self.desk_camera
         if self.lifted is None or not self.lift_mm:
             raise ValueError("this calibration solved only the desk plane; a camera needs the "
                              "cube tops as well. Re-run calibrate.py")
@@ -295,15 +303,32 @@ class DeskMapping:
         return centre[:3] / centre[3]
 
     def world_to_pixel(self, points: np.ndarray) -> np.ndarray:
-        """AACS (x, y, height) rows to pixel rows."""
+        """(x, y, height) rows, in the camera's frame, to pixel rows."""
         homogeneous = np.column_stack((points, np.ones(len(points)))) @ self.camera().T
         return homogeneous[:, :2] / homogeneous[:, 2:]
 
     def plane_to_pixel(self, height_mm: float) -> np.ndarray:
         """The 3x3 homography taking (x, y, 1) on the plane `height_mm` up to a pixel."""
-        if not height_mm:
+        if self.desk_camera is None and not height_mm:
             return np.linalg.inv(self.matrix)
         return _plane_of(self.camera(), height_mm)
+
+    def to_arm(self, points: np.ndarray) -> np.ndarray:
+        """Desk millimetres to AACS x, y: where the arm must be sent to reach them.
+
+        The identity without a grid refinement, where the two are one frame.
+        """
+        points = np.atleast_2d(points)
+        if self.desk_to_arm is None:
+            return points.copy()
+        mapped = np.column_stack((points, np.ones(len(points)))) @ self.desk_to_arm.T
+        return mapped[:, :2] / mapped[:, 2:]
+
+    def direction_to_arm(self, angle_deg: float, at: Tuple[float, float]) -> float:
+        """A direction on the desk, as the arm's frame has it there."""
+        step = np.array([np.cos(np.radians(angle_deg)), np.sin(np.radians(angle_deg))])
+        start, end = self.to_arm(np.array([at, np.asarray(at) + step]))
+        return float(np.degrees(np.arctan2(*(end - start)[::-1])))
 
     def ground_to_pixel(self, ground: Tuple[float, float], height_mm: float = 0.0) -> Pixel:
         """The way back, for drawing over a frame, at any height the camera allows."""
@@ -395,6 +420,8 @@ class DeskMapping:
             "points": [{"colour": obs.colour, "pixel": list(obs.pixel), "arm": list(obs.arm),
                         "height_mm": obs.height_mm}
                        for obs in self.observations],
+            "desk_camera": None if self.desk_camera is None else self.desk_camera.tolist(),
+            "desk_to_arm": None if self.desk_to_arm is None else self.desk_to_arm.tolist(),
         }
 
     @classmethod
@@ -415,6 +442,10 @@ class DeskMapping:
             ),
             lifted=None if lifted is None else np.array(lifted, dtype=np.float64),
             lift_mm=data.get("lift_mm", 0.0),
+            desk_camera=None if data.get("desk_camera") is None
+            else np.array(data["desk_camera"], dtype=np.float64),
+            desk_to_arm=None if data.get("desk_to_arm") is None
+            else np.array(data["desk_to_arm"], dtype=np.float64),
         )
 
 

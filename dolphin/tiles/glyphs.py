@@ -34,9 +34,11 @@ STROKE_KERNEL_MM = 4.0
 # A 1.5 mm gap keeps a stroke's own blur out of the ring; 5 mm stays on the face.
 RING_MM = (1.5, 5.0)
 CUT_MULTIPLES = (1.0, 1.5, 2.0, 2.5, 3.0)
-# The ring must be this much quieter than the strokes. Glyphs measured 0.012-0.06
-# and the nearest texture 0.11 on the first scene -- re-check on every new desk.
-MAX_RING_TO_STROKE = 0.1
+# The ring must be this much quieter than the strokes. Loose on purpose: the
+# reader decides what is a letter. Lone tiles measured 0.006-0.07, but a
+# neighbour's edge inside the ring puts touching tiles at 0.11, and wood grain
+# starts near 0.1 -- the reader turns that away, and nothing false got through.
+MAX_RING_TO_STROKE = 0.2
 # Two candidates closer than this are the same letter found at two cuts.
 SAME_GLYPH_MM = 6.0
 # Strokes are about 1 mm wide; three pixels across them is enough to find them,

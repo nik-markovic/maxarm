@@ -12,14 +12,22 @@ for tile in tiles:
     print(tile.letter, tile.centre_mm, tile.baseline_deg)
 ```
 
+Tiles may touch at their corners but not along their edges. If a letter can be read that no tile
+could be placed on, `find_tiles` raises `scene.UnplacedLetters`, carrying the tiles it did place
+and where the others are: ask the user to spread the tiles, and look again.
+
 ```
 ./agenttools/find-tiles.py --live tiles-2    # snapshot, find, draw -> files/tiles-2-found.jpg
 ./agenttools/find-tiles.py files/tiles-1.png # the same on a saved frame
 ./agenttools/test-tiles.py                   # every saved scene whose letters are known
 ./agenttools/stress-tiles.py files/tiles-1.png  # the scene on synthetic desks, at lower resolutions
 ./agenttools/dump-crops.py files/tiles-1.png # what the reader sees, per tile and turn
+./agenttools/measure-skew.py files/tiles-1.png  # how square the tiles come out: checks a calibration
+./calibration/refine.py files/grid-1.png     # recalibrate from grid paper -> config/calibration.json
 ../.venv/bin/python training/train.py        # re-train the reader (host only, ~15 min)
 ```
+
+`files/work-area.jpg` shows where the finder looks; tiles outside that outline are not searched.
 
 ## How it works
 
@@ -30,18 +38,20 @@ for tile in tiles:
 | 3    | `tiles/pose.py`    | The 17.5 x 20 mm box, fitted to the edges facing away from the camera |
 | 4    | `tiles/crop.py`    | The top face square-on from the original frame, four quarter turns  |
 | 5    | `tiles/read.py`    | A 289 KB int8 network: which letter, and which turn is upright      |
-| 6    | `tiles/scene.py`   | The call; refits along the letter, drops non-letters and overlaps   |
+| 6    | `tiles/scene.py`   | The call; refits along the letter, drops non-letters and overlaps, refuses a scene with letters it could not place |
 
-The calibration is condor's, unchanged: `config/` is a copy. The full 3x4 camera is recovered from
-the two planes it stores (`calibration/mapping.py`, `DeskMapping.camera()`), so nothing had to be
-re-run.
+The calibration starts from condor's and is refined with a sheet of 5 mm grid paper laid flat in
+the work area (`calibration/refine.py`). condor's camera had non-square pixels, which skewed every
+tile; the grid gives a square-pixel camera in true millimetres. What the arm itself gets wrong --
+its x travels about 7% short -- is kept apart as `desk_to_arm`, fitted through condor's three
+cubes, and only the tile positions handed to the arm go through it.
 
 | directory      | holds                                                             |
 | -------------- | ----------------------------------------------------------------- |
 | `tiles/`       | The tile finder                                                    |
-| `calibration/` | condor's mapping, extended to any height; the snapshot code        |
+| `calibration/` | condor's mapping, extended; grid-paper calibration; snapshot code  |
 | `training/`    | Synthetic tile renderer and the reader's training. Host only       |
-| `config/`      | condor's calibration output, copied                                |
+| `config/`      | The grid-refined calibration, and condor's original                |
 | `files/`       | Scenes; `reader.tflite`, and `reader.keras`, its float original     |
 | `agenttools/`  | Tools for looking at what the finder does                          |
 

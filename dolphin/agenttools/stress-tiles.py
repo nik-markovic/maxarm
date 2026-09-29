@@ -36,26 +36,41 @@ def main() -> int:
     frame = cv2.imread(sys.argv[1])
     mapping = DeskMapping.load(ROOT / "config" / "calibration.json")
     reader = read.Reader()
-    truth = scene.find_tiles(frame, mapping, reader)
+    truth, _ = find(frame, mapping, reader)
     print(f"original: {len(truth)} tiles, {''.join(sorted(t.letter for t in truth))}")
     for name, image in desks(frame, mapping, truth):
-        report(name, scene.find_tiles(image, mapping, reader), truth, 0.0)
+        found, unplaced = find(image, mapping, reader)
+        report(name, found, truth, 0.0, unplaced)
+        missing = [t for t in truth if all(np.hypot(*np.subtract(t.centre_mm, f.centre_mm)) > SAME_TILE_MM
+                                           for f in found)]
+        if missing:
+            print(f"               missing: {[(t.letter, tuple(np.round(t.centre_mm))) for t in missing]}")
     for scale in (0.5, 0.35, 0.25):
         small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
         shrink = np.diag([1 / scale, 1 / scale, 1.0])
-        scaled = dataclasses.replace(mapping, matrix=mapping.matrix @ shrink,
-                                     lifted=mapping.lifted @ shrink)
+        scaled = dataclasses.replace(
+            mapping, matrix=mapping.matrix @ shrink, lifted=mapping.lifted @ shrink,
+            desk_camera=None if mapping.desk_camera is None
+            else np.diag([scale, scale, 1.0]) @ mapping.desk_camera)
         started = time.monotonic()
-        found = scene.find_tiles(small, scaled, reader)
-        report(f"{small.shape[1]}x{small.shape[0]}", found, truth, time.monotonic() - started)
+        found, unplaced = find(small, scaled, reader)
+        report(f"{small.shape[1]}x{small.shape[0]}", found, truth, time.monotonic() - started, unplaced)
     return 0
+
+
+def find(image, mapping, reader):
+    """The tiles, and the letters it could not place if it refused the scene."""
+    try:
+        return scene.find_tiles(image, mapping, reader), []
+    except scene.UnplacedLetters as refused:
+        return refused.tiles, refused.letters
 
 
 def desks(frame, mapping, tiles):
     silhouettes = np.zeros(frame.shape[:2], np.uint8)
     for tile in tiles:
-        box = np.vstack((np.column_stack((tile.corners_mm, np.full(4, scene.TILE_HEIGHT_MM))),
-                         np.column_stack((tile.corners_mm, np.zeros(4)))))
+        box = np.vstack((np.column_stack((tile.desk_corners_mm, np.full(4, scene.TILE_HEIGHT_MM))),
+                         np.column_stack((tile.desk_corners_mm, np.zeros(4)))))
         hull = cv2.convexHull(mapping.world_to_pixel(box).astype(np.float32)).astype(np.int32)
         cv2.fillPoly(silhouettes, [hull], 255)
     silhouettes = cv2.dilate(silhouettes, np.ones((9, 9), np.uint8))
@@ -70,7 +85,7 @@ def desks(frame, mapping, tiles):
         yield name, np.clip(keep * frame + (1 - keep) * desk, 0, 255).astype(np.uint8)
 
 
-def report(name, found, truth, elapsed):
+def report(name, found, truth, elapsed, unplaced=()):
     matched, wrong, false, moved, turned = 0, [], [], [], []
     for tile in found:
         nearest = min(truth, key=lambda t: np.hypot(*np.subtract(t.centre_mm, tile.centre_mm)))
@@ -84,9 +99,10 @@ def report(name, found, truth, elapsed):
         if nearest.letter != tile.letter:
             wrong.append(f"{nearest.letter}->{tile.letter}")
     timing = f", {elapsed:.2f} s" if elapsed else ""
+    refused = f"; REFUSED, unplaced {[letter.letter for letter in unplaced]}" if unplaced else ""
     print(f"{name:14s} {matched}/{len(truth)} tiles, {len(wrong)} misread {wrong or ''}, "
           f"{len(false)} false {false or ''}; centre max {max(moved, default=0):.1f} mm, "
-          f"turn max {max(turned, default=0):.0f} deg{timing}")
+          f"turn max {max(turned, default=0):.0f} deg{timing}{refused}")
 
 
 if __name__ == "__main__":

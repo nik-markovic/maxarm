@@ -17,7 +17,10 @@ What is used:
   width is as good as the thickness is.
 
 An edge is scored as the colour gradient across it, in either direction, so
-the desk may be lighter or darker than the tile.
+the desk may be lighter or darker than the tile. A side counts by its median
+along its length, not its mean: a tile's edge runs the whole side, a letter's
+stroke half of it at most. Where two tiles are snug, the seam between their
+faces barely shows, and with a mean the side slid onto the neighbour's letter.
 """
 
 from __future__ import annotations
@@ -126,7 +129,7 @@ class EdgeField:
 
     def score(self, centre: np.ndarray, angle: float) -> float:
         points, normals, weights = self.outline(centre, angle)
-        return float((self.strength(points, normals) * weights).sum() / weights.sum())
+        return float(_outline_score(self.strength(points, normals), weights))
 
     def background(self, centre: np.ndarray) -> float:
         """The median gradient around a tile: the desk's own texture there."""
@@ -177,10 +180,17 @@ def _grid_search(field: EdgeField, starts, reach_mm: float, step_mm: float, is_c
         shifted = (points[None, :, :] + grid[:, None, :]).reshape(-1, 2)
         strength = field.strength(shifted, np.tile(normals, (len(grid), 1)),
                                   is_exact=not is_coarse).reshape(len(grid), -1)
-        scores = (strength * weights).sum(axis=1) / weights.sum()
+        scores = _outline_score(strength, weights)
         index = int(np.argmax(scores))
         results.append((float(scores[index]), np.asarray(centre) + grid[index], angle))
     return sorted(results, key=lambda result: -result[0])
+
+
+def _outline_score(strength: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    """Each side's median strength, weighted. `strength` is (..., 4 sides x samples), in outline order."""
+    per_side = np.median(strength.reshape(strength.shape[:-1] + (4, -1)), axis=-1)
+    side_weights = weights.reshape(4, -1)[:, 0]
+    return (per_side * side_weights).sum(axis=-1) / side_weights.sum()
 
 
 def _refine(field: EdgeField, centre: np.ndarray, angle: float) -> Tuple[np.ndarray, float]:
