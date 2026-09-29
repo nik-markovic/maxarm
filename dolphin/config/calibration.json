@@ -1,0 +1,143 @@
+{
+  "about": "camera pixels (CPCS) to arm millimetres (AACS). [x, y, w] = pixel_to_arm @ [px, py, 1]; x, y = x/w, y/w. AACS z is height above the desk, 0 = cup snug on the bare surface. board z = z_aacs + aacs_zero_plane(x, y), and board z is what MaxArm.move_to takes.",
+  "height": "a pixel is a ray, so a feature h mm above the desk lands elsewhere: solve it on both planes and interpolate, ground + (h / lift_mm) * (lifted - ground). Exact, because a ray is straight.",
+  "model": "camera, refined with tiles",
+  "pixel_to_arm": [
+    [
+      1.9470120847021502e-05,
+      -0.0007128187158922021,
+      0.6146261809315836
+    ],
+    [
+      0.00047233719296816865,
+      0.0002898413876213607,
+      -0.1489784397436331
+    ],
+    [
+      2.137147365993267e-07,
+      -1.5973344604725588e-06,
+      -0.002375171219752986
+    ]
+  ],
+  "pixel_to_arm_lifted": [
+    [
+      2.9877258827529967e-05,
+      -0.0007906031513301996,
+      0.4989638966893662
+    ],
+    [
+      0.0004630966256823324,
+      0.00035890670709745354,
+      -0.04628112546035476
+    ],
+    [
+      2.663973680050678e-07,
+      -1.9910919708427124e-06,
+      -0.0029606725842675242
+    ]
+  ],
+  "lift_mm": 40.0,
+  "aacs_zero_plane": {
+    "z0": 54.03658536585368,
+    "dz_dx": 0.010000000000000023,
+    "dz_dy": 0.06707317073170736
+  },
+  "points": [
+    {
+      "colour": "blue",
+      "pixel": [
+        1545.6341451390028,
+        509.94996056955904
+      ],
+      "arm": [
+        -100.0,
+        -254.0,
+        36.0
+      ],
+      "height_mm": 0.0
+    },
+    {
+      "colour": "blue",
+      "pixel": [
+        1593.5213515806531,
+        310.6532410537299
+      ],
+      "arm": [
+        -100.0,
+        -254.0,
+        36.0
+      ],
+      "height_mm": 40.0
+    },
+    {
+      "colour": "green",
+      "pixel": [
+        1768.8283469049934,
+        1504.9933910686252
+      ],
+      "arm": [
+        100.0,
+        -254.0,
+        38.0
+      ],
+      "height_mm": 0.0
+    },
+    {
+      "colour": "green",
+      "pixel": [
+        1881.3255224018985,
+        1337.182759157386
+      ],
+      "arm": [
+        100.0,
+        -254.0,
+        38.0
+      ],
+      "height_mm": 40.0
+    },
+    {
+      "colour": "red",
+      "pixel": [
+        466.23136733083646,
+        867.7584904431541
+      ],
+      "arm": [
+        0.0,
+        -90.0,
+        48.0
+      ],
+      "height_mm": 0.0
+    },
+    {
+      "colour": "red",
+      "pixel": [
+        391.2090366840659,
+        648.4087258272322
+      ],
+      "arm": [
+        0.0,
+        -90.0,
+        48.0
+      ],
+      "height_mm": 40.0
+    }
+  ],
+  "camera": {
+    "focal_px": 1952.5238586946052,
+    "principal_point": [
+      1272.4480214436903,
+      1070.6203129985745
+    ],
+    "rotation_vector": [
+      -0.46000512358065737,
+      -0.6111944519313641,
+      -1.5162130393175617
+    ],
+    "translation_mm": [
+      200.4468080397208,
+      28.947626583201586,
+      -263.97648632230266
+    ],
+    "refined_with": "tiles-1.png"
+  }
+}
