@@ -28,11 +28,16 @@ import detect                                                         # noqa: E4
 
 HOVER_Z = 80.0        # AACS: clear above the cube
 LIFT_Z = 90.0         # AACS: where it ends up holding it
-OVERLAY = Path("/tmp/pickup-red-cube.jpg")
+OVERLAY =  Path(ROOT / "../work/pickup-red-cube.jpg")
 
 
 def main() -> int:
     mapping = DeskMapping.load(ROOT / "config" / "calibration.json")
+
+    arm = MaxArm()
+    arm.connect()
+    Stop(arm)
+    arm.home()
 
     image, source = calibrate.capture(calibrate.DEFAULT_DEVICE)
     found = detect.find_cubes(image, ["red"])
@@ -47,7 +52,7 @@ def main() -> int:
     # cup grips its top face, which is a cube-height up.
     x, y, _ = mapping.pixel_to_aacs(pixel)
     print(f"red cube at pixel ({pixel[0]:.0f}, {pixel[1]:.0f}) from {source}")
-    print(f"           -> AACS ({x:.0f}, {y:.0f}), gripping at AACS z {CUBE_SIZE_MM:.0f}")
+    print(f"           -> AACS ({x:.0f}, {y:.0f}), gripping at AACS z {(CUBE_SIZE_MM-2.0):.0f}")
     print(f"           -> board {mapping.pixel_to_board(pixel, CUBE_SIZE_MM)}")
     if not mapping.is_inside(pixel):
         print("   note: outside the patch the calibration was fitted on")
@@ -56,14 +61,17 @@ def main() -> int:
     arm = MaxArm()
     arm.connect()
     Stop(arm)
-    try:
-        arm.home()
+    try:        
         arm.move_to(*mapping.pixel_to_board(pixel, HOVER_Z))
-        arm.move_to(*mapping.pixel_to_board(pixel, CUBE_SIZE_MM))
+        arm.move_to(*mapping.pixel_to_board(pixel, CUBE_SIZE_MM-2.0))
         arm.grip()
         time.sleep(1.0)
         print(arm.move_to(*mapping.pixel_to_board(pixel, LIFT_Z)))
-        print("holding it. release with agenttools/pulse-suction.py")
+        arm.move_to(*mapping.pixel_to_board(pixel, CUBE_SIZE_MM))        
+        arm.release()
+        time.sleep(1.0)
+        arm.home()
+        print("Done.")
     finally:
         arm.disconnect()
     return 0

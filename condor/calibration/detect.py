@@ -235,7 +235,13 @@ def _silhouette(image_lab: np.ndarray, blob: np.ndarray) -> np.ndarray:
     towards_cube = cube - desk
     along = (chroma - desk) @ towards_cube / (towards_cube @ towards_cube)
 
-    mask = (along > 0.5).astype(np.uint8) * 255
+    # Where to cut between desk and cube is read off this frame's own histogram
+    # (Otsu), not fixed halfway: a face catching glare off its own surface is
+    # pale -- 0.4 of the way to the cube's colour on the owner's desk -- while
+    # the desk's reflection of the cube stays under 0.25.
+    scaled = (np.clip(along, 0.0, 1.0) * 255).astype(np.uint8)
+    cut, _ = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    mask = (scaled > cut).astype(np.uint8) * 255
     # Scaled to the cube: this is what cuts off thin shadow spikes and fills the
     # speckle in a washed-out face, on a near cube and a far one alike.
     kernel = np.ones((max(3, size // 30) | 1,) * 2, np.uint8)
