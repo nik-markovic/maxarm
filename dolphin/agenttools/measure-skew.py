@@ -7,8 +7,8 @@ condor's camera gave skews of -2.2 +- 2.1 degrees, up to 5; the grid camera
 -0.1 +- 0.6, which is this method's own floor (perfect boxes rendered through
 the camera come out within 0.8 degrees, and 0.3 mm large from edge blur).
 
-    ./agenttools/measure-skew.py files/tiles-1.png
-    ./agenttools/measure-skew.py files/tiles-1.png --config config/calibration-condor.json
+    ./agenttools/measure-skew.py training/tiles/baseline/tiles-1.png
+    ./agenttools/measure-skew.py training/tiles/baseline/tiles-1.png --config config/calibration-condor.json
 """
 
 import argparse

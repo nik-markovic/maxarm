@@ -54,6 +54,11 @@ MAX_OVERLAP = 0.25
 # A letter no tile was placed on is read from a crop on the letter itself, turned
 # through a quarter turn in these steps: the reader was trained to +-5 degrees.
 LETTER_SEARCH_STEP_DEG = 10.0
+# Only outside every placed tile by this much. A real letter's own tile cannot
+# overlap a placed one, so the letter -- within 1.7 mm of its tile's centre, at
+# least 8.75 mm from its edge -- is 7 mm or more outside it. Nearer is the placed
+# tile's own rim or shadow: on white paper those read as a Z at 1-3 mm out.
+LETTER_CLEARANCE_MM = 5.0
 
 
 @dataclass(frozen=True)
@@ -127,12 +132,13 @@ def find_tiles(frame: np.ndarray, mapping: DeskMapping, reader: read.Reader) -> 
 
 def _unplaced_letters(frame: np.ndarray, mapping: DeskMapping, reader: read.Reader, view: topdown.TopDown,
                       found: List[glyphs.Glyph], tiles: List[Tile]) -> List[Letter]:
-    """Glyphs outside every placed tile that read as a letter on a crop centred on themselves."""
+    """Glyphs clear of every placed tile that read as a letter on a crop centred on themselves."""
     faces = [tile.desk_corners_mm.astype(np.float32) for tile in tiles]
     letters = []
     for glyph in found:
         centre = view.to_ground(glyph.centre)
-        if any(cv2.pointPolygonTest(face, tuple(float(c) for c in centre), False) >= 0 for face in faces):
+        if any(cv2.pointPolygonTest(face, tuple(float(c) for c in centre), True) > -LETTER_CLEARANCE_MM
+               for face in faces):
             continue
         best = max((reader.read(_faces_at(frame, mapping, centre, angle))
                     for angle in np.arange(0.0, 90.0, LETTER_SEARCH_STEP_DEG)),

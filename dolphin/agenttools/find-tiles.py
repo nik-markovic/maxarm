@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the tile finder on a frame and draw what it found.
 
-    ./agenttools/find-tiles.py files/tiles-1.png     # -> files/tiles-1-found.jpg
+    ./agenttools/find-tiles.py training/tiles/baseline/tiles-1.png  # -> files/tiles-1-found.jpg
     ./agenttools/find-tiles.py --live NAME           # snapshot to files/NAME.png first
 
 The overlay is the camera frame with each tile's box drawn where the fit puts
@@ -62,7 +62,7 @@ def main() -> int:
         board = mapping.aacs_to_board((*tile.centre_mm, scene.TILE_HEIGHT_MM))
         print(f"  {tile.letter}       {tile.confidence:4.2f}  ({tile.centre_mm[0]:7.1f},{tile.centre_mm[1]:7.1f})"
               f"  {tile.baseline_deg:7.1f} deg  ({board[0]:6.1f},{board[1]:7.1f},{board[2]:5.1f})")
-    out = path.with_name(path.stem + "-found.jpg")
+    out = ROOT / "files" / (path.stem + "-found.jpg")
     cv2.imwrite(str(out), overlay(frame, mapping, tiles, unplaced))
     print(f"-> {out}")
     return 1 if unplaced else 0

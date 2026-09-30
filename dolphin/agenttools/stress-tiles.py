@@ -11,7 +11,7 @@
 Not a substitute for real scenes; a check that nothing leans on the tiles being
 lighter than the desk, or on this camera's 5 MP.
 
-    ./agenttools/stress-tiles.py files/tiles-1.png
+    ./agenttools/stress-tiles.py training/tiles/baseline/tiles-1.png
 """
 
 import dataclasses

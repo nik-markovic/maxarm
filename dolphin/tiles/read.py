@@ -1,6 +1,6 @@
 """Reading a tile: which letter it is, and which of its four quarter turns is upright.
 
-The reader is a small int8 network (`training/train.py`) that looks at a tile
+The reader is a small int8 network (`training/tiles/train.py`) that looks at a tile
 face and says which letter it is *if that turn is upright*, or that the turn is
 not upright. Asked about all four turns, the upright one is the turn it is
 surest is a letter. The subscript's corner and the letter's offset to the left

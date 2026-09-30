@@ -18,14 +18,25 @@ and where the others are: ask the user to spread the tiles, and look again.
 
 ```
 ./agenttools/find-tiles.py --live tiles-2    # snapshot, find, draw -> files/tiles-2-found.jpg
-./agenttools/find-tiles.py files/tiles-1.png # the same on a saved frame
-./agenttools/test-tiles.py                   # every saved scene whose letters are known
-./agenttools/stress-tiles.py files/tiles-1.png  # the scene on synthetic desks, at lower resolutions
-./agenttools/dump-crops.py files/tiles-1.png # what the reader sees, per tile and turn
-./agenttools/measure-skew.py files/tiles-1.png  # how square the tiles come out: checks a calibration
+./agenttools/find-tiles.py training/tiles/baseline/tiles-1.png  # the same on a saved frame
+./agenttools/stress-tiles.py training/tiles/baseline/tiles-1.png  # the scene on synthetic desks, at lower resolutions
+./agenttools/dump-crops.py training/tiles/baseline/tiles-1.png  # what the reader sees, per tile and turn
+./agenttools/measure-skew.py training/tiles/baseline/tiles-1.png  # how square the tiles come out: checks a calibration
 ./calibration/refine.py files/grid-1.png     # recalibrate from grid paper -> config/calibration.json
-../.venv/bin/python training/train.py        # re-train the reader (host only, ~15 min)
+./training/tiles/make-reader.sh              # rebuild the reader from scratch (host only, ~15 min)
+../.venv/bin/python training/tiles/check-reader.py  # the reader on the baseline scenes
 ```
+
+**Rebuilding the reader.** `files/reader.tflite` is trained on synthetic tiles, and
+`training/tiles/make-reader.sh` makes it again from nothing but that directory and the network: it
+checks out the fonts (`fonts.txt`: 40 families of google/fonts at one pinned commit) into
+`training/tiles/fonts/`, trains with every random choice seeded, exports the best epoch as int8,
+and checks it on `training/tiles/baseline/` -- four real scenes with known letters, and the
+calibration they were taken with, so no camera or calibration of your own is needed.
+`requirements.txt` there pins the packages. On the same machine and versions the model comes
+out byte-identical; `files/reader.json` records its hash, the fonts' hash, the versions and the
+accuracy, to compare a rebuild against. Another CPU may round differently and give a model that
+differs in its bytes -- then the test is what says whether it is as good.
 
 `files/work-area.jpg` shows where the finder looks; tiles outside that outline are not searched.
 
@@ -50,10 +61,10 @@ cubes, and only the tile positions handed to the arm go through it.
 | -------------- | ----------------------------------------------------------------- |
 | `tiles/`       | The tile finder                                                    |
 | `calibration/` | condor's mapping, extended; grid-paper calibration; snapshot code  |
-| `training/`    | Synthetic tile renderer and the reader's training. Host only       |
+| `training/`    | One directory per model; `tiles/` is the reader, with its baseline. Host only |
 | `config/`      | The grid-refined calibration, and condor's original                |
 | `files/`       | Scenes; `reader.tflite`, and `reader.keras`, its float original     |
-| `agenttools/`  | Tools for looking at what the finder does                          |
+| `agenttools/`  | Tools for looking at what the finder does. Transient: removed at release |
 
 ## Running it on the IMX95
 

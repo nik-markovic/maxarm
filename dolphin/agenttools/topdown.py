@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write the top-down view of a frame at tile height, for looking at.
 
-    ./agenttools/topdown.py files/tiles-1.png      # -> files/tiles-1-top.png
+    ./agenttools/topdown.py training/tiles/baseline/tiles-1.png  # -> files/tiles-1-top.png
 """
 
 import sys
@@ -22,7 +22,7 @@ def main() -> int:
     path = Path(sys.argv[1])
     mapping = DeskMapping.load(ROOT / "config" / "calibration.json")
     view = topdown.render(cv2.imread(str(path)), mapping, TILE_HEIGHT_MM)
-    out = path.with_name(path.stem + "-top.png")
+    out = ROOT / "files" / (path.stem + "-top.png")
     cv2.imwrite(str(out), view.image)
     print(f"{view.image.shape[1]}x{view.image.shape[0]} at {view.px_per_mm:g} px/mm -> {out}")
     return 0

@@ -38,7 +38,7 @@ TURNED = len(LETTERS)            # the class for "not upright"
 WINDOW_MM = 22.0
 SIZE = 64                        # what the reader sees
 SUPERSAMPLE = 4
-FONT_DIR = Path.home() / ".cache" / "dolphin-fonts" / "gf"
+FONT_DIR = Path(__file__).resolve().parent / "fonts"     # make-reader.sh fetches them
 
 
 @dataclass(frozen=True)
@@ -99,7 +99,7 @@ def render(face: Face, letter: str, turn: int, rng: random.Random, negative: str
         draw.rectangle([box[0] + min(0, side[0]), box[1] + min(0, side[1]),
                         box[2] + max(0, side[0]), box[3] + max(0, side[1])], fill=shade)
     draw.rectangle(box, fill=face_tone)
-    _grain(draw, box, face_tone, rng)
+    _grain(draw, box, face_tone, ink, scale, rng)
     if rng.random() < 0.25:                                 # a neighbour touching this tile
         offset = rng.choice((-1, 1)) * (face_w + rng.uniform(0.3, 1.5)) * scale
         draw.rectangle([box[0] + offset, box[1], box[2] + offset, box[3]], fill=face_tone)
@@ -196,11 +196,30 @@ def _shadow_line(draw: ImageDraw.ImageDraw, size: int, desk: int, rng: random.Ra
     draw.line(ends, fill=shade, width=width)
 
 
-def _grain(draw: ImageDraw.ImageDraw, box, tone: int, rng: random.Random) -> None:
+def _grain(draw: ImageDraw.ImageDraw, box, tone: int, ink: int, scale: float, rng: random.Random) -> None:
+    """Wood grain along one of the face's axes: fine faint lines, and sometimes dark bands.
+
+    The bands are what real tiles show. One D measured 1-1.5 mm wide and 40% of
+    the way from face to ink, running the whole width of the face along its
+    baseline; with only faint lines in training, the reader took that band for
+    a tile's edge and the D for "not a letter" on every turn.
+    """
+    along_baseline = rng.random() < 0.5
+
+    def stripe(shade: int, width: float) -> None:
+        wobble = rng.uniform(-15, 15)
+        if along_baseline:
+            y = rng.uniform(box[1], box[3])
+            draw.line([(box[0], y), (box[2], y + wobble)], fill=shade, width=max(1, round(width)))
+        else:
+            x = rng.uniform(box[0], box[2])
+            draw.line([(x, box[1]), (x + wobble, box[3])], fill=shade, width=max(1, round(width)))
+
     for _ in range(rng.randint(0, 12)):
-        x = rng.uniform(box[0], box[2])
-        shade = int(np.clip(tone - rng.uniform(0, 25), 0, 255))
-        draw.line([(x, box[1]), (x + rng.uniform(-15, 15), box[3])], fill=shade, width=rng.randint(1, 4))
+        stripe(int(np.clip(tone - rng.uniform(0, 25), 0, 255)), rng.randint(1, 4))
+    if rng.random() < 0.5:
+        for _ in range(rng.randint(1, 3)):
+            stripe(int(tone - rng.uniform(0.1, 0.55) * (tone - ink)), rng.uniform(0.3, 1.6) * scale)
 
 
 def _pose_error(image: np.ndarray, scale: float, rng: random.Random) -> np.ndarray:

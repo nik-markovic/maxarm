@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""The whole tile finder against every scene on disk whose letters are known.
+"""The reader, through the whole tile finder, against every saved scene whose letters are known.
+
+What a rebuilt reader has to pass before it replaces files/reader.tflite: the
+last step of make-reader.sh. Everything it needs is in `baseline/`: the scenes,
+and the calibration they were taken with -- not the live one in config/, which
+belongs to whatever camera and desk are set up now, or to none.
 
 For each frame: the letters found must be exactly the letters on the desk, each
 read with confidence, and where a scene's orientations were confirmed against
@@ -9,14 +14,16 @@ Positions are matched loosely: a recalibration moves them by millimetres.
 And every scene that breaks the rule -- tiles touching along their edges -- must
 be refused with `UnplacedLetters`, naming the letters it could not place.
 
-    ./agenttools/test-tiles.py
+    ../.venv/bin/python training/tiles/check-reader.py
 """
 
 import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+BASELINE = HERE / "baseline"
 sys.path[:0] = [str(ROOT / "calibration"), str(ROOT / "tiles")]
 
 import cv2                              # noqa: E402
@@ -28,6 +35,8 @@ from mapping import DeskMapping         # noqa: E402
 # The letters on the desk in each fixture, in any order.
 SCENES = {
     "tiles-1.png": "AODLTEWVADDREEN",
+    # Flashlight high, half the tiles on white letter paper, half on the desk: 19 tiles, owner's count.
+    "tiles-3.png": "AABDDDEEEILNNORTUVW",
 }
 MIN_CONFIDENCE = 0.9
 # Confirmed by the owner against the real tiles, 2026-09-29: (letter, AACS x, y, baseline deg).
@@ -40,16 +49,16 @@ ORIENTATIONS = {
 }
 SAME_PLACE_MM = 6.0
 SAME_TURN_DEG = 5.0
-# Tiles snug along their edges (a D, E, N clump), on low and high flashlight: must be refused.
+# Tiles snug along their edges (a D, E, N clump), flashlight low and high: must be refused.
 REFUSED = ("tiles-2-low.png", "tiles-2-high.png")
 
 
 def main() -> int:
-    mapping = DeskMapping.load(ROOT / "config" / "calibration.json")
+    mapping = DeskMapping.load(BASELINE / "calibration.json")
     reader = read.Reader()
     failures = 0
     for name, letters in SCENES.items():
-        frame = cv2.imread(str(ROOT / "files" / name))
+        frame = cv2.imread(str(BASELINE / name))
         started = time.monotonic()
         problems = []
         try:
@@ -79,7 +88,7 @@ def main() -> int:
             print(f"       {problem}")
     for name in REFUSED:
         try:
-            tiles = scene.find_tiles(cv2.imread(str(ROOT / "files" / name)), mapping, reader)
+            tiles = scene.find_tiles(cv2.imread(str(BASELINE / name)), mapping, reader)
         except scene.UnplacedLetters as refused:
             print(f"ok   {name}: refused, {''.join(letter.letter for letter in refused.letters)} unplaced")
             continue

@@ -1,0 +1,2 @@
+# The google/fonts checkout make-reader.sh fetches (fonts.txt pins it): ~64 MB, not ours to commit.
+fonts/

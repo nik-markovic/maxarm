@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """What the reader sees: each tile's face in its four quarter turns, the chosen one boxed green.
 
-    ./agenttools/dump-crops.py files/tiles-1.png     # -> files/tiles-1-crops.png
+    ./agenttools/dump-crops.py training/tiles/baseline/tiles-1.png  # -> files/tiles-1-crops.png
 """
 
 import sys
@@ -45,7 +45,7 @@ def main() -> int:
         cv2.putText(label, f"{reading.letter} {reading.confidence:.2f}", (6, cells[0].shape[0] // 2 + 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1, cv2.LINE_AA)
         rows.append(np.hstack(cells + [label]))
-    out = path.with_name(path.stem + "-crops.png")
+    out = ROOT / "files" / (path.stem + "-crops.png")
     cv2.imwrite(str(out), np.vstack(rows))
     print(f"{len(rows)} tiles -> {out}")
     return 0
