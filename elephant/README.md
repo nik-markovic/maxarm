@@ -1,0 +1,151 @@
+# elephant — the MaxArm library, refactored
+
+Spec: [`work/PILOT-elephant.md`](../work/PILOT-elephant.md).
+State of play: [`work/STATUS-elephant.md`](../work/STATUS-elephant.md).
+
+Move, grab and drop, in whichever coordinates you work in.
+The library owns every coordinate conversion; an app only finds things and passes their coordinates.
+
+```python
+arm = MaxArm()
+arm.connect()                                   # the board resets, and homes the arm
+arm.use_coordinates(Space.CAMERA)               # once: a point is a pixel and a height
+arm.set_clearance(TILE_HEIGHT_MM + 10)          # once: grab() and drop() need it
+
+for tile, (px, py) in zip(find_tiles(frame, camera, reader), SLOTS):
+    arm.grab(tile.px, tile.py, TILE_HEIGHT_MM, angle=tile.angle)
+    arm.drop(px, py, TILE_HEIGHT_MM + 1, angle=UPRIGHT)
+```
+
+That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback for tiles the cup cannot turn far enough.
+
+| directory      | holds                                                                         |
+| -------------- | ----------------------------------------------------------------------------- |
+| `maxarm/`      | The library                                                                   |
+| `tiles/`       | The tile finder from dolphin. No coordinate code of its own any more          |
+| `config/`      | `desk.json` and `camera.json`: one matrix each                                |
+| `calibration/` | `capture.py`, the camera snapshot. The calibration apps are redone next pilot |
+| `training/`    | The tile reader's recipe, and its baseline scenes                             |
+| `files/`       | The reader, `reader.tflite`, and what it was built from                       |
+| `agenttools/`  | Offline tests, the fake board, `try-arm.py`. Removed at release               |
+
+## The calls
+
+```python
+MaxArm(device="/dev/ttyUSB0", config_dir=Path("config"))   # both optional
+arm.connect(); arm.disconnect()                           # or: with MaxArm() as arm:
+
+arm.use_coordinates(Space.DESK)        # ARM (the default), DESK, CUSTOM, CAMERA
+arm.set_clearance(14.0)                # mm above the desk
+
+arm.move(x, y, z)                      # fast: 200 mm/s
+arm.move(x, y, z, MoveType.SLOW)       # 10 mm/s: nothing heavy gets yanked
+arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
+arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
+arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
+arm.home()                             # the reset pose, by way of a move
+arm.set_suction(True)                  # by hand, for a job grab() and drop() do not fit
+
+arm.can_reach(x, y, z)                 # arithmetic: works before connect()
+arm.get_position()                     # where the servos say the arm is
+arm.stop()                             # safe from a signal handler
+arm.stop_on_ctrl_c()                   # Ctrl-C holds the arm for the rest of the run
+```
+
+Every motion returns a `MoveResult`: `DONE`, `REFUSED` (nothing moved; `detail` says why) or `STOPPED`.
+It is falsy unless it is `DONE`.
+`move()`, `grab()`, `drop()` and `home()` all go through one internal move, which plans the whole path
+and checks every limit before anything is sent.
+
+## Coordinate spaces
+
+Every space is defined by how it maps onto **desk space**, which is where the library plans:
+millimetres, with z the height above the desk and 0 the cup snug on its surface.
+
+| space    | a point is          | onto desk space by                        | file          |
+| -------- | ------------------- | ----------------------------------------- | ------------- |
+| `ARM`    | the board's x, y, z | the inverse of `desk_to_arm`, a 4x4       | `desk.json`   |
+| `DESK`   | x, y, height        | nothing to do                             | `desk.json`   |
+| `CUSTOM` | your own x, y, z    | `custom_to_desk`, a 4x4                   | `custom.json` |
+| `CAMERA` | px, py, height      | `desk_to_pixel`, a 3x4, solved per height | `camera.json` |
+
+In camera space the height picks the point along the pixel's ray: give the pixel where the thing *at that height* is
+seen. A tile's top face is `(px, py, 4.0)`; the same pixel at height 0 is a different point of the desk.
+
+Without `desk.json` the library does not know where the desk is: only `ARM` is available, heights are the arm's own z,
+and the clearance and desk-floor checks do nothing.
+`maxarm.Spaces(config_dir).convert(point, Space.CAMERA, Space.ARM)` converts between any two, without an arm.
+
+## What a move does
+
+**Fast and slow are one command per leg, waited out.** Nothing is read back while the arm moves, and nothing is
+corrected. A leg is usually the whole move; there are more only when the move has to climb over the clearance, go
+round the arm-base limit, or is too long to stay level (see below). `MoveType.PRECISE` -- slow, reading the position
+and correcting x and y as it goes -- is designed but not built, and raises.
+
+**The cup turns with the move.** `angle` is a direction in your space, degrees from its +x towards its +y. The turn is
+sent in the same round trip as the leg that crosses the desk, and the move waits for whichever finishes last: the cup
+swings 180 degrees in 1.2 s. The cup turns 90 degrees either way from centre; a turn beyond that is refused before
+anything moves.
+
+**grab()** lets go of anything held, then: slowly up to the travel height if below it, fast across while the cup
+centres itself, slowly down onto the piece, suction on and waited for (1.5 s), slowly back up. The travel height is
+`clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its `angle` says which way the piece faces.
+
+**drop()** is the same in reverse: the piece is turned to `angle` on the way across, and the release is waited out
+(3 s, longer than a grip: the board vents the cup for a second and then shuts the valve) before the slow lift. The
+travel height allows for the piece hanging under the cup. `angle=None` leaves the cup alone, so the piece turns with
+the arm.
+
+## Limits
+
+All of them are applied to every move, before anything is sent. `can_reach()` asks the same questions.
+
+- **Reach**: nothing more than 270 mm from the base axis, and nothing in the back 120 degrees.
+- **Firmware**: what the board would refuse, or silently clamp, as `geometry.py` predicts it.
+- **Arm-base limit**: a box round the base, |x| and |y| up to 70 mm, from the desk to 200 mm up. A move whose
+  straight line crosses it goes by a front corner instead, at half-way height.
+- **Clearance**, with a calibrated desk: nothing travels sideways below `clearance + carried + 5 mm`.
+- **Desk floor**, with a calibrated desk: nothing more than 5 mm into it.
+- **Sag**: on a long, low move in or out, the arm's real path sags below its ends; such a leg is halved until it
+  sags no more than 5 mm.
+
+The arm does not move in straight lines -- it interpolates its servos -- but straight lines are still the right thing
+to check: sideways, its real path keeps between the two ends' distances from the base, bowing outward. Downward it
+sags on long moves in or out, which is what the last row handles. See [`maxarm/path.py`](maxarm/path.py).
+
+## What you can tune
+
+Seven values answer to the environment, each one `MAXARM_` and the constant's name in the code:
+
+| variable                      | default        | what it changes                                 |
+| ----------------------------- | -------------- | ----------------------------------------------- |
+| `MAXARM_DEVICE`               | `/dev/ttyUSB0` | the serial port                                 |
+| `MAXARM_MOVE_FAST_MM_S`       | 200            | fast moves                                      |
+| `MAXARM_MOVE_SLOW_MM_S`       | 10             | slow moves, and grab's and drop's ups and downs |
+| `MAXARM_SUCTION_GRAB_MS`      | 1500           | the wait for a grip                             |
+| `MAXARM_SUCTION_RELEASE_MS`   | 3000           | the wait for a release                          |
+| `MAXARM_BASE_LIMIT_HALF_MM`   | 70             | the arm-base limit's half-width                 |
+| `MAXARM_BASE_LIMIT_HEIGHT_MM` | 200            | its height                                      |
+
+`MAXARM_TRACE=1` prints every expression sent to the board, with its answer and timing, on stderr.
+Everything else is a constant in the module that uses it, with where it came from written above it.
+
+## Running it
+
+```
+./main.py                                          # camera snapshot, then pick up the tiles
+./main.py training/tiles/baseline/tiles-1.png      # a saved frame instead
+../.venv/bin/python agenttools/try-arm.py          # the motion on the real arm, stage by stage, no camera
+../.venv/bin/python agenttools/try-arm.py --dry-run
+../.venv/bin/python agenttools/run-tests.py        # every offline check, about a second, no board
+../.venv/bin/python training/tiles/check-reader.py # the tile finder on its baseline scenes
+```
+
+## Three things to expect on real hardware
+
+1. **Connecting moves the arm.** Opening the port resets the board, which homes the arm and centres the cup:
+   about 4 s, sometimes 15.
+2. **Accuracy is about ±3 mm per axis**, and fast and slow moves do nothing about it. That is what `PRECISE` is for.
+3. **An arm that accepts commands and does not move** was seen once. `connect()` checks the servo supply; a move
+   cannot tell, because it reads nothing back. Power-cycle the arm at the barrel jack.

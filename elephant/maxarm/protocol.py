@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""Everything ever said to the board, in one place.
+
+`ReplProtocol` drives stock firmware over its MicroPython REPL, using the
+`arm`, `nozzle` and `bus_servo` objects the board's `main.py` leaves live:
+
+  * **It writes nothing and binds nothing.** Every command is a throwaway
+    expression in the raw REPL. Unplug the board and it is as it shipped.
+  * **It reads answers by marker.** The board's compiled IK prints to stdout
+    when a target will not solve, so stdout is not ours alone.
+
+`MAXARM_TRACE=1` echoes every expression sent, with its answer and timing, on
+stderr. `run()` is the only way anything reaches the board, so the trace is
+complete: a command that is not in it was not sent, and a gap in the
+timestamps is proof that nothing was sent then.
+"""
+
+import ast
+import os
+import sys
+import time
+from typing import List, Optional, Tuple
+
+from .geometry import Position
+from .transport import SerialTransport, TransportError
+
+CTRL_A = b"\x01"
+CTRL_B = b"\x02"
+CTRL_C = b"\x03"
+CTRL_D = b"\x04"
+RAW_REPL_BANNER = b"raw REPL"
+PROMPT = b">>>"
+RESULT_MARKER = "#R#"
+
+# The port-open reset re-runs main.py: 4.7 s once, 15.1 s twice running, the
+# long ones being the board's BLE init timing out. This is only the give-up point.
+CONNECT_TIMEOUT_S = 25.0
+COMMAND_TIMEOUT_S = 5.0
+# How long a Ctrl-C needs to land before the next byte. If main.py is in a loop,
+# a Ctrl-A sent too soon is line-edited into garbage by the friendly REPL.
+INTERRUPT_SETTLE_S = 0.2
+
+# The connect check reads the servo bus, and bus reads drop: one connect in
+# twenty failed on a healthy arm that had just homed. So a bad reading is read
+# again, after a pause, before it is believed.
+BOARD_CHECK_ATTEMPTS = 3
+BOARD_CHECK_RETRY_S = 0.3
+# Asked of a servo id that is not fitted: if it answers, the bus is echoing.
+ABSENT_SERVO_ID = 5
+# The servos run off the barrel jack, measured 12.3 V; USB powers only the
+# ESP32. Far below that means the supply is off, and the servos still answer
+# reads while being unable to move.
+SERVO_VOLTAGE_MIN_MV = 6000
+
+# After a move lands the error keeps shrinking for this long, worth ~0.8 mm, and
+# a single read jitters by ~1 mm -- hence a median of several, after a wait.
+SETTLE_MS = 400
+SETTLE_READS = 5
+
+BOARD_CHECK = (
+    "([n in globals() for n in ('arm', 'bus_servo', 'nozzle', 'time', 'gc')],"
+    " arm.read_position(), bus_servo.get_position({absent}), bus_servo.get_vin(1))"
+)
+
+IS_TRACED = bool(os.environ.get("MAXARM_TRACE"))
+_TRACE_START = time.monotonic()
+_TRACE_WIDTH = 96
+
+
+class ProtocolError(RuntimeError):
+    """The board answered with a traceback, or with nothing we can parse."""
+
+
+class BoardNotReadyError(ProtocolError):
+    """The board answers, but is in no state to drive the arm. The message says why."""
+
+
+def trace_note(text: str) -> None:
+    """A trace line that is not a board command, marked `#`."""
+    _trace("#", text)
+
+
+def _trace(marker: str, text: str, started: Optional[float] = None) -> float:
+    """`>` sent, `<` answered, `!` refused. Seconds since import, and round-trip time."""
+    if not IS_TRACED:
+        return 0.0
+    now = time.monotonic()
+    took = f" [{(now - started) * 1000:.0f} ms]" if started is not None else ""
+    body = text if len(text) <= _TRACE_WIDTH else text[:_TRACE_WIDTH - 1] + "…"
+    print(f"  {now - _TRACE_START:8.3f}s {marker} {body}{took}", file=sys.stderr)
+    return now
+
+
+class ReplProtocol:
+    """Stock firmware over the raw MicroPython REPL."""
+
+    def __init__(self, transport: SerialTransport) -> None:
+        self.transport = transport
+
+    # --- session ----------------------------------------------------------
+
+    def connect(self) -> None:
+        self.transport.open()
+        self._wait_for_prompt()
+        self._enter_raw_repl()
+        # One statement that does nothing, which clears any half-typed line and
+        # proves the framing. Not an empty program: in the v1.12 raw REPL,
+        # Ctrl-D on an empty buffer is a soft reboot that re-homes the arm.
+        self.run("pass")
+
+    def check_board(self) -> None:
+        """Prove the board can drive the arm, or raise `BoardNotReadyError`. Reads only."""
+        for attempt in range(1, BOARD_CHECK_ATTEMPTS + 1):
+            reason, is_transient = self._board_problem()
+            if reason is None:
+                return
+            if not is_transient:
+                raise BoardNotReadyError(reason)
+            if attempt == BOARD_CHECK_ATTEMPTS:
+                raise BoardNotReadyError(f"{reason} (unchanged over {attempt} reads)")
+            time.sleep(BOARD_CHECK_RETRY_S)
+
+    def _board_problem(self) -> Tuple[Optional[str], bool]:
+        """What is wrong, and whether reading again could change the answer."""
+        globals_present, position, absent, voltage = self.evaluate(
+            BOARD_CHECK.format(absent=ABSENT_SERVO_ID))
+        if not all(globals_present):
+            return ("the board's main.py did not finish: arm/bus_servo/nozzle are not all "
+                    "defined. Power-cycle the arm and reconnect.", False)
+        if absent is not False:
+            return (f"servo id {ABSENT_SERVO_ID} is not fitted but answered {absent!r}: the bus "
+                    "is echoing, so no readback can be trusted. Power-cycle the arm.", False)
+        if not position:
+            return ("the servo bus did not answer a position read. Check the arm's DC supply "
+                    "and the servo cabling.", True)
+        if not isinstance(voltage, int) or voltage < SERVO_VOLTAGE_MIN_MV:
+            reading = f"{voltage / 1000.0:.2f} V" if isinstance(voltage, int) else repr(voltage)
+            return (f"servo supply reads {reading}, below {SERVO_VOLTAGE_MIN_MV / 1000:.1f} V. "
+                    "USB powers the ESP32 but not the servos -- check the barrel jack and its "
+                    "switch.", True)
+        return (None, False)
+
+    def disconnect(self) -> None:
+        if not self.transport.is_open:
+            return
+        try:
+            self.transport.write(CTRL_B)    # leave a friendly REPL for the next user
+        except TransportError:
+            pass
+        finally:
+            self.transport.close()
+
+    def _wait_for_prompt(self) -> None:
+        """Wait out the port-open reset before sending anything.
+
+        Writing into a booting board once left main.py half-built. So no newline
+        first and no fixed sleep: one connect in five takes 13 s rather than 3.
+        """
+        banner = self.transport.read_until(PROMPT, CONNECT_TIMEOUT_S)
+        if PROMPT not in banner:
+            # Attached after main.py had already settled: nudge it.
+            self.transport.write(b"\r\n")
+            banner = self.transport.read_until(PROMPT, 5.0)
+            if PROMPT not in banner:
+                raise ProtocolError(f"no prompt within {CONNECT_TIMEOUT_S}s of opening the "
+                                    f"port; last reply: {banner[-200:]!r}")
+        self.transport.reset_input()
+
+    def _enter_raw_repl(self, attempts: int = 3) -> None:
+        """Ctrl-A, and prove it took: otherwise everything after it is line-edited."""
+        banner = b""
+        for _ in range(attempts):
+            self.transport.write(CTRL_C)
+            time.sleep(INTERRUPT_SETTLE_S)
+            self.transport.write(CTRL_C)    # a second one interrupts a running loop
+            time.sleep(INTERRUPT_SETTLE_S)
+            self.transport.reset_input()
+            self.transport.write(CTRL_A)
+            banner = self.transport.read_until(RAW_REPL_BANNER, 2.0)
+            if RAW_REPL_BANNER in banner:
+                # The prompt nearly always arrives with the banner; wait only if not.
+                if b">" not in banner.split(RAW_REPL_BANNER, 1)[1]:
+                    self.transport.read_until(b">", 1.0)
+                return
+        raise ProtocolError(f"board did not enter raw REPL; last reply: {banner!r}")
+
+    # --- raw execution ----------------------------------------------------
+
+    def run(self, code: str) -> str:
+        """Execute code in the raw REPL and return its stdout."""
+        started = _trace(">", code)
+        self.transport.reset_input()
+        self.transport.write(code.encode() + CTRL_D)
+        # The board answers OK, stdout, 0x04, stderr, 0x04, then the raw prompt.
+        raw = self.transport.read_until(b"\x04>", COMMAND_TIMEOUT_S)
+        if b"OK" not in raw:
+            _trace("!", f"no acknowledgement: {raw!r}", started)
+            raise ProtocolError(f"no acknowledgement from board: {raw!r}")
+        if b"\x04>" not in raw:
+            _trace("!", f"timed out mid-reply: {raw!r}", started)
+            raise ProtocolError(f"timed out mid-reply after {COMMAND_TIMEOUT_S}s: {raw!r}")
+        fields = raw.split(b"OK", 1)[1].split(CTRL_D)
+        stdout = fields[0].decode("utf-8", "replace").strip()
+        stderr = fields[1].decode("utf-8", "replace").strip() if len(fields) > 1 else ""
+        if stderr:
+            _trace("!", stderr.replace("\n", " | "), started)
+            raise ProtocolError(f"board raised:\n{stderr}")
+        _trace("<", stdout or "(no output)", started)
+        return stdout
+
+    def evaluate(self, expression: str):
+        """A board expression's value, as a Python literal.
+
+        A MemoryError on the board is usually heap fragmentation, so one
+        collection and a retry is worth it; `gc` is already a board global.
+        """
+        code = f"print('{RESULT_MARKER}', repr({expression}))"
+        try:
+            text = self.run(code)
+        except ProtocolError as error:
+            if "MemoryError" not in str(error):
+                raise
+            self.run("gc.collect()")
+            text = self.run(code)
+        payload = None
+        for line in text.splitlines():
+            if line.startswith(RESULT_MARKER):
+                payload = line[len(RESULT_MARKER):].strip()
+        if payload is None:
+            raise ProtocolError(f"no result line in reply {text!r}")
+        try:
+            return ast.literal_eval(payload)
+        except (SyntaxError, ValueError) as error:
+            raise ProtocolError(f"unparseable result {payload!r} in reply {text!r}") from error
+
+    # --- motion -----------------------------------------------------------
+
+    def set_position(self, position: Position, duration_ms: int,
+                     nozzle: Optional[Tuple[float, int]] = None) -> Optional[bool]:
+        """Send the arm somewhere: True accepted, False refused, None in the blind cylinder.
+
+        `nozzle`, as (angle, duration_ms), turns the cup in the same round trip,
+        so the two start together. True is not a promise -- servo 2 can clamp
+        silently -- which is why targets are checked with `geometry` first.
+        """
+        x, y, z = position
+        command = f"arm.set_position(({x:.2f}, {y:.2f}, {z:.2f}), {int(duration_ms)})"
+        if nozzle is not None:
+            command = f"({_set_angle(*nozzle)}, {command})[1]"
+        return self.evaluate(command)
+
+    def set_nozzle_angle(self, angle_deg: float, duration_ms: int) -> None:
+        """Turn the cup about z. The board ramps it over `duration_ms` and reports nothing."""
+        self.run(_set_angle(angle_deg, duration_ms))
+
+    def set_suction(self, is_on: bool) -> None:
+        """Pump on; or pump off with the vent valve held open for a second, on a board thread."""
+        self.run("nozzle.on()" if is_on else "nozzle.off()")
+
+    def read_position(self) -> Optional[Position]:
+        """Where the servos say the arm is, in whole millimetres. None if the bus stayed quiet."""
+        reply = self.evaluate("arm.read_position()")
+        return tuple(float(value) for value in reply) if reply else None
+
+    def read_settled_position(self, reads: int = SETTLE_READS,
+                              wait_ms: int = SETTLE_MS) -> Optional[Position]:
+        """Let the arm stop creeping, then take the median of several reads."""
+        time.sleep(wait_ms / 1000.0)
+        samples: List[Position] = [sample for sample in (self.read_position()
+                                                         for _ in range(max(reads, 1)))
+                                   if sample is not None]
+        if not samples:
+            return None
+        return tuple(sorted(sample[axis] for sample in samples)[len(samples) // 2]
+                     for axis in range(3))
+
+
+def _set_angle(angle_deg: float, duration_ms: int) -> str:
+    angle = max(-90.0, min(90.0, float(angle_deg)))
+    return f"nozzle.set_angle({angle:.2f}, {int(duration_ms)})"
