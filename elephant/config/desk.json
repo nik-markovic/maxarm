@@ -1,0 +1,29 @@
+{
+  "about": "desk space to arm space: arm [x, y, z, 1] = desk_to_arm @ desk [x, y, z, 1]. Desk space is millimetres on the desk, z the height above its surface (0: the cup snug on it). This one is condor's three measured desk heights (the tilt) composed with dolphin's grid-paper x/y correction (the arm's x travels ~7% short); the tilt calibration replaces it.",
+  "desk_to_arm": [
+    [
+      1.0776667061392908,
+      0.009113247932559264,
+      0.0,
+      1.8165738951883232
+    ],
+    [
+      0.008170311002763915,
+      0.9840867194404718,
+      0.0,
+      -3.172047259660263
+    ],
+    [
+      0.011324675726212464,
+      0.06609694902716216,
+      1.0,
+      53.84199183738933
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ]
+}
