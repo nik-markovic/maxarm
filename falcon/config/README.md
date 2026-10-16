@@ -1,0 +1,42 @@
+# config/
+
+The calibration, as the library reads it: one matrix per file, and a line saying what it means.
+Every `.json` here belongs to one rig, so none of them is in git (`../.gitignore`).
+
+| file                 | holds                                                   | written by                |
+| -------------------- | ------------------------------------------------------- | ------------------------- |
+| `desk.json`          | `desk_to_arm`, 4x4: desk space to the arm's own x, y, z | `calibration/`, desk page |
+| `camera.json`        | `desk_to_pixel`, 3x4: desk space to camera pixels       | the camera calibration    |
+| `custom.json`        | `custom_to_desk`, 4x4: a frame of your own, if wanted   | you; there is none here   |
+| `desk-points.json`   | the desk page's touch points, kept on every change      | `calibration/`, desk page |
+| `desk-previous.json` | the `desk.json` the last SAVE replaced                  | `calibration/`, desk page |
+
+Desk space is millimetres on the desk with z the height above its surface, 0 being the cup snug on it.
+`maxarm/spaces.py` explains how each matrix is used.
+
+## desk.json
+
+A plane, written by the desk page's SAVE: arm x and y are desk x and y, and the desk's surface is at
+arm z = `tilt_x` x + `tilt_y` y + `offset`, fitted through the touch points. So
+
+```
+desk_to_arm = [[1,      0,      0, 0     ],
+               [0,      1,      0, 0     ],
+               [tilt_x, tilt_y, 1, offset],
+               [0,      0,      0, 1     ]]
+```
+
+The file also lists the touch points it was fitted through, in arm space; the library ignores them.
+
+**There is none until the first SAVE.** Whatever the earlier pilots left here was emptied out on 2026-10-16, at the
+owner's word: it was another method's output. Until SAVE, the library has no desk calibration (`ARM` only) and the
+desk page's desk-space tests are unavailable.
+
+## camera.json
+
+None yet: the camera calibration is to come, and `main.py` cannot run until it has written one. It will map desk
+space as the desk page defines it -- x and y the arm's own -- so the arm's x/y error (x travels ~7% short, dolphin
+§5a) is the camera calibration's to absorb.
+
+The calibration holds only while the camera and the arm stay where they were. A camera calibrated at one frame size
+is wrong at another -- nothing checks that yet.

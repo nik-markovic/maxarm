@@ -1,0 +1,46 @@
+# The fonts the reader is trained on: these families of github.com/google/fonts,
+# at this one commit, so every rebuild renders from the same files.
+# make-reader.sh checks them out into fonts/ beside this file, where render.py looks.
+# All sans-serif, as the tiles' capitals are. Italics are skipped by render.list_faces(),
+# and each variable font is drawn at four weights, which makes 137 faces.
+commit 23e54b51ddffbc7713c583748e3bd86f62b1fa4a
+apache/arimo
+apache/roboto
+ofl/albertsans
+ofl/archivo
+ofl/barlow
+ofl/cabin
+ofl/comfortaa
+ofl/didactgothic
+ofl/dmsans
+ofl/figtree
+ofl/heebo
+ofl/hind
+ofl/inter
+ofl/josefinsans
+ofl/jost
+ofl/karla
+ofl/kumbhsans
+ofl/lato
+ofl/leaguespartan
+ofl/lexend
+ofl/manrope
+ofl/montserrat
+ofl/mulish
+ofl/notosans
+ofl/nunitosans
+ofl/opensans
+ofl/outfit
+ofl/poppins
+ofl/ptsans
+ofl/questrial
+ofl/raleway
+ofl/redhatdisplay
+ofl/rubik
+ofl/sen
+ofl/sourcesans3
+ofl/tenorsans
+ofl/ubuntu
+ofl/urbanist
+ofl/varelaround
+ofl/worksans

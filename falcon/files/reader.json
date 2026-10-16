@@ -1,0 +1,26 @@
+{
+  "model_sha256": "3356f27e2827765169e73e8a872834930c6a15c4cad672ea914308d118b47e2d",
+  "validation_accuracy": 0.9997,
+  "fonts": {
+    "google_fonts_commit": "23e54b51ddffbc7713c583748e3bd86f62b1fa4a",
+    "files": 115,
+    "faces": 137,
+    "sha256": "36ea2b9474567190172244f1fa9ca693bb3b3016f15caf74f14892daa14bc8c8"
+  },
+  "training": {
+    "samples": 240000,
+    "validation": 12000,
+    "epochs": 14,
+    "seed": 0
+  },
+  "versions": {
+    "python": "3.12.3",
+    "tensorflow": "2.21.0",
+    "keras": "3.15.1",
+    "numpy": "2.5.3",
+    "pillow": "12.3.0",
+    "opencv": "5.0.0"
+  },
+  "machine": "x86_64",
+  "built": "2026-09-30 11:28:03 -0500"
+}

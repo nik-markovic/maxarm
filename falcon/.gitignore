@@ -1,0 +1,3 @@
+# Calibration results: each rig's own, written by calibration/ (work/PILOT-falcon.md).
+config/*.json
+config/*.partial

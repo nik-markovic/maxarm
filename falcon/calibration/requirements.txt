@@ -1,0 +1,3 @@
+# The calibration web app serves itself with Python's own http.server; these are the library's.
+numpy
+pyserial
