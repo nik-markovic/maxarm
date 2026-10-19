@@ -48,15 +48,17 @@ class DeskSession:
         self.motion = worker.motion
         self.config_dir = Path(config_dir)
         self.lock = threading.Lock()
-        self.points: List[Point] = store.load_points(self.config_dir)
+        self.points, self.next_id = store.load_points(self.config_dir)
         self.saved = store.describe_desk(self.config_dir)
         self.glide_from = -1        # `worker.count` of the point test the arm is still at; -1 for none
+        self._fit: tuple = ((), None)
 
     def register(self, server: Server) -> None:
         server.add_state(self.state)
         server.add_limits(lambda: {"desk": {
             "x_span": plane.X_SPAN_MIN_MM, "y_span": plane.Y_SPAN_MIN_MM,
-            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM}})
+            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM,
+            "elbow_points": plane.ELBOW_POINTS_MIN, "elbow_reach": plane.ELBOW_REACH_SPREAD_MIN_MM}})
         for name, handler in (("record", self.record), ("delete", self.delete), ("clear", self.clear),
                               ("save", self.save), ("visit", self.visit), ("test-point", self.test_point),
                               ("test-height", self.test_height), ("test-input", self.test_input),
@@ -69,27 +71,30 @@ class DeskSession:
         return self.worker.run("record", "recording a point", self._record, uses_arm=False)
 
     def _record(self, motion: Motion) -> str:
+        """Where the servos say the cup is, read afresh: they do not always reach where they are sent."""
         if not motion.is_connected:
             raise Refused("the arm is not connected")
+        motion.read()
+        if motion.measured is None:
+            raise Refused("the servos did not answer a position read; RECORD again")
         with self.lock:
-            point = Point(max((point.id for point in self.points), default=0) + 1,
-                          *(round(value, 2) for value in motion.sent),
-                          list(motion.measured) if motion.measured else None)
-            self.points = self.points + [point]
-            store.save_points(self.config_dir, self.points)
-        return f"#{point.id} at {describe(point.target)}"
+            point = Point(self.next_id, *(round(value, 2) for value in motion.measured),
+                          sent=[round(value, 2) for value in motion.sent])
+            self.points, self.next_id = self.points + [point], self.next_id + 1
+            store.save_points(self.config_dir, self.points, self.next_id)
+        return f"#{point.id} at {describe(point.target)}, sent to {describe(point.sent)}"
 
     def delete(self, body: dict) -> dict:
         gone = self._point(body)
         with self.lock:
             self.points = [point for point in self.points if point.id != gone.id]
-            store.save_points(self.config_dir, self.points)
+            store.save_points(self.config_dir, self.points, self.next_id)
         return {"status": "done", "detail": f"#{gone.id} forgotten"}
 
     def clear(self, body: dict) -> dict:
         with self.lock:
-            count, self.points = len(self.points), []
-            store.save_points(self.config_dir, self.points)
+            count, self.points, self.next_id = len(self.points), [], 1
+            store.save_points(self.config_dir, self.points, self.next_id)
         return {"status": "done", "detail": f"{count} points forgotten"}
 
     def save(self, body: dict) -> dict:
@@ -107,14 +112,15 @@ class DeskSession:
         motion.reload()
         self.saved = store.describe_desk(self.config_dir)
         self.glide_from = -1
-        return f"desk.json saved: a plane tilted {fitted.tilt_deg:.2f} deg, through {len(points)} points"
+        return (f"desk.json saved: through {len(points)} points, the plane tilted "
+                f"{fitted.plane.tilt_deg:.2f} deg, the elbow {fitted.elbow_deg:+.2f} deg")
 
     # --- going to them ----------------------------------------------------
 
     def visit(self, body: dict) -> dict:
         point = self._point(body)
         return self.worker.run("visit", f"back to #{point.id}, from above",
-                               lambda motion: motion.approach(Space.ARM, point.target))
+                               lambda motion: motion.approach(Space.ARM, point.target, precise=True))
 
     def test_point(self, body: dict) -> dict:
         point = self._point(body)
@@ -131,7 +137,7 @@ class DeskSession:
         if result is None:
             if motion.is_suction_on:
                 motion.suction(False)
-            result = motion.approach(Space.DESK, target)
+            result = motion.approach(Space.DESK, target, precise=True)
             if result and is_glide:
                 result = dataclasses.replace(result, detail="no straight way there, so it went over")
         if result:
@@ -147,7 +153,7 @@ class DeskSession:
         if self.glide_from != self.worker.count - 1:
             return None                               # no point test in progress: nothing to move
         x, y, _ = motion.position(Space.DESK)
-        result = motion.direct(Space.DESK, (x, y, height))
+        result = motion.direct(Space.DESK, (x, y, height), precise=True)
         if result:
             self.glide_from = self.worker.count
         return result
@@ -165,7 +171,7 @@ class DeskSession:
             released = motion.suction(False)
             if not released:
                 return released
-        result = motion.approach(Space.DESK, target)
+        result = motion.approach(Space.DESK, target, precise=True)
         if not result:
             return result
         gripped = motion.suction(True)
@@ -182,7 +188,7 @@ class DeskSession:
 
     def _move(self, motion: Motion, target) -> MoveResult:
         self._require_desk(motion)
-        return motion.approach(Space.DESK, target)
+        return motion.approach(Space.DESK, target, precise=True)
 
     # --- for the page -----------------------------------------------------
 
@@ -190,25 +196,32 @@ class DeskSession:
         with self.lock:
             points = list(self.points)
         targets = [point.target for point in points]
-        fitted = plane.fit(targets)
+        fitted = self._fitted(targets)
         offsets = (plane.deviations(targets, fitted) if fitted and len(points) > 3
                    else [None] * len(points))
         motion = self.motion
         is_saved = motion.spaces.is_desk_calibrated
         return {"desk": {
             "points": [{"id": point.id, "x": point.x, "y": point.y, "z": point.z,
-                        "measured": point.measured, "deviation": offset}
+                        "sent": point.sent, "deviation": offset}
                        for point, offset in zip(points, offsets)],
-            "fit": _summary(fitted, offsets),
+            "fit": _summary(fitted, targets, offsets),
             "span": _span(targets),
             "save_problem": plane.problem_with(targets),
             "saved": self.saved,
-            "fit_z": fitted.z_at(motion.sent[0], motion.sent[1]) if fitted else None,
+            "fit_height": fitted.height_of(motion.sent) if fitted else None,
             "position": list(motion.position(Space.DESK)) if is_saved else None,
             "measured": (list(motion.spaces.convert(motion.measured, Space.ARM, Space.DESK))
                          if is_saved and motion.measured else None),
             "is_gliding": self.glide_from == self.worker.count,
         }}
+
+    def _fitted(self, targets) -> Optional[plane.Desk]:
+        """The desk through the points, fitted again only when they change: the page asks twice a second."""
+        key = tuple(targets)
+        if self._fit[0] != key:
+            self._fit = (key, plane.fit(targets))
+        return self._fit[1]
 
     def _point(self, body: dict) -> Point:
         wanted = int(number(body, "id"))
@@ -224,14 +237,16 @@ class DeskSession:
             raise Refused("there is no desk.json yet: record the points, then SAVE")
 
 
-def _summary(fitted: Optional[plane.Plane], offsets: List[Optional[float]]) -> Optional[dict]:
+def _summary(fitted: Optional[plane.Desk], targets, offsets: List[Optional[float]]) -> Optional[dict]:
     if fitted is None:
         return None
     known = [offset for offset in offsets if offset is not None]
-    return {"tilt_x": fitted.tilt_x, "tilt_y": fitted.tilt_y, "offset": fitted.offset,
-            "tilt_deg": fitted.tilt_deg,
-            "rms": (sum(offset * offset for offset in known) / len(known)) ** 0.5 if known else None,
-            "worst": max((abs(offset) for offset in known), default=None)}
+    flat = plane.fit_plane(targets)
+    return {"tilt_deg": fitted.plane.tilt_deg, "elbow_deg": fitted.elbow_deg,
+            "is_elbow_fitted": plane.can_fit_elbow(targets),
+            "rms": plane.rms(known) if known else None,
+            "worst": max((abs(offset) for offset in known), default=None),
+            "rms_plane_only": plane.rms([z - flat.z_at(x, y) for x, y, z in targets]) if known else None}
 
 
 def _span(targets) -> Optional[dict]:

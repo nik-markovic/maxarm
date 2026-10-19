@@ -3,7 +3,7 @@
 | request             | body    | does                                                       |
 | ------------------- | ------- | ---------------------------------------------------------- |
 | `POST /api/connect` |         | open the port again: the board resets and homes the arm    |
-| `POST /api/move`    | x, y, z | straight there; a newer move replaces one still waiting    |
+| `POST /api/move`    | x, y, z | straight there, corrected; a newer move replaces a waiting one |
 | `POST /api/jump`    | x, y    | over to x, y at a safe height, and stay at that height     |
 | `POST /api/cup`     | angle   | the cup's servo, -90 to 90 degrees                         |
 | `POST /api/suction` | on      | the pump on or off, waited out                             |
@@ -35,7 +35,7 @@ def register(server: Server, worker: Worker) -> None:
     def move(body: dict) -> dict:
         target = (number(body, "x"), number(body, "y"), number(body, "z"))
         return worker.run("move", f"moving to {describe(target)}",
-                          lambda motion: motion.direct(Space.ARM, target), latest_only=True)
+                          lambda motion: motion.direct(Space.ARM, target, precise=True), latest_only=True)
 
     def jump(body: dict) -> dict:
         x, y = number(body, "x"), number(body, "y")

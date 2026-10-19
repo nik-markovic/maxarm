@@ -23,6 +23,9 @@ NOZZLE_TURN_MIN_MS = 20
 # cup is still turning when the arm moves on.
 NOZZLE_SETTLE_MS = 150
 NOZZLE_RANGE_DEG = 90.0
+# A direction reaches the servo through two coordinate conversions, which can
+# leave the end of the range a few 1e-13 degrees past it: that is still the end.
+NOZZLE_RANGE_SLACK_DEG = 1e-6
 
 
 def servo_for(point: Position, facing: float, offset: float = 0.0) -> float:
@@ -43,7 +46,7 @@ def turn_ms(start: float, end: float) -> int:
 
 
 def problem_with(servo: Optional[float]) -> Optional[str]:
-    if servo is None or abs(servo) <= NOZZLE_RANGE_DEG:
+    if servo is None or abs(servo) <= NOZZLE_RANGE_DEG + NOZZLE_RANGE_SLACK_DEG:
         return None
     return (f"the cup would have to turn to {servo:+.0f} deg; it turns "
             f"{NOZZLE_RANGE_DEG:.0f} either way from centre")

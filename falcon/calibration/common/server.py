@@ -16,6 +16,7 @@ import json
 import math
 import mimetypes
 import sys
+import time
 import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -158,7 +159,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
 
 def _merged(providers: List[Callable[[], dict]]) -> dict:
-    merged: dict = {}
+    """Every provider's part, and `stamp`, the time it was put together: the page drops anything older."""
+    merged: dict = {"stamp": time.time_ns()}
     for provider in providers:
         merged.update(provider())
     return merged

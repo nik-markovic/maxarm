@@ -2,7 +2,8 @@
 //
 // The arm's target is a base plus offsets: base x, y is the grid point last clicked, base z the height slider;
 // the fine sliders, the nudges and the tenth slider add to them. Whatever moves the arm from elsewhere (a point,
-// a desk test, RESET) moves the base, so the offsets stay where the user left them.
+// a desk test, RESET) moves the base, so the offsets stay where the user left them. A move the arm refuses puts
+// every control back where it was when the arm last went where they said.
 
 import { $, api, fmt, mountHeader, report, showHeader, startPolling, toast } from '/common/page.js';
 import { GridView } from './grid.js';
@@ -26,16 +27,19 @@ const ui = {
 };
 let state = null;
 let inFlight = 0;
+let accepted = '';
 let isDragging = false;
 let pointsShown = '';
 
 const grid = new GridView($('grid'), limits, jump);
 const target = () => [ui.base.x + ui.fine.x, ui.base.y + ui.fine.y, ui.base.z + ui.fine.z + ui.fine.f];
+const controls = () => JSON.stringify({ base: ui.base, fine: ui.fine });
+accepted = controls();
 
 // --- talking to the app ------------------------------------------------------------------------------
 
 async function command(path, body, what, { isRevertible = false } = {}) {
-  const before = isRevertible ? JSON.stringify({ base: ui.base, fine: ui.fine }) : null;
+  const asked = controls();
   inFlight += 1;
   render();
   let reply;
@@ -46,17 +50,20 @@ async function command(path, body, what, { isRevertible = false } = {}) {
   }
   inFlight -= 1;
   if (reply.status === 'superseded') return reply;
-  if (before && reply.status !== 'done') Object.assign(ui, JSON.parse(before));
+  if (isRevertible && reply.status === 'done') accepted = asked;
+  else if (isRevertible && inFlight === 0) Object.assign(ui, JSON.parse(accepted));
   report(reply, what);
   show(reply.state || state, true);
   return reply;
 }
 
 function show(next, isReply = false) {
+  if (next && state && next.stamp < state.stamp) return;        // a poll answered before a newer reply
   state = next;
   showHeader(state);
   if (state && !isDragging && inFlight === 0 && (isReply || (!state.doing && !state.queued))) {
     follow(state.sent);
+    accepted = controls();
   }
   render();
 }
@@ -143,7 +150,7 @@ function renderReadout() {
   });
   const desk = state ? state.desk : null;
   const parts = [];
-  if (desk && desk.fit_z !== null) parts.push(`fit of the points: cup <b>${fmt(aim[2] - desk.fit_z, 1, true)}</b> mm`);
+  if (desk && desk.fit_height !== null) parts.push(`fit of the points: cup <b>${fmt(desk.fit_height, 1, true)}</b> mm`);
   if (desk && desk.position) parts.push(`desk.json: cup <b>${fmt(desk.position[2], 1, true)}</b> mm`);
   $('desk-line').innerHTML = parts.length ? `Above the desk — ${parts.join(' · ')}` : 'Above the desk: record 3 points';
 }
@@ -159,9 +166,14 @@ function renderDesk() {
       <span class="chip ${high - low >= need ? 'ok' : 'bad'}">≥ ${need}</span>`;
   }).join(' &nbsp; ') : 'Range covered: no points yet';
   const fit = desk.fit;
+  const { elbow_points: elbowPoints, elbow_reach: elbowReach } = limits.desk;
   $('fit').innerHTML = !fit ? 'Plane: needs 3 points, not in a row' : `Plane: tilted <b>${fmt(fit.tilt_deg, 2)}°</b>`
     + (fit.rms === null ? ' — a 4th point shows how well they agree'
-      : `, points off it by <b>${fmt(fit.rms, 2)}</b> mm RMS, <b>${fmt(fit.worst, 2)}</b> at worst`);
+      : `, points off it by <b>${fmt(fit.rms, 2)}</b> mm RMS, <b>${fmt(fit.worst, 2)}</b> at worst`)
+    + '<br>' + (fit.is_elbow_fitted
+      ? `Elbow servo <b>${fmt(fit.elbow_deg, 2, true)}°</b> off the firmware's zero`
+        + ` (a plane alone: <b>${fmt(fit.rms_plane_only, 2)}</b> mm RMS)`
+      : `Elbow offset: needs ${elbowPoints} points, ${elbowReach} mm apart in reach`);
   $('save-state').innerHTML = desk.save_problem ? `<span class="chip bad">not ready</span> ${desk.save_problem}`
     : '<span class="chip ok">ready to SAVE</span>';
   const test = $('test');
@@ -190,7 +202,7 @@ function renderPoints(points) {
     <tr>
       <td><span class="badge ${rank(point.deviation)}">${point.id}</span></td>
       <td class="num">${fmt(point.x)}</td><td class="num">${fmt(point.y)}</td><td class="num">${fmt(point.z)}</td>
-      <td class="num faint">${point.measured ? fmt(point.measured[2], 0) : '—'}</td>
+      <td class="num faint">${point.sent ? fmt(point.sent[2]) : '—'}</td>
       <td class="num dev ${rank(point.deviation)}">${fmt(point.deviation, 2, true)}</td>
       <td class="actions">
         <button class="btn small" data-act="visit" data-id="${point.id}" title="Back to it in arm space, from above">arm</button>

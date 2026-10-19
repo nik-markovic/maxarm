@@ -23,9 +23,10 @@ from maxarm import (BoardNotReadyError, MaxArm, MoveStatus, MoveType,  # noqa: E
                     NotConnectedError, Space, Spaces)
 from maxarm import arm as arm_module                           # noqa: E402
 from maxarm import nozzle                                       # noqa: E402
-from maxarm.geometry import HOME                               # noqa: E402
+from maxarm.geometry import HOME, bearing_degrees              # noqa: E402
 from maxarm.protocol import ReplProtocol                       # noqa: E402
 from maxarm.transport import SerialTransport                   # noqa: E402
+import fake_arm as fake_arm_module                             # noqa: E402
 from fake_arm import FakeSerial, fake_arm, instant_waits       # noqa: E402
 from harness import BASELINE, check                            # noqa: E402
 
@@ -83,11 +84,6 @@ def test_fast_and_slow() -> bool:
         board.log.clear()
         slow = arm.move(150.0, -150.0, 80.0, MoveType.SLOW)
         slow_log = list(board.log)
-        try:
-            arm.move(150.0, -150.0, 60.0, MoveType.PRECISE)
-            is_precise_refused = False
-        except NotImplementedError:
-            is_precise_refused = True
     fast_ms = ms(math.dist(HOME, (150.0, -150.0, 100.0)), FAST)
     return all([
         check("fast: straight there at 200 mm/s", fast and fast_log == [
@@ -95,7 +91,39 @@ def test_fast_and_slow() -> bool:
         check("slow: 20 mm at 10 mm/s is 2 s", slow and slow_log == [
             ("move", (150.0, -150.0, 80.0), 2000)], f"{slow_log}"),
         check("each is waited out, nothing read back", waits == [fast_ms, 2000], f"{waits}"),
-        check("PRECISE says it is not built", is_precise_refused),
+    ])
+
+
+def test_precise() -> bool:
+    print("PRECISE: servos with a deadband, corrected from their own reading:")
+    with flat_desk() as config, fake_arm(config) as (arm, board, _):
+        arm.use_coordinates(Space.DESK)
+        arm.move(150.0, -150.0, 60.0)
+        gain, fake_arm_module.TRACKING_GAIN = fake_arm_module.TRACKING_GAIN, 1.0
+        arm.get_position()                                   # the servos are where they were sent
+        board.arm.deadband_mm, board.arm.stop_short_mm = 1.5, 1.0
+        try:
+            plain = arm.move(150.0, -150.0, 59.0, MoveType.SLOW)
+            ignored = board.arm.actual
+            board.log.clear()
+            precise = arm.move(150.0, -150.0, 58.0, MoveType.PRECISE)
+            landed, sent = board.arm.actual, board.moves()
+            board.arm.deadband_mm = 3.0
+            board.log.clear()
+            stuck = arm.move(150.0, -150.0, 57.0, MoveType.PRECISE)
+            stuck_sent = board.moves()
+        finally:
+            fake_arm_module.TRACKING_GAIN = gain
+    return all([
+        check("a 1 mm slow step inside the deadband: the servos do not move", bool(plain)
+              and abs(ignored[2] - 60.0) < 0.01, f"z {ignored[2]:.2f}"),
+        check("PRECISE, 2 mm: stops 1 mm short, then sent the target plus that; lands",
+              bool(precise) and len(sent) >= 2 and sent[0][2] == 58.0 and 56.5 < sent[1][2] < 57.5
+              and abs(landed[2] - 58.0) < 0.4,
+              f"sent {[round(point[2], 2) for point in sent]}, lands at z {landed[2]:.2f}"),
+        check("a correction that gains nothing ends it, and the result is the target",
+              bool(stuck) and len(stuck_sent) == 2 and stuck.position == (150.0, -150.0, 57.0),
+              f"sent {[round(point[2], 2) for point in stuck_sent]}"),
     ])
 
 
@@ -292,9 +320,9 @@ def test_stop() -> bool:
     return all([
         check("a stop during a leg holds the arm part-way", stopped.status is MoveStatus.STOPPED
               and -150.0 < halt[0] < 150.0, f"{stopped}"),
-        check("by sending it, quickly, to the whole-millimetre pose it reads back",
+        check("by sending it, quickly, to the pose its servos read back",
               len(sent) == 2 and sent[-1][2] == arm_module.MOVE_MIN_MS
-              and halt == tuple(float(round(value)) for value in halt), f"{sent}"),
+              and math.dist(halt, board.arm.actual) < 1.0, f"{sent}"),
         check("the next call goes ahead", bool(after), f"{after}"),
         check("after Ctrl-C every call stops at once and sends nothing",
               all(result.status is MoveStatus.STOPPED for result in frozen) and frozen_log == [],
@@ -375,6 +403,19 @@ def test_switching_calibration() -> bool:
     ])
 
 
+def test_cup_to_either_end() -> bool:
+    print("the cup turns all the way to -90 and +90, wherever the arm is:")
+    refused = []
+    with fake_arm(None) as (arm, board, _):
+        for x, y in [(77.0, -240.0), (196.0, -140.0), (-206.0, -123.0), (142.0, -202.0), (210.0, 49.0)]:
+            arm.move(x, y, 120.0)
+            for servo in (-90.0, 90.0):
+                result = arm.move(x, y, 120.0, angle=servo + bearing_degrees(x, y))
+                if not result:
+                    refused.append(f"({x:.0f}, {y:.0f}) {servo:+.0f}: {result.detail}")
+    return check("none refused", not refused, "; ".join(refused))
+
+
 def test_small_moves_are_sent() -> bool:
     print("a move of a tenth of a millimetre is sent, not skipped:")
     with fake_arm(None) as (arm, board, _):
@@ -392,8 +433,8 @@ def test_small_moves_are_sent() -> bool:
     ])
 
 
-TESTS = [test_connect_and_ask, test_fast_and_slow, test_refusals_send_nothing,
+TESTS = [test_connect_and_ask, test_fast_and_slow, test_precise, test_refusals_send_nothing,
          test_turn_rides_on_the_move, test_grab_and_drop, test_turning_a_piece,
          test_grab_lets_go_first_and_needs_clearance, test_clearance_guard, test_round_the_base,
          test_stop, test_camera_space, test_without_a_desk_calibration, test_switching_calibration,
-         test_small_moves_are_sent]
+         test_cup_to_either_end, test_small_moves_are_sent]

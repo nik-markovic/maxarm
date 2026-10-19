@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path[:0] = [str(ROOT), str(ROOT / "calibration"), str(HERE)]
 
-from maxarm import MaxArm, Space, Spaces                     # noqa: E402
+from maxarm import MaxArm, Space, Spaces, geometry           # noqa: E402
 from maxarm.arm import MOVE_FAST_MM_S, MOVE_SLOW_MM_S        # noqa: E402
 from maxarm.geometry import HOME                             # noqa: E402
 from common import arm_api                                   # noqa: E402
@@ -26,18 +26,21 @@ from common.motion import GLIDE_STEP_MM, HOVER_MM, Motion    # noqa: E402
 from common.server import Server                             # noqa: E402
 from common.worker import Worker                             # noqa: E402
 from desk.api import DeskSession                             # noqa: E402
+import fake_arm                                              # noqa: E402
 from fake_arm import fake_pyserial, instant_waits            # noqa: E402
 from harness import BASELINE, check                          # noqa: E402
 
 CMD_MM = 0.005
-# Five touch points round the work area on z = 0.01 x - 0.05 y + 30, the last 1.5 mm above it.
-TOUCHES = [(-100.0, -250.0, 41.5), (100.0, -250.0, 43.5), (0.0, -100.0, 35.0), (140.0, -120.0, 37.4),
+# Five touch points round the work area on z = 0.01 x - 0.05 y + 30, the last 1.5 mm above it. They span
+# more than SAVE needs: a point is where the servos say the cup is, to the nearest pulse.
+TOUCHES = [(-100.0, -250.0, 41.5), (100.0, -250.0, 43.5), (0.0, -95.0, 34.75), (140.0, -120.0, 37.4),
            (-140.0, -140.0, 37.1)]
 
 
 @contextlib.contextmanager
 def app(with_desk: bool = True):
     """Yields post(path, **body) -> reply, state() -> dict, the fake board, and the scratch config."""
+    gain, fake_arm.TRACKING_GAIN = fake_arm.TRACKING_GAIN, 1.0       # the servos get where they are sent
     with tempfile.TemporaryDirectory() as scratch, fake_pyserial() as boards, instant_waits():
         config = Path(scratch)
         if with_desk:
@@ -60,6 +63,7 @@ def app(with_desk: bool = True):
             yield post, state, boards[0], config
         finally:
             worker.shutdown()
+            fake_arm.TRACKING_GAIN = gain
 
 
 def legs(board) -> list:
@@ -120,7 +124,8 @@ def test_record_and_save() -> bool:
         saved = post("desk/save")
         written = json.loads((config / "desk.json").read_text())
         is_kept = (config / "desk-previous.json").exists()
-        heights = [Spaces(config).convert(point, Space.ARM, Space.DESK)[2] for point in TOUCHES]
+        recorded = [(point["x"], point["y"], point["z"]) for point in desk["points"]]
+        heights = [Spaces(config).convert(point, Space.ARM, Space.DESK)[2] for point in recorded]
         after = state()["desk"]
     offsets = [point["deviation"] for point in desk["points"]]
     worst = max(range(len(offsets)), key=lambda index: abs(offsets[index]))
@@ -141,10 +146,33 @@ def test_record_and_save() -> bool:
     ])
 
 
+def test_numbers_and_readings() -> bool:
+    print("a point is what the servos read, and a deleted point's number is not used again:")
+    with app() as (post, state, board, _):
+        record_touches(post)
+        post("desk/delete", id=5)
+        post("jump", x=60.0, y=-200.0)
+        post("move", x=60.0, y=-200.0, z=40.0)
+        board.arm.position = board.arm.actual = (60.0, -200.0, 41.3)   # settled short of the 40 it was sent to
+        recorded = post("desk/record")
+        points = state()["desk"]["points"]
+        post("desk/clear")
+        post("desk/record")
+        after_clear = [point["id"] for point in state()["desk"]["points"]]
+    newest = points[-1]
+    return all([
+        check("after deleting #5, the next is #6", [point["id"] for point in points] == [1, 2, 3, 4, 6],
+              f"{[point['id'] for point in points]}"),
+        check("recorded where the servos are, with where it was sent beside it",
+              abs(newest["z"] - 41.3) < 0.7 and newest["sent"] == [60.0, -200.0, 40.0], recorded["detail"]),
+        check("CLEAR starts the numbers again", after_clear == [1], f"{after_clear}"),
+    ])
+
+
 def test_refusals_to_save() -> bool:
     print("points SAVE will not take:")
     reasons = []
-    for touches in ([(-100.0, -250.0, 40.0), (0.0, -175.0, 40.0), (100.0, -100.0, 40.0), (50.0, -137.5, 40.0)],
+    for touches in ([(-110.0, -245.0, 40.0), (0.0, -167.5, 40.0), (110.0, -90.0, 40.0), (55.0, -128.75, 40.0)],
                     [(-100.0, -250.0, 40.0), (100.0, -250.0, 40.0), (0.0, -150.0, 40.0)]):
         with app() as (post, _, _, _):
             for x, y, z in touches:
@@ -153,7 +181,7 @@ def test_refusals_to_save() -> bool:
                 post("desk/record")
             reasons.append(post("desk/save"))
     return all([
-        check("all in a row, though spanning 200 by 150", reasons[0]["status"] == "refused"
+        check("all in a row, though spanning 220 by 155", reasons[0]["status"] == "refused"
               and "row" in reasons[0]["detail"], reasons[0]["detail"]),
         check("only 100 mm of Y", reasons[1]["status"] == "refused" and "in Y" in reasons[1]["detail"],
               reasons[1]["detail"]),
@@ -188,7 +216,7 @@ def test_point_tests() -> bool:
         check("first: up to the hover height, over, and slowly down to 4 mm",
               first["status"] == "done" and abs(height(approach[0][0]) - HOVER_MM[Space.DESK]) < CMD_MM
               and abs(height(approach[-1][0]) - 4.0) < CMD_MM
-              and math.dist(approach[-1][0][:2], TOUCHES[0][:2]) < CMD_MM,
+              and math.dist(approach[-1][0][:2], TOUCHES[0][:2]) < 0.5,
               f"{len(approach)} legs, heights {[round(height(point), 1) for point, _ in approach]}"),
         check("the page is told the next one glides", is_gliding),
         check("second: a glide, in legs of 10 mm at most, every one at 4.0 mm, all slow",
@@ -244,6 +272,47 @@ def test_input_and_reset() -> bool:
     ])
 
 
+def touching(x: float, y: float, elbow: float, desk_z: float) -> float:
+    """The board z at which a cup whose elbow is `elbow` degrees off really meets a flat desk at `desk_z`."""
+    low, high = desk_z - 30.0, desk_z + 30.0
+    for _ in range(60):
+        middle = (low + high) / 2.0
+        if geometry.true_position((x, y, middle), (0.0, 0.0, elbow))[2] < desk_z:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2.0
+
+
+def test_elbow_offset() -> bool:
+    print("an arm whose elbow sits 4.4 degrees off: SAVE finds it, and the desk test stays level:")
+    elbow, desk_z = -4.4, 52.0                     # the true desk; the cup touches it at board z 41-51
+    spots = [(-100.0, -245.0), (100.0, -245.0), (0.0, -90.0), (-120.0, -110.0), (130.0, -100.0), (0.0, -170.0),
+             (-180.0, -160.0), (170.0, -170.0)]
+    with app() as (post, state, board, config):
+        for x, y in spots:
+            post("jump", x=x, y=y)
+            post("move", x=x, y=y, z=touching(x, y, elbow, desk_z))
+            post("desk/record")
+        fit = state()["desk"]["fit"]
+        post("desk/save")
+        saved = json.loads((config / "desk.json").read_text())
+        post("desk/test-point", id=1, height=4.0)
+        legs(board)
+        post("desk/test-point", id=2, height=4.0)
+        glide = legs(board)
+    really = [geometry.true_position(point, (0.0, 0.0, elbow))[2] - desk_z for point, _ in glide]
+    return all([
+        check("the elbow found, within a tenth of a degree", abs(fit["elbow_deg"] - elbow) < 0.1,
+              f"{fit['elbow_deg']:+.2f} deg; points off the desk {fit['rms']:.2f} mm RMS, "
+              f"{fit['rms_plane_only']:.2f} with a plane alone"),
+        check("and saved for the library", abs(saved["joint_offsets_deg"][2] - elbow) < 0.1),
+        check("the glide keeps the real cup 4 mm over the real desk, within 0.3 mm",
+              len(glide) > 10 and max(abs(height - 4.0) for height in really) < 0.3,
+              f"{min(really):.2f} .. {max(really):.2f} mm over {len(glide)} legs"),
+    ])
+
+
 def test_without_desk_json() -> bool:
     print("no desk.json yet:")
     with app(with_desk=False) as (post, state, _, _):
@@ -258,5 +327,5 @@ def test_without_desk_json() -> bool:
     ])
 
 
-TESTS = [test_arm_space_moves, test_record_and_save, test_refusals_to_save, test_point_tests,
-         test_input_and_reset, test_without_desk_json]
+TESTS = [test_arm_space_moves, test_record_and_save, test_numbers_and_readings, test_refusals_to_save,
+         test_point_tests, test_input_and_reset, test_elbow_offset, test_without_desk_json]

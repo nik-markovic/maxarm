@@ -16,8 +16,10 @@ Desk space is millimetres on the desk with z the height above its surface, 0 bei
 
 ## desk.json
 
-A plane, written by the desk page's SAVE: arm x and y are desk x and y, and the desk's surface is at
-arm z = `tilt_x` x + `tilt_y` y + `offset`, fitted through the touch points. So
+Written by the desk page's SAVE. First `joint_offsets_deg`: how far the servos sit from the zeros the firmware
+assumes (only the elbow is fitted, -4.4 degrees on the owner's arm). The board's x, y, z are corrected through the
+joint angles to where the cup really is, and there the desk is a plane: true x and y are desk x and y, and the
+surface is at true z = `tilt_x` x + `tilt_y` y + `offset`. So
 
 ```
 desk_to_arm = [[1,      0,      0, 0     ],

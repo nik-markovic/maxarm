@@ -19,8 +19,10 @@ import ast
 import os
 import sys
 import time
+from statistics import median
 from typing import List, Optional, Tuple
 
+from . import geometry
 from .geometry import Position
 from .transport import SerialTransport, TransportError
 
@@ -53,9 +55,10 @@ ABSENT_SERVO_ID = 5
 SERVO_VOLTAGE_MIN_MV = 6000
 
 # After a move lands the error keeps shrinking for this long, worth ~0.8 mm, and
-# a single read jitters by ~1 mm -- hence a median of several, after a wait.
+# a servo's read flickers by a pulse -- hence a median of several, after a wait.
 SETTLE_MS = 400
 SETTLE_READS = 5
+READ_PULSES = "[bus_servo.get_position(i) for i in (1, 2, 3)]"
 
 BOARD_CHECK = (
     "([n in globals() for n in ('arm', 'bus_servo', 'nozzle', 'time', 'gc')],"
@@ -257,22 +260,39 @@ class ReplProtocol:
         """Pump on; or pump off with the vent valve held open for a second, on a board thread."""
         self.run("nozzle.on()" if is_on else "nozzle.off()")
 
+    def read_pulses(self) -> Optional[Tuple[int, int, int]]:
+        """The three servos' own positions, in pulses. None if the bus dropped one."""
+        reply = self.evaluate(READ_PULSES)
+        if not isinstance(reply, list) or any(value is False or value is None for value in reply):
+            return None
+        return tuple(reply)
+
     def read_position(self) -> Optional[Position]:
-        """Where the servos say the arm is, in whole millimetres. None if the bus stayed quiet."""
-        reply = self.evaluate("arm.read_position()")
-        return tuple(float(value) for value in reply) if reply else None
+        """Where the servos say the tip is, in tenths. None if the bus dropped a read.
+
+        The servos' pulses through the firmware's own kinematics, on the host. The
+        board's `arm.read_position()` does the same and rounds with `int(v + 0.5)`,
+        which truncates negative values: y in front of the arm, and x to its right,
+        read up to 1 mm out.
+        """
+        pulses = self.read_pulses()
+        return geometry.forward(geometry.pulse_to_deg(pulses)) if pulses else None
 
     def read_settled_position(self, reads: int = SETTLE_READS,
                               wait_ms: int = SETTLE_MS) -> Optional[Position]:
-        """Let the arm stop creeping, then take the median of several reads."""
+        """Let the arm stop creeping, then the tip from the median of several reads, servo by servo."""
+        pulses = self.read_settled_pulses(reads, wait_ms)
+        return geometry.forward(geometry.pulse_to_deg(pulses)) if pulses else None
+
+    def read_settled_pulses(self, reads: int = SETTLE_READS,
+                            wait_ms: int = SETTLE_MS) -> Optional[Tuple[float, float, float]]:
+        """Let the arm stop creeping, then each servo's median pulse over several reads."""
         time.sleep(wait_ms / 1000.0)
-        samples: List[Position] = [sample for sample in (self.read_position()
-                                                         for _ in range(max(reads, 1)))
-                                   if sample is not None]
+        samples = [sample for sample in (self.read_pulses() for _ in range(max(reads, 1)))
+                   if sample is not None]
         if not samples:
             return None
-        return tuple(sorted(sample[axis] for sample in samples)[len(samples) // 2]
-                     for axis in range(3))
+        return tuple(median(sample[servo] for sample in samples) for servo in range(3))
 
 
 def _set_angle(angle_deg: float, duration_ms: int) -> str:

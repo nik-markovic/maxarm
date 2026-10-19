@@ -8,7 +8,9 @@ What it reproduces is how this board misleads its driver:
   1. `set_position()` returns None inside the 50 mm blind cylinder,
   2. False when the IK will not solve -- printing to stdout first,
   3. True while servo 2 sits silently clamped and the arm does not move,
-  4. Ctrl-D on an empty buffer is a soft reboot that re-homes the arm.
+  4. Ctrl-D on an empty buffer is a soft reboot that re-homes the arm,
+  5. and, when asked (`deadband_mm`, `stop_short_mm`), the servos' deadband: a
+     target closer than the deadband is ignored, a farther one stopped short of.
 
 Reachability uses the library's validated `geometry`, so "the fake refused"
 means the real board would have. Everything the board is told lands in
@@ -50,6 +52,8 @@ class FakeBoardArm:
         self.position: Position = geometry.HOME      # last accepted command
         self.actual: Position = geometry.HOME        # where the servos are
         self.is_frozen = False                       # accepts and ignores, like a clamped servo
+        self.deadband_mm = 0.0                       # targets nearer than this are not moved to
+        self.stop_short_mm = 0.0                     # and farther ones stopped this far short of
 
     def set_position(self, position: Position, duration_ms: int):
         x, y, z = position
@@ -65,13 +69,25 @@ class FakeBoardArm:
             return False
         if self.is_frozen or reason in ("servo2_clamped", "servo3_clamped"):
             return True
-        self.position = (x, y, z)
+        self.position = self._settles_at((x, y, z))
         return True
 
+    def _settles_at(self, target: Position) -> Position:
+        gap = math.dist(target, self.actual)
+        if self.deadband_mm and gap <= self.deadband_mm:
+            return self.position
+        if not self.stop_short_mm:
+            return target
+        return tuple(goal - self.stop_short_mm * (goal - now) / gap for goal, now in zip(target, self.actual))
+
     def read_position(self):
+        self.track()
+        return tuple(int(round(value)) for value in self.actual)
+
+    def track(self) -> None:
+        """The servos close part of the distance between one read and the next."""
         self.actual = tuple(self.actual[i] + TRACKING_GAIN * (self.position[i] - self.actual[i])
                             for i in range(3))
-        return tuple(int(round(value)) for value in self.actual)
 
     def go_home(self, duration_ms: int = 2000) -> None:
         self.position = self.actual = geometry.HOME
@@ -89,6 +105,8 @@ class FakeBusServo:
     def get_position(self, servo_id: int):
         if not self.is_answering or (servo_id not in self.FITTED_IDS and not self.is_bus_echoing):
             return False
+        if servo_id == 1:
+            self.arm.track()                     # a read of all three servos is one step closer
         pulses = geometry.deg_to_pulse(geometry.inverse(self.arm.actual))
         return int(round(pulses[min(servo_id, 3) - 1]))
 

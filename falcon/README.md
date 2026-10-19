@@ -36,12 +36,22 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
 
 ## What changed in the library since elephant
 
+- **`MoveType.PRECISE` is built.** The servos have a deadband: they ignore a target a few pulses away and stop short
+  of a farther one, 1-3 mm. PRECISE moves slowly, reads the servos, and sends target + shortfall until each servo is
+  within a pulse of its target: 1 mm steps went from 1.4 mm median error to 0.5 on the owner's arm, for ~1.2 s more.
+- **Desk space corrects the arm's own geometry.** `desk.json` may carry `joint_offsets_deg`, how far the servos sit
+  from the firmware's zeros; the owner's elbow is 4.4 degrees out, which made a flat desk read 8 mm higher near the
+  base. The desk page measures it; `geometry.true_position()` and `firmware_position()` convert, exactly.
+- **Positions are read from the servos' pulses**, with the firmware's kinematics on the host, in floats. The board's
+  own read rounds to whole millimetres, and truncates negative values.
 - **`arm.use_calibration(config_dir)`** reads the calibration files afresh; `None` means none at all. A calibration
   app needs it: it measures the desk with no desk calibration in the way, then tries out the file it has just
   written, on the same connection. `MaxArm(config_dir=None)` and `Spaces(None)` likewise.
 - **A move of any size is sent.** Moves under 0.5 mm were skipped without a word, which would have hidden exactly
   what the desk page's tenth-of-a-millimetre slider is for. Now only a move the command cannot carry (two
   decimals) is skipped.
+- Smaller: a cup turn of exactly 90 degrees is no longer refused for float error; `connect()` starts from the reset
+  pose, where the board sends the arm.
 - Converting between spaces needs no new call: `Spaces(config_dir).convert(point, Space.ARM, Space.DESK)`.
 
 ## The calls
@@ -56,6 +66,7 @@ arm.set_clearance(14.0)                # mm above the desk
 
 arm.move(x, y, z)                      # fast: 200 mm/s
 arm.move(x, y, z, MoveType.SLOW)       # 10 mm/s: nothing heavy gets yanked
+arm.move(x, y, z, MoveType.PRECISE)    # slow, then corrected until it lands: ~0.5 mm, ~1.2 s more
 arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
 arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
@@ -100,8 +111,12 @@ until the camera calibration exists, so `main.py` waits for that (`config/README
 
 **Fast and slow are one command per leg, waited out.** Nothing is read back while the arm moves, and nothing is
 corrected. A leg is usually the whole move; there are more only when the move has to climb over the clearance, go
-round the arm-base limit, or is too long to stay level (see below). `MoveType.PRECISE` -- slow, reading the position
-and correcting x and y as it goes -- is designed but not built, and raises.
+round the arm-base limit, or is too long to stay level (see below).
+
+**PRECISE is slow, then corrected.** After the slow legs it reads the servos (a median of five, settled) and, while
+any servo is more than a pulse from the pulse the firmware sends for the target, sends the target plus the error: at
+most three rounds and 3 mm per axis, every aim checked against the limits, and it stops as soon as a round gains
+nothing, so a cup resting on something is not pushed on and on. The result then says the arm is at the target.
 
 **The cup turns with the move.** `angle` is a direction in your space, degrees from its +x towards its +y. The turn is
 sent in the same round trip as the leg that crosses the desk, and the move waits for whichever finishes last: the cup
@@ -127,12 +142,13 @@ All of them are applied to every move, before anything is sent. `can_reach()` as
   straight line crosses it goes by a front corner instead, at half-way height.
 - **Clearance**, with a calibrated desk: nothing travels sideways below `clearance + carried + 5 mm`.
 - **Desk floor**, with a calibrated desk: nothing more than 5 mm into it.
-- **Sag**: on a long, low move in or out, the arm's real path sags below its ends; such a leg is halved until it
-  sags no more than 5 mm.
+- **Path dip**: the kinematics predict that a long, low move in or out dips below its ends; such a leg is halved
+  until the predicted dip is 5 mm or less. A precaution: the dip has never been measured on the arm.
 
 The arm does not move in straight lines -- it interpolates its servos -- but straight lines are still the right thing
-to check: sideways, its real path keeps between the two ends' distances from the base, bowing outward. Downward it
-sags on long moves in or out, which is what the last row handles. See [`maxarm/path.py`](maxarm/path.py).
+to check: sideways, by the model its path keeps between the two ends' distances from the base, bowing outward.
+Downward the model predicts a dip on long moves in or out, which the last row guards against; nothing on the arm has
+been seen to sag (work/STATUS-falcon.md §5.4). See [`maxarm/path.py`](maxarm/path.py).
 
 ## What you can tune
 
@@ -168,6 +184,6 @@ Everything else is a constant in the module that uses it, with where it came fro
 
 1. **Connecting moves the arm.** Opening the port resets the board, which homes the arm and centres the cup:
    about 4 s, sometimes 15.
-2. **Accuracy is about ±3 mm per axis**, and fast and slow moves do nothing about it. That is what `PRECISE` is for.
+2. **Fast and slow moves land 1-3 mm short**: the servos' deadband. PRECISE lands within a pulse, about 0.5 mm.
 3. **An arm that accepts commands and does not move** was seen once. `connect()` checks the servo supply; a move
    cannot tell, because it reads nothing back. Power-cycle the arm at the barrel jack.

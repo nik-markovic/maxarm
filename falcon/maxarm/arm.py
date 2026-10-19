@@ -51,12 +51,28 @@ MOVE_MAX_MS = 30000
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
 SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 
+# Each servo has a deadband: it does not move for a target 2-5 pulses away, and
+# stops 1-4 short of one further off -- 1-3 mm, more against gravity. It does so
+# the same way every time from the same side (STATUS-falcon 5.7), so sending the
+# target plus what it fell short by lands it: on the owner's arm, 1 mm steps
+# went from 1.8 mm median error to 0.5, one pulse, the floor through the firmware.
+# Landed is every servo within this many pulses of the pulse the firmware sends
+# for the target: the servos only take whole pulses, and the firmware truncates.
+PRECISE_TOLERANCE_PULSES = 1.0
+PRECISE_ROUNDS = 3
+# A correction is never bigger than this on any axis: the shortfall is 1-3 mm,
+# and a cup held up by something solid must not be pushed into it much further.
+PRECISE_CAP_MM = 3.0
+# A round that does not take the worst servo's miss below this share of the last
+# one ends it: something is in the way, or what is left is within the deadband.
+PRECISE_PROGRESS = 0.8
+
 
 class MoveType(Enum):
     FAST = "fast"            # straight there at MOVE_FAST_MM_S, no correction
     SLOW = "slow"            # the same at MOVE_SLOW_MM_S: nothing heavy gets yanked
-    # Slow, reading the position as it goes and correcting x and y, while
-    # backing off 4 mm and trying again if z sinks below the target. Not built.
+    # Slow, then corrected from the servos' own reading until each is within a
+    # pulse of its target: about a second more, for a fraction of the error.
     PRECISE = "precise"
 
 
@@ -126,7 +142,7 @@ class MaxArm:
         """
         self._protocol.connect()
         self._protocol.check_board()
-        self._position = self._protocol.read_position() or geometry.HOME
+        self._position = geometry.HOME      # where the board's main.py sends the arm on every reset
         self._servo_deg, self._is_suction_on, self._held = 0.0, False, None
         self._is_connected, self._is_frozen = True, False
         self._abort.clear()
@@ -185,9 +201,6 @@ class MaxArm:
         face that way, degrees from the space's +x towards its +y; the turn
         rides on the leg that crosses the desk, and the move waits for it.
         """
-        if move_type is MoveType.PRECISE:
-            raise NotImplementedError("MoveType.PRECISE is designed but not built yet: "
-                                      "see work/STATUS-elephant.md")
         self._begin()
         point = (float(x), float(y), float(z))
         servo = self._servo_for(point, angle) if angle is not None else None
@@ -311,12 +324,43 @@ class MaxArm:
         except Refused as reason:
             return self._result(MoveStatus.REFUSED, str(reason))
         turning_leg = _first_sideways(start, path) if servo is not None else None
-        speed = MOVE_SLOW_MM_S if move_type is MoveType.SLOW else MOVE_FAST_MM_S
+        speed = MOVE_FAST_MM_S if move_type is MoveType.FAST else MOVE_SLOW_MM_S
         for index, point in enumerate(path):
             failed = self._drive(self._spaces.arm.from_desk(point), speed,
                                  servo if index == turning_leg else None)
             if failed is not None:
                 return failed
+        if move_type is MoveType.PRECISE:
+            return self._correct(self._spaces.arm.from_desk(target))
+        return self._result(MoveStatus.DONE)
+
+    def _correct(self, target: Position) -> MoveResult:
+        """Send `target` (arm space) plus what the servos fell short by, until they land or stop gaining.
+
+        The arm is then taken to be at `target`: what it was sent to last is
+        target plus a correction, which says less about where it is.
+        """
+        wanted = [int(pulse) for pulse in geometry.deg_to_pulse(geometry.inverse(target))]
+        last_miss = math.inf
+        for _ in range(PRECISE_ROUNDS):
+            if self._abort.is_set():
+                return self._result(MoveStatus.STOPPED)
+            pulses = self._protocol.read_settled_pulses()
+            if pulses is None:
+                return self._result(MoveStatus.DONE, "the servos did not answer, so it was not corrected")
+            miss = max(abs(goal - now) for goal, now in zip(wanted, pulses))
+            if miss <= PRECISE_TOLERANCE_PULSES or miss > PRECISE_PROGRESS * last_miss:
+                break
+            here = geometry.forward(geometry.pulse_to_deg(pulses))
+            aim = tuple(goal + max(-PRECISE_CAP_MM, min(PRECISE_CAP_MM, goal - now))
+                        for goal, now in zip(target, here))
+            if self._planner.problem_with(self._spaces.arm.to_desk(aim)):
+                break
+            failed = self._drive(aim, MOVE_SLOW_MM_S, None)
+            if failed is not None:
+                return failed
+            last_miss = miss
+        self._position = target
         return self._result(MoveStatus.DONE)
 
     def _drive(self, point: Position, speed_mm_s: float,

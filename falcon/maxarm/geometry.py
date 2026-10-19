@@ -130,6 +130,29 @@ def real_path(start: Position, end: Position, samples: int = 24) -> List[Positio
             for step in range(samples + 1)]
 
 
+def true_position(position: Position, offsets: Angles) -> Position:
+    """Where the cup really is when the firmware is sent `position`, if its servos sit `offsets`
+    degrees off the zeros the firmware assumes. Points the arm cannot reach are left as they are."""
+    if not any(offsets):
+        return position
+    try:
+        angles = inverse(position)
+    except Unreachable:
+        return position
+    return forward(tuple(angle + offset for angle, offset in zip(angles, offsets)))
+
+
+def firmware_position(position: Position, offsets: Angles) -> Position:
+    """What to send the firmware for the cup to really go to `position`: `true_position()` undone."""
+    if not any(offsets):
+        return position
+    try:
+        angles = inverse(position)
+    except Unreachable:
+        return position
+    return forward(tuple(angle - offset for angle, offset in zip(angles, offsets)))
+
+
 def bearing_degrees(x: float, y: float) -> float:
     """0 straight out from the arm (-y), positive towards +x. The fan is +-120."""
     return math.degrees(math.atan2(x, -y))

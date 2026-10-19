@@ -12,6 +12,10 @@ finding the desk with it:
   onto a piece. Straight down when the point is underneath.
 - **glide**: slowly and level, in short legs, to watch the cup's height.
 
+`precise` ends a move with the library's correction (`MoveType.PRECISE`): the
+servos stop a pulse or several short of where they are sent, and are sent on
+until they are within half a millimetre.
+
 Two spaces. ARM uses no calibration at all: the desk is what is being measured,
 so no desk floor from an older calibration may keep the cup off it. DESK uses
 the saved `desk.json`, to try it out.
@@ -90,17 +94,17 @@ class Motion:
 
     # --- moves ------------------------------------------------------------
 
-    def direct(self, space: Space, target: Position) -> MoveResult:
+    def direct(self, space: Space, target: Position, precise: bool = False) -> MoveResult:
         self.use(space)
         here, hover = self.position(space), HOVER_MM[space]
         if min(here[2], target[2]) >= hover:
-            return self._go([(target, MoveType.FAST)])
+            return self._go([(target, MoveType.FAST)], precise)
         if max(here[2], target[2]) > hover and _sideways(here, target) < CROSSING_MM:
             level = (target[0], target[1], hover)
             if target[2] < here[2]:
-                return self._go([(level, MoveType.FAST), (target, MoveType.SLOW)])
-            return self._go([(level, MoveType.SLOW), (target, MoveType.FAST)])
-        return self._go([(target, MoveType.SLOW)])
+                return self._go([(level, MoveType.FAST), (target, MoveType.SLOW)], precise)
+            return self._go([(level, MoveType.SLOW), (target, MoveType.FAST)], precise)
+        return self._go([(target, MoveType.SLOW)], precise)
 
     def jump(self, space: Space, x: float, y: float) -> MoveResult:
         self.use(space)
@@ -111,16 +115,16 @@ class Motion:
             legs.insert(0, ((here[0], here[1], travel), MoveType.SLOW))
         return self._go(legs)
 
-    def approach(self, space: Space, target: Position) -> MoveResult:
+    def approach(self, space: Space, target: Position, precise: bool = False) -> MoveResult:
         self.use(space)
         if _sideways(self.position(space), target) >= CROSSING_MM:
             result = self.jump(space, target[0], target[1])
             if not result:
                 return result
-        return self.direct(space, target)
+        return self.direct(space, target, precise)
 
     def glide(self, space: Space, target: Position) -> Optional[MoveResult]:
-        """Slowly and level to `target`; None, with nothing sent, if a straight line cannot get there."""
+        """Slowly and level to `target`, corrected there; None, with nothing sent, if a straight line cannot get there."""
         self.use(space)
         here = self.position(space)
         steps = max(1, math.ceil(math.dist(here, target) / GLIDE_STEP_MM))
@@ -128,7 +132,7 @@ class Motion:
                 for step in range(1, steps + 1)]
         if not all(self.arm.can_reach(*point) for point, _ in legs):
             return None
-        return self._go(legs)
+        return self._go(legs, precise=True)
 
     def turn(self, servo: float) -> MoveResult:
         """The cup's servo to `servo` degrees, -90 to 90, where the arm is."""
@@ -174,7 +178,10 @@ class Motion:
 
     # --- bookkeeping ------------------------------------------------------
 
-    def _go(self, legs: List[Leg]) -> MoveResult:
+    def _go(self, legs: List[Leg], precise: bool = False) -> MoveResult:
+        """The legs in turn; `precise` then corrects at the last one, which the arm is already sent to."""
+        if precise:
+            legs = legs + [(legs[-1][0], MoveType.PRECISE)]
         result = MoveResult(MoveStatus.DONE, self.position(self.space))
         for point, move_type in legs:
             if self.stopping.is_set():

@@ -7,7 +7,7 @@ the cup snug on its surface.
 
 | space    | a point is           | onto desk space by                        | file          |
 | -------- | -------------------- | ----------------------------------------- | ------------- |
-| `ARM`    | the board's x, y, z  | the inverse of `desk_to_arm`, a 4x4       | `desk.json`   |
+| `ARM`    | the board's x, y, z  | the servos' offsets, then `desk_to_arm`   | `desk.json`   |
 | `DESK`   | x, y, height         | nothing to do                             | `desk.json`   |
 | `CUSTOM` | your own x, y, z     | `custom_to_desk`, a 4x4                   | `custom.json` |
 | `CAMERA` | px, py, height       | `desk_to_pixel`, a 3x4, solved per height | `camera.json` |
@@ -15,6 +15,12 @@ the cup snug on its surface.
 `desk.json` is the desk calibration and every other space hangs off it. Without
 it the library cannot know where the desk is: `ARM` still works, desk heights
 are then just the arm's z, and the clearance and desk-floor checks do nothing.
+
+`desk.json` may also say how far the arm's servos sit from the zeros the
+firmware assumes (`joint_offsets_deg`). The board's x, y, z are then not where
+the cup really is, and desk space is measured from where it really is: the
+offsets are undone first, then `desk_to_arm`. On the owner's arm the elbow is
+4.4 degrees out, which alone made a flat desk read 8 mm higher near the base.
 
 All four files live in `config/` and hold one matrix each.
 """
@@ -27,7 +33,8 @@ from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
-from .geometry import Position
+from . import geometry
+from .geometry import Angles, Position
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
@@ -94,7 +101,21 @@ class Camera:
         return vectors[-1][:3] / vectors[-1][3]
 
 
-Transform = Union[Affine, Camera]
+class ArmSpace:
+    """The board's own x, y, z. Onto desk space by undoing the servos' offsets, then the plane."""
+
+    def __init__(self, desk_to_arm: np.ndarray, joint_offsets: Angles = (0.0, 0.0, 0.0)) -> None:
+        self.plane = Affine(np.linalg.inv(desk_to_arm))      # where the cup really is, onto desk space
+        self.joint_offsets = tuple(float(offset) for offset in joint_offsets)
+
+    def to_desk(self, point: Position) -> Position:
+        return self.plane.to_desk(geometry.true_position(point, self.joint_offsets))
+
+    def from_desk(self, point: Position) -> Position:
+        return geometry.firmware_position(self.plane.from_desk(point), self.joint_offsets)
+
+
+Transform = Union[Affine, ArmSpace, Camera]
 
 
 def angle_to_desk(space: Transform, point: Position, angle: float) -> float:
@@ -118,9 +139,11 @@ class Spaces:
         desk_file = self.config_dir / "desk.json" if self.config_dir else None
         self.is_desk_calibrated = desk_file is not None and desk_file.exists()
         # No desk calibration yet: the identity stands in, so desk space is arm space.
-        desk_to_arm = (_read_matrix(desk_file, "desk_to_arm", (4, 4))
-                       if self.is_desk_calibrated else np.eye(4))
-        self.arm = Affine(np.linalg.inv(desk_to_arm))
+        if self.is_desk_calibrated:
+            self.arm = ArmSpace(_read_matrix(desk_file, "desk_to_arm", (4, 4)),
+                                json.loads(desk_file.read_text()).get("joint_offsets_deg", (0.0, 0.0, 0.0)))
+        else:
+            self.arm = ArmSpace(np.eye(4))
 
     def get(self, space: Space) -> Transform:
         if space is Space.ARM:

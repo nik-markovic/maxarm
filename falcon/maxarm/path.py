@@ -33,7 +33,7 @@ from typing import Callable, List, Optional
 
 from . import geometry
 from .geometry import Position
-from .spaces import Affine
+from .spaces import ArmSpace
 from .tunable import tunable
 
 # Past this the arm, nearly straight, sags out of control and can push its own
@@ -56,6 +56,9 @@ CLEARANCE_MARGIN_MM = 5.0
 # Halvings allowed to get a leg's sag under the margin. One takes the worst
 # measured, 13 mm, to about 3: the sag goes with the square of the distance.
 SAG_SPLITS = 3
+# Corrections allowed to find the desk point over a base corner; each takes the
+# error down by the calibration's x/y stretch, a few per cent.
+CORNER_SOLVE_STEPS = 20
 # A sideways shift smaller than this is not travelling across the desk: it is
 # below the arm's own accuracy.
 CROSSING_MM = 2.0
@@ -72,7 +75,7 @@ class Refused(Exception):
 class Planner:
     """The limits, applied to desk-space points. `arm` is the arm space."""
 
-    def __init__(self, arm: Affine, is_desk_known: bool) -> None:
+    def __init__(self, arm: ArmSpace, is_desk_known: bool) -> None:
         self.arm = arm
         self.is_desk_known = is_desk_known
 
@@ -162,10 +165,18 @@ class Planner:
                 if math.dist(corner, start) > 1.0 and math.dist(corner, end) > 1.0]
 
     def _at_desk_height(self, x: float, y: float, height: float) -> Position:
-        """The desk point over arm-space (x, y) at a desk height."""
-        row = self.arm.matrix[2]            # desk z, as a function of arm (x, y, z, 1)
-        z = (height - row[0] * x - row[1] * y - row[3]) / row[2]
-        return self.arm.to_desk((x, y, z))
+        """The desk point at a desk height whose arm-space x and y are (x, y).
+
+        Desk x and y are the cup's true ones, a few millimetres and per cent from
+        the board's, so the desk point is corrected until the arm's x and y agree.
+        """
+        point = (x, y, height)
+        for _ in range(CORNER_SOLVE_STEPS):
+            arm_x, arm_y, _ = self.arm.from_desk(point)
+            if math.hypot(x - arm_x, y - arm_y) < 1e-9:
+                break
+            point = (point[0] + x - arm_x, point[1] + y - arm_y, height)
+        return point
 
 
 def _each_leg(start: Position, path: List[Position],
