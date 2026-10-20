@@ -6,7 +6,7 @@ Points are recorded in arm space, with no calibration in the way
 
 | request                      | body          | does                                                 |
 | ---------------------------- | ------------- | ---------------------------------------------------- |
-| `POST /api/desk/record`      |               | keep where the arm was sent as a touch point         |
+| `POST /api/desk/record`      |               | keep where the servos say the cup is: a touch point  |
 | `POST /api/desk/delete`      | id            | forget one point                                     |
 | `POST /api/desk/clear`       |               | forget them all                                      |
 | `POST /api/desk/save`        |               | fit the plane and write `desk.json`                  |
@@ -19,15 +19,21 @@ Points are recorded in arm space, with no calibration in the way
 A point test comes down onto its point from above, like `grab()` -- unless the
 arm is where the previous point test left it, nothing else having moved it
 since. Then it glides there, slowly and level, so the cup's height over the
-desk can be watched all the way.
+desk can be watched all the way. Without a `desk.json` the desk tests use the
+library's default desk.
+
+Each point's offset -- how far above the desk it is -- is given three ways, for
+the page to choose from: off the plane fitted through the points (what SAVE
+would write), off the saved `desk.json`, and off the default desk.
 """
 
 import dataclasses
 import threading
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from maxarm import MoveResult, MoveStatus, Space
+from maxarm.spaces import DEFAULT_DESK_Z_MM
 
 from common.arm_api import describe
 from common.motion import Motion
@@ -40,6 +46,7 @@ from .store import Point
 # How high over the desk a point test goes, from 0: the owner's range (PILOT-falcon).
 TEST_HEIGHT_MAX_MM = 4.0
 HOLD_MAX_S = 30.0
+DEFAULT_DESK = plane.Plane(0.0, 0.0, DEFAULT_DESK_Z_MM)
 
 
 class DeskSession:
@@ -57,7 +64,8 @@ class DeskSession:
         server.add_state(self.state)
         server.add_limits(lambda: {"desk": {
             "x_span": plane.X_SPAN_MIN_MM, "y_span": plane.Y_SPAN_MIN_MM,
-            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM}})
+            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM,
+            "default_z": DEFAULT_DESK_Z_MM}})
         for name, handler in (("record", self.record), ("delete", self.delete), ("clear", self.clear),
                               ("save", self.save), ("visit", self.visit), ("test-point", self.test_point),
                               ("test-height", self.test_height), ("test-input", self.test_input),
@@ -195,22 +203,28 @@ class DeskSession:
             points = list(self.points)
         targets = [point.target for point in points]
         fitted = self._fitted(targets)
-        offsets = (plane.deviations(targets, fitted) if fitted and len(points) > 3
-                   else [None] * len(points))
-        motion = self.motion
-        is_saved = motion.spaces.is_desk_saved
+        motion, spaces = self.motion, self.motion.spaces
+        nothing = [None] * len(points)
+        offsets: Dict[str, List[Optional[float]]] = {
+            "fit": plane.deviations(targets, fitted) if fitted and len(points) > 3 else nothing,
+            "saved": ([spaces.convert(target, Space.ARM, Space.DESK)[2] for target in targets]
+                      if spaces.is_desk_saved else nothing),
+            "default": plane.deviations(targets, DEFAULT_DESK),
+        }
+        is_known = spaces.is_desk_known
         return {"desk": {
-            "points": [{"id": point.id, "x": point.x, "y": point.y, "z": point.z,
-                        "sent": point.sent, "deviation": offset}
-                       for point, offset in zip(points, offsets)],
-            "fit": _summary(fitted, targets, offsets),
+            "points": [{"id": point.id, "x": point.x, "y": point.y, "z": point.z, "sent": point.sent,
+                        "off": {desk: values[index] for desk, values in offsets.items()}}
+                       for index, point in enumerate(points)],
+            "fit": {"tilt_deg": fitted.tilt_deg} if fitted else None,
+            "off": {desk: _spread(values) for desk, values in offsets.items()},
             "span": _span(targets),
             "save_problem": plane.problem_with(targets),
             "saved": self.saved,
             "fit_height": fitted.height_of(motion.sent) if fitted else None,
-            "position": list(motion.position(Space.DESK)) if is_saved else None,
-            "measured": (list(motion.spaces.convert(motion.measured, Space.ARM, Space.DESK))
-                         if is_saved and motion.measured else None),
+            "position": list(motion.position(Space.DESK)) if is_known else None,
+            "measured": (list(spaces.convert(motion.measured, Space.ARM, Space.DESK))
+                         if is_known and motion.measured else None),
             "is_gliding": self.glide_from == self.worker.count,
         }}
 
@@ -235,13 +249,11 @@ class DeskSession:
             raise Refused("no desk calibration is in use")
 
 
-def _summary(fitted: Optional[plane.Plane], targets, offsets: List[Optional[float]]) -> Optional[dict]:
-    if fitted is None:
-        return None
+def _spread(offsets: List[Optional[float]]) -> Optional[dict]:
     known = [offset for offset in offsets if offset is not None]
-    return {"tilt_deg": fitted.tilt_deg,
-            "rms": plane.rms(known) if known else None,
-            "worst": max((abs(offset) for offset in known), default=None)}
+    if not known:
+        return None
+    return {"rms": plane.rms(known), "worst": max(abs(offset) for offset in known)}
 
 
 def _span(targets) -> Optional[dict]:

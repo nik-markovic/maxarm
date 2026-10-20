@@ -31,9 +31,9 @@ from maxarm.geometry import Position, bearing_degrees
 from maxarm.path import CROSSING_MM
 
 # Above this nothing on the desk can be hit, so moves go fast; below it they go
-# slow. Arm z: the desk is at about 44 under this arm, as for any MaxArm
-# standing on the desk it reaches. Desk z: a margin over the arm's +-3 mm.
-HOVER_MM = {Space.ARM: 80.0, Space.DESK: 20.0}
+# slow. Arm z, true z: 10 mm over the default desk, 44 (the owner's, PILOT-falcon).
+# Desk z: a margin over the arm's +-3 mm.
+HOVER_MM = {Space.ARM: 54.0, Space.DESK: 20.0}
 # How far apart a glide's commands are. The kinematics model has the tip dip
 # between the points it is sent to on moves in or out, with the square of the
 # distance (STATUS-falcon 5.4, not measured): 10 mm legs, under 0.05 mm.
@@ -57,6 +57,7 @@ class Motion:
         self.spaces = Spaces(config_dir)           # the saved calibration, for converting
         self.sent: Position = home_position()      # arm space: where the arm was last sent
         self.measured: Optional[Position] = None   # arm space: where its servos last said it was
+        self.is_measured_stale = False             # the arm has had a command since `measured` was read
         self.cup = 0.0                             # the cup servo's angle
         self.is_suction_on = False
         self.is_connected = False
@@ -171,11 +172,11 @@ class Motion:
         """Where the servos say the arm is, kept in arm space."""
         try:
             here = self.arm.get_position()
+            self.measured = here if self.space is Space.ARM else self.spaces.convert(here, self.space, Space.ARM)
         except ProtocolError:
             self.measured = None
-            return
-        self.measured = here if self.space is Space.ARM else self.spaces.convert(
-            here, self.space, Space.ARM)
+        finally:
+            self.is_measured_stale = False
 
     # --- bookkeeping ------------------------------------------------------
 

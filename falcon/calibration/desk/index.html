@@ -17,86 +17,85 @@
     <div class="card-head">
       <h2>Arm space, from above</h2>
       <div class="tools">
-        <span class="hint">grid</span>
+        <span class="hint">grid, mm</span>
         <div class="seg" id="steps"></div>
-        <button class="btn icon" id="rotate" title="Turn the view a quarter, to match how the arm stands">⟳</button>
+        <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
+          ⟳ Rotate view</button>
         <span class="hint" id="facing"></span>
       </div>
     </div>
-    <canvas id="grid" title="Click to send the arm over that grid point, plus the X and Y fine offsets"></canvas>
+    <div class="view-body">
+      <canvas id="grid" title="Click to send the arm over that grid point; X and Y fine go back to 0"></canvas>
+      <div class="zcol">
+        <span class="zlabel">HEIGHT <em id="z-mode"></em></span>
+        <output class="num" id="z-out" title="The height the arm is sent to"></output>
+        <button class="btn safe" id="z-safe" title="Up to the safe height, clear of anything on the desk"></button>
+        <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
+        <div class="zbar">
+          <input type="range" class="vertical" id="z-slider" step="1">
+          <span class="zscale" id="z-scale"></span>
+          <span class="zend top" id="z-top"></span>
+          <span class="zend bottom" id="z-bottom"></span>
+        </div>
+        <button class="btn zstep" id="z-down" title="1 mm down">Z−</button>
+        <button class="btn lower" id="z-lower"
+          title="Let the slider go 2 mm lower, as often as wanted. Only the firmware's limits stop it: watch the desk"
+          >▼ 2 mm</button>
+      </div>
+    </div>
     <div class="legend">
       <span><i class="swatch reach"></i>reach: 280 mm, ±120°</span>
       <span><i class="swatch base"></i>arm-base limit</span>
       <span><i class="swatch target"></i>target</span>
       <span><i class="swatch says"></i>arm says</span>
       <span><i class="swatch point"></i>touch point</span>
+      <span><i class="swatch caution"></i>height: may touch the desk</span>
     </div>
   </section>
 
   <section class="card arm">
-    <div class="card-head"><h2>Arm</h2><span class="hint">arm space, millimetres</span></div>
+    <div class="card-head">
+      <h2>Arm</h2>
+      <div class="tools">
+        <span class="hint">arm z</span>
+        <div class="seg" id="heights">
+          <button data-mode="true" title="Where the cup really is">TRUE</button>
+          <button data-mode="raw" title="The firmware's own numbers">RAW</button>
+        </div>
+        <span class="info" tabindex="0">?<span class="tip" id="heights-tip"></span></span>
+      </div>
+    </div>
 
-    <div class="readout">
-      <span></span><span>X</span><span>Y</span><span>Z</span>
+    <div class="readout" id="readout">
+      <span></span><span>X</span><span>Y</span><span id="z-head">Z</span>
       <span class="label">Target</span>
       <b class="num" id="target-x"></b><b class="num" id="target-y"></b><b class="num" id="target-z"></b>
-      <span class="label">Arm says</span>
-      <span class="num" id="says-x"></span><span class="num" id="says-y"></span><span class="num" id="says-z"></span>
+      <span class="label says">Arm says<i class="spinner" title="Reading the servos"></i></span>
+      <span class="num says" id="says-x"></span><span class="num says" id="says-y"></span>
+      <span class="num says" id="says-z"></span>
     </div>
     <div class="desk-line" id="desk-line"></div>
 
-    <div class="height">
-      <div class="zcol" id="zcol">
-        <span class="zlabel">HEIGHT</span>
-        <input type="range" class="vertical" id="z-coarse" step="1">
-        <output class="num" id="z-coarse-out"></output>
-        <button class="btn low" id="low" title="Let the height go below 34 mm, as far down as the firmware takes it">
-          LOW<br>REACH</button>
+    <div class="fine" data-axis="x">
+      <label>X fine</label>
+      <input type="range" step="1" value="0">
+      <output class="num"></output>
+    </div>
+    <div class="fine" data-axis="y">
+      <label>Y fine</label>
+      <input type="range" step="1" value="0">
+      <output class="num"></output>
+    </div>
+    <div class="nudge">
+      <div class="pad">
+        <button class="btn" data-dir="up"></button>
+        <button class="btn" data-dir="left"></button>
+        <span class="hub">1 mm</span>
+        <button class="btn" data-dir="right"></button>
+        <button class="btn" data-dir="down"></button>
       </div>
-      <div class="fines">
-        <div class="fine" data-axis="z">
-          <label>Z fine</label>
-          <button class="btn icon" data-sign="-1">−</button>
-          <input type="range" min="-4" max="4" step="1" value="0">
-          <button class="btn icon" data-sign="1">+</button>
-          <output class="num"></output>
-        </div>
-        <div class="fine" data-axis="f">
-          <label title="Tenths of a millimetre, to see how the arm takes tiny steps">Z 0.1<em>try</em></label>
-          <button class="btn icon" data-sign="-1">−</button>
-          <input type="range" min="-1" max="1" step="0.1" value="0">
-          <button class="btn icon" data-sign="1">+</button>
-          <output class="num"></output>
-        </div>
-        <div class="fine" data-axis="x">
-          <label>X fine</label>
-          <button class="btn icon" data-sign="-1">−</button>
-          <input type="range" step="1" value="0">
-          <button class="btn icon" data-sign="1">+</button>
-          <output class="num"></output>
-        </div>
-        <div class="fine" data-axis="y">
-          <label>Y fine</label>
-          <button class="btn icon" data-sign="-1">−</button>
-          <input type="range" step="1" value="0">
-          <button class="btn icon" data-sign="1">+</button>
-          <output class="num"></output>
-        </div>
-        <div class="nudge">
-          <div class="pad">
-            <button class="btn" data-dir="up"></button>
-            <button class="btn" data-dir="left"></button>
-            <span class="hub">1 mm</span>
-            <button class="btn" data-dir="right"></button>
-            <button class="btn" data-dir="down"></button>
-          </div>
-          <div class="zpad">
-            <button class="btn" data-dir="z+">Z+</button>
-            <button class="btn" data-dir="z-">Z−</button>
-          </div>
-          <p class="hint">Nudges go the way the view shows. After every move the servos are read: “arm says”.</p>
-        </div>
-      </div>
+      <p class="hint">Nudges go 1 mm the way the view shows; Z+ and Z− are by the height slider. After every move
+        the servos are read: “arm says”.</p>
     </div>
 
     <div class="cup">
@@ -105,24 +104,23 @@
       <output class="num" id="cup-out"></output>
       <label class="switch"><input type="checkbox" id="suction"><span class="track"></span>Suction</label>
     </div>
-
-    <button class="btn primary record" id="record">● RECORD TOUCH POINT</button>
   </section>
 
   <section class="card points">
     <div class="card-head">
       <h2>Touch points</h2>
       <div class="tools">
-        <button class="btn primary" id="save" title="Fit the plane and write config/desk.json">SAVE</button>
+        <button class="btn primary" id="record" title="Read where the servos say the cup is, and keep it">
+          ● RECORD TOUCH POINT</button>
         <button class="btn ghost" id="clear">CLEAR</button>
       </div>
     </div>
     <div class="table-wrap">
       <table class="list" id="points">
         <thead><tr>
-          <th>#</th><th>X</th><th>Y</th><th>Z</th>
+          <th>#</th><th>X</th><th>Y</th><th id="points-z">Z</th>
           <th title="The Z it had been sent to; X, Y and Z are where its servos said it was">sent</th>
-          <th title="How far above the plane fitted through all the points">off plane</th><th></th>
+          <th id="off-head"></th><th></th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -130,7 +128,16 @@
     <div class="summary">
       <div id="span"></div>
       <div id="fit"></div>
-      <div id="save-state"></div>
+      <div class="offsets">
+        <span>Offsets from</span>
+        <div class="seg" id="offsets-from"></div>
+        <span id="offsets"></span>
+      </div>
+      <div class="save-row">
+        <span id="save-state"></span>
+        <button class="btn primary" id="save" title="Fit the plane and write config/desk.json">
+          SAVE CALIBRATION</button>
+      </div>
     </div>
   </section>
 

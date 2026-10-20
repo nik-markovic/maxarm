@@ -56,9 +56,9 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
 - **`arm.use_calibration(config_dir)`** reads the calibration files afresh; `None` means none at all. A calibration
   app needs it: it measures the desk with no desk calibration in the way, then tries out the file it has just
   written, on the same connection. `MaxArm(config_dir=None)` and `Spaces(None)` likewise.
-- **A move of any size is sent.** Moves under 0.5 mm were skipped without a word, which would have hidden exactly
-  what the desk page's tenth-of-a-millimetre slider is for. Now only a move the command cannot carry (two
-  decimals) is skipped.
+- **A move of any size is sent.** Moves under 0.5 mm were skipped without a word, which hid what the desk page's
+  tenth-of-a-millimetre slider (since removed) was for, and still would a desk move by a tenth. Now only a move the
+  command cannot carry (two decimals) is skipped.
 - Smaller: a cup turn of exactly 90 degrees is no longer refused for float error; `connect()` starts from the reset
   pose, where the board sends the arm.
 - Converting between spaces needs no new call: `Spaces(config_dir).convert(point, Space.ARM, Space.DESK)`.

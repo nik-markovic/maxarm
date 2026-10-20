@@ -7,9 +7,10 @@ marked `latest_only` that is still waiting when another of its kind arrives is
 dropped -- "superseded" -- and only the newest runs. RESET cuts short whatever
 is running, drops everything waiting, and sends the arm home.
 
-After a command that used the arm, and with nothing else waiting, the servos
+After a command that used the arm, once nothing else is waiting, the servos
 are read: the page shows where the arm says it is next to where it was sent,
-because a small step is not always a step taken.
+because a small step is not always a step taken. Until that read is done,
+`is_reading` tells the page that what the arm says is out of date.
 """
 
 import threading
@@ -122,6 +123,7 @@ class Worker:
             "space": motion.space.value,
             "sent": list(motion.sent),
             "measured": list(motion.measured) if motion.measured else None,
+            "is_reading": motion.is_measured_stale and motion.is_connected,
             "cup": motion.cup,
             "suction": motion.is_suction_on,
             "last": dict(self.last),
@@ -139,10 +141,11 @@ class Worker:
                 self.doing = command.label
                 if command.uses_arm:
                     self.count += 1
+                    self.motion.is_measured_stale = True
             self._execute(command)
             with self.condition:
                 is_idle = not self.queue
-            if command.uses_arm and self.motion.is_connected and is_idle:
+            if self.motion.is_measured_stale and self.motion.is_connected and is_idle:
                 self.doing = "reading where the arm is"
                 self.motion.read()
             self.doing = None

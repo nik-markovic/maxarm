@@ -10,9 +10,10 @@
 | `POST /api/reset`   |         | stop everything, let go, lift clear and go home            |
 | `GET /api/limits`   |         | reach, the base, the heights: for drawing and the sliders  |
 | `GET /api/state`    |         | connection, what is running, where the arm was sent and is |
-"""
 
-import math
+Heights are true z, both ways. A page that shows raw z converts with
+`true_z` from the limits, the library's own constants (`maxarm/raw.py`).
+"""
 
 from maxarm import Space, geometry, nozzle, path, raw
 from maxarm.arm import home_position
@@ -21,10 +22,6 @@ from maxarm.geometry import Position
 from .motion import HOVER_MM
 from .server import Server, number
 from .worker import Worker
-
-# The height slider's floor, the owner's (PILOT-falcon): just under the lowest the
-# desk has read, 36 at full reach (condor). Going lower takes the LOW REACH button.
-Z_MIN_MM = 34.0
 
 
 def register(server: Server, worker: Worker) -> None:
@@ -63,20 +60,10 @@ def limits() -> dict:
         "fan": geometry.BASE_FAN_DEG,
         "base_half": path.BASE_LIMIT_HALF_MM,
         "home": list(home_position()),
-        "z_min": Z_MIN_MM,
-        "z_low": lowest_z(),
-        "z_max": math.floor(home_position()[2]),
         "cup": nozzle.NOZZLE_RANGE_DEG,
         "hover": {space.value: height for space, height in HOVER_MM.items()},
+        "true_z": {"per_mm_of_reach": raw.TRUE_Z_PER_MM_OF_REACH, "level_reach": raw.LEVEL_REACH_MM},
     }
-
-
-def lowest_z() -> float:
-    """The LOW REACH floor: the lowest z the firmware takes at full reach, and so anywhere in reach."""
-    z = float(math.floor(-geometry.L0 - geometry.L2 - geometry.L3))
-    while geometry.limit_reason((0.0, -path.REACH_MAX_MM, z)) is not None:
-        z += 1.0
-    return float(math.ceil(raw.true_position((0.0, -path.REACH_MAX_MM, z))[2]))
 
 
 def describe(point: Position) -> str:

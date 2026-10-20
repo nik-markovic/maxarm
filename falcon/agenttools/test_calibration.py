@@ -12,6 +12,8 @@ import math
 import shutil
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -135,7 +137,7 @@ def test_record_and_save() -> bool:
         recorded = [(point["x"], point["y"], point["z"]) for point in desk["points"]]
         heights = [Spaces(config).convert(point, Space.ARM, Space.DESK)[2] for point in recorded]
         after = state()["desk"]
-    offsets = [point["deviation"] for point in desk["points"]]
+    offsets = [point["off"]["fit"] for point in desk["points"]]
     worst = max(range(len(offsets)), key=lambda index: abs(offsets[index]))
     return all([
         check("one point: SAVE refused, saying why", early["status"] == "refused", early["detail"]),
@@ -298,9 +300,10 @@ def test_true_heights() -> bool:
         store.save_desk(config, Plane(0.0, 0.0, desk_z), points)
 
     with app(with_desk=False, prepare=level_desk) as (post, _, board, _):
-        misses = []
+        misses, jumps = [], []
         for x, y in spots:
             post("jump", x=x, y=y)
+            jumps.append(legs(board))
             post("move", x=x, y=y, z=desk_z)
             misses.append(legs(board)[-1][0][2] - firmware_z(x, y, desk_z))
         post("desk/test-point", id=1, height=4.0)
@@ -308,9 +311,13 @@ def test_true_heights() -> bool:
         post("desk/test-point", id=2, height=4.0)
         glide = legs(board)
     over = [z - firmware_z(x, y, desk_z) for (x, y, z), _ in glide]
+    crossing = [z - firmware_z(x, y, 54.0) for jump in jumps[1:] for (x, y, z), _ in jump]
     return all([
         check("arm z 44 sends the firmware's own height for it, at every reach",
               max(abs(miss) for miss in misses) < CMD_MM, f"worst {max(abs(miss) for miss in misses):.3f} mm"),
+        check("a grid click from the desk goes up to true z 54 and across at it: raw z for each end",
+              len(crossing) >= 2 * (len(spots) - 1) and max(abs(miss) for miss in crossing) < CMD_MM,
+              f"{len(crossing)} legs, worst {max(abs(miss) for miss in crossing):.3f} mm"),
         check("a glide over a level desk at true 44 is sent 4 mm over it in raw z, leg by leg",
               len(glide) > 10 and max(abs(height - 4.0) for height in over) <= 2 * CMD_MM,
               f"{min(over):.3f} .. {max(over):.3f} mm over {len(glide)} legs"),
@@ -359,6 +366,75 @@ def test_without_desk_json() -> bool:
     ])
 
 
+def test_offsets() -> bool:
+    print("each point's offset three ways: off the fit of the points, the saved desk.json, the default desk:")
+    with app(with_desk=False) as (post, state, _, _):
+        record_touches(post)
+        before = state()["desk"]
+        post("desk/save")
+        after = state()["desk"]
+    default = [point["z"] - 44.0 for point in before["points"]]       # the default desk, written out here
+    fits = [point["off"]["fit"] for point in after["points"]]
+    return all([
+        check("off the default desk: z - 44, for every point",
+              all(abs(point["off"]["default"] - offset) < 1e-9 for point, offset in zip(before["points"], default))
+              and abs(before["off"]["default"]["worst"] - max(map(abs, default))) < 1e-9),
+        check("off the saved desk: none before SAVE", before["off"]["saved"] is None
+              and all(point["off"]["saved"] is None for point in before["points"])),
+        check("after SAVE the saved desk is the fit, point by point",
+              all(abs(point["off"]["saved"] - fit) < 1e-9 for point, fit in zip(after["points"], fits))
+              and abs(after["off"]["saved"]["rms"] - after["off"]["fit"]["rms"]) < 1e-9,
+              f"{[round(fit, 2) for fit in fits]}"),
+    ])
+
+
+def test_reading_after_moves() -> bool:
+    print("what the arm says is out of date from a move until the servos are read, a SAVE queued behind or not:")
+    with tempfile.TemporaryDirectory() as scratch, fake_pyserial(), instant_waits():
+        worker = Worker(Motion(MaxArm(config_dir=None), Path(scratch)))
+        reads = []
+        read = worker.motion.read
+        worker.motion.read = lambda: (reads.append(worker.motion.sent), read())
+        worker.thread.start()
+        worker.connect()
+        gate = threading.Event()
+        replies = {}
+
+        def queue(name: str, action, uses_arm: bool) -> threading.Thread:
+            thread = threading.Thread(target=lambda: replies.update(
+                {name: worker.run(name, name, action, uses_arm=uses_arm)}))
+            thread.start()
+            return thread
+
+        threads = [queue("hold", lambda motion: gate.wait() and None, False)]
+        while worker.doing != "hold":
+            time.sleep(0.001)
+        reads.clear()
+        threads.append(queue("move", lambda motion: motion.direct(Space.ARM, (100.0, -200.0, 120.0)), True))
+        while len(worker.queue) < 1:
+            time.sleep(0.001)
+        threads.append(queue("save", lambda motion: str(worker.state()["is_reading"]), False))
+        while len(worker.queue) < 2:
+            time.sleep(0.001)
+        gate.set()
+        for thread in threads:
+            thread.join(timeout=10.0)
+        while worker.doing is not None:
+            time.sleep(0.001)
+        after = worker.state()
+        worker.run("alone", "alone", lambda motion: None, uses_arm=False)
+        alone = len(reads)
+        worker.shutdown()
+    return all([
+        check("a SAVE right behind a move: still out of date while it runs", replies["save"]["detail"] == "True",
+              f"{replies}"),
+        check("then read once, after the move, and up to date", reads == [(100.0, -200.0, 120.0)]
+              and not after["is_reading"], f"reads {reads}"),
+        check("a command that does not use the arm reads nothing", alone == 1),
+    ])
+
+
 TESTS = [with_raw_heights(test) for test in [
     test_arm_space_moves, test_record_and_save, test_numbers_and_readings, test_refusals_to_save, test_point_tests,
-    test_input_and_reset, test_without_desk_json]] + [test_true_heights, test_files_from_before]
+    test_input_and_reset, test_without_desk_json]] + [
+    test_true_heights, test_files_from_before, test_offsets, test_reading_after_moves]

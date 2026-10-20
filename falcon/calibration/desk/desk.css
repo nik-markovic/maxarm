@@ -1,8 +1,8 @@
-/* The desk page's layout: the view, the arm's controls, the points, the desk test. */
+/* The desk page's layout: the view with the height beside it, the arm's controls, the points, the desk test. */
 
 main.desk {
   display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
-  grid-template-columns: minmax(440px, 1.3fr) minmax(370px, 0.9fr) minmax(400px, 1fr);
+  grid-template-columns: minmax(520px, 1.3fr) minmax(370px, 0.9fr) minmax(400px, 1fr);
   grid-template-rows: auto 1fr;
   grid-template-areas: "view arm points" "view arm test";
 }
@@ -12,7 +12,7 @@ main.desk {
 .test { grid-area: test; }
 
 @media (max-width: 1560px) {
-  main.desk { grid-template-columns: minmax(420px, 1.15fr) minmax(370px, 1fr);
+  main.desk { grid-template-columns: minmax(500px, 1.15fr) minmax(370px, 1fr);
     grid-template-areas: "view arm" "points test"; }
 }
 @media (max-width: 960px) {
@@ -21,7 +21,12 @@ main.desk {
 
 /* --- the view ---------------------------------------------------------- */
 
-#grid { display: block; width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: crosshair;
+.btn.rotate { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.55);
+  letter-spacing: 0.3px; }
+.btn.rotate:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+
+.view-body { display: grid; grid-template-columns: 1fr 92px; gap: 12px; }
+#grid { display: block; align-self: start; width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: crosshair;
   background: radial-gradient(circle at 50% 60%, #0d1218, #070a0d); border: 1px solid var(--line); }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--muted); font-size: 12px; }
@@ -32,63 +37,84 @@ main.desk {
 .swatch.says { width: 8px; height: 8px; margin: 0 8px 0 2px; border-radius: 50%; background: #fff;
   box-shadow: 0 0 6px #fff; vertical-align: 0; }
 .swatch.point { border-radius: 50%; background: var(--green); }
+.swatch.caution { width: 6px; background: linear-gradient(var(--yellow) 0 50%, var(--red) 50%); }
+
+/* --- the height, beside the view: as tall as it ------------------------ */
+
+.zcol { display: flex; flex-direction: column; gap: 6px; padding: 10px 8px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.zlabel { color: var(--faint); font-size: 10px; letter-spacing: 1.4px; text-align: center; }
+.zlabel em { font-style: normal; color: var(--muted); }
+#z-out { font-size: 16px; font-weight: 600; text-align: center; }
+.zcol .btn { padding: 6px 0; font-size: 12px; }
+.btn.safe { display: grid; line-height: 1.15; font-size: 15px; }
+.btn.safe small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
+.btn.safe.on { background: var(--green); border-color: var(--green); color: #06210f;
+  box-shadow: 0 0 16px var(--green-glow); }
+.btn.safe.on small { color: #0b3a1b; }
+.btn.lower { font-size: 11px; color: #ffb2ab; background: var(--red-wash); border-color: rgba(240, 82, 74, 0.5); }
+
+/* The slider's thumb travels half its size short of either end; the scale beside it is inset to match. */
+.zbar { position: relative; flex: 1; min-height: 160px; }
+input.vertical { position: absolute; top: 0; left: 8px; width: 24px; height: 100%; margin: 0;
+  writing-mode: vertical-lr; direction: rtl; accent-color: var(--green); cursor: pointer; }
+.zscale { position: absolute; top: 8px; bottom: 8px; left: 38px; width: 5px; border-radius: 3px; }
+.zend { position: absolute; left: 48px; color: var(--faint); font: 10px var(--mono); }
+.zend.top { top: 8px; transform: translateY(-50%); }
+.zend.bottom { bottom: 8px; transform: translateY(50%); }
 
 /* --- the arm ----------------------------------------------------------- */
 
-.readout { display: grid; grid-template-columns: 70px repeat(3, 1fr); gap: 2px 10px; align-items: baseline;
+.readout { display: grid; grid-template-columns: 82px repeat(3, 1fr); gap: 2px 10px; align-items: baseline;
   padding: 10px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
 .readout > span:nth-child(-n+4) { color: var(--faint); font-size: 10.5px; letter-spacing: 1.2px; text-align: right; }
-.readout .label { color: var(--muted); font-size: 12px; }
+.readout .label { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .readout .num { text-align: right; }
 .readout b { font-size: 21px; font-weight: 600; }
-.readout span.num { color: var(--muted); }
+.readout span.num { color: var(--muted); transition: color 0.2s; }
 .readout span.num.off { color: var(--yellow); }
 .readout span.num.far { color: var(--red); }
+.readout.stale .says, .readout.stale span.num.says { color: var(--faint); }
+.spinner { display: none; width: 9px; height: 9px; margin-left: 6px; vertical-align: -1px; border-radius: 50%;
+  border: 2px solid var(--green-wash); border-top-color: var(--green); animation: spin 0.8s linear infinite; }
+.readout.stale .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .desk-line { min-height: 20px; margin: 8px 2px 14px; color: var(--muted); font-size: 12.5px; }
 .desk-line b { font-family: var(--mono); font-weight: 600; color: var(--green-bright); }
 
-.height { display: grid; grid-template-columns: 76px 1fr; gap: 14px; }
-.zcol { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0;
-  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
-.zlabel { color: var(--faint); font-size: 10px; letter-spacing: 1.4px; }
-input.vertical { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 270px; margin: 0;
-  accent-color: var(--green); cursor: pointer; }
-.zcol.low input.vertical { accent-color: var(--red); }
-#z-coarse-out { font-size: 15px; font-weight: 600; }
-.btn.low { padding: 6px 8px; font-size: 10px; letter-spacing: 1.2px; line-height: 1.25; color: #ffb2ab;
-  background: var(--red-wash); border-color: rgba(240, 82, 74, 0.5); }
-.btn.low.on { color: white; background: linear-gradient(180deg, #ff6259, #c9302a); border-color: #ff7a72;
-  box-shadow: 0 0 18px rgba(240, 82, 74, 0.55); }
+.info { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--line-strong); color: var(--muted); font-size: 11px; font-weight: 700; cursor: help; }
+.info:hover, .info:focus { color: var(--green-bright); border-color: var(--green); outline: none; }
+.info .tip { display: none; position: absolute; top: 26px; right: 0; z-index: 30; width: 360px; padding: 12px 14px;
+  background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); color: var(--text); font-size: 12.5px; font-weight: 400;
+  line-height: 1.5; text-align: left; cursor: auto; }
+.info:hover .tip, .info:focus .tip { display: block; }
+.tip code { display: block; margin: 6px 0; color: var(--green-bright); font: 12px var(--mono); }
 
-.fine { display: grid; grid-template-columns: 70px 30px 1fr 30px 50px; align-items: center; gap: 6px;
-  margin-bottom: 9px; }
+.fine { display: grid; grid-template-columns: 70px 1fr 50px; align-items: center; gap: 10px; margin-bottom: 9px; }
 .fine label { color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.fine label em { margin-left: 5px; font-style: normal; font-size: 9.5px; letter-spacing: 1px; color: var(--yellow);
-  text-transform: uppercase; }
-.fine .btn.icon { padding: 3px 0; min-width: 0; }
 .fine output { text-align: right; }
 
-.nudge { display: grid; grid-template-columns: auto auto 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+.nudge { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; margin-top: 14px; }
 .pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 34px); gap: 4px; }
-.pad .btn, .zpad .btn { padding: 0; font-size: 11.5px; }
+.pad .btn { padding: 0; font-size: 11.5px; }
 .pad [data-dir="up"] { grid-area: 1 / 2; }
 .pad [data-dir="left"] { grid-area: 2 / 1; }
 .pad .hub { grid-area: 2 / 2; display: grid; place-items: center; color: var(--faint); font-size: 10px; }
 .pad [data-dir="right"] { grid-area: 2 / 3; }
 .pad [data-dir="down"] { grid-area: 3 / 2; }
-.zpad { display: grid; gap: 6px; grid-template-rows: 48px 48px; width: 46px; }
 .nudge .hint { margin: 0; }
 
 .cup { display: grid; grid-template-columns: 70px 1fr 50px auto; align-items: center; gap: 10px;
-  margin: 16px 0; padding-top: 14px; border-top: 1px solid var(--line); }
+  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .cup > label:first-child { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .cup output { text-align: right; }
 
-.btn.record { width: 100%; padding: 12px; font-size: 14px; letter-spacing: 1.4px; }
-
 /* --- the points -------------------------------------------------------- */
 
+#record { letter-spacing: 1px; }
 .table-wrap { max-height: 360px; overflow: auto; }
 .badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   font-size: 11.5px; font-weight: 700; background: #8d9aa9; color: #0b0f14; }
@@ -102,12 +128,16 @@ td.faint { color: var(--faint); }
 td.actions { white-space: nowrap; }
 td.actions .btn { margin-left: 3px; }
 
-.summary { display: grid; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 12.5px; }
+.summary { display: grid; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 12.5px; }
 .summary b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+.offsets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+.save-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding-top: 10px;
+  border-top: 1px solid var(--line); }
+.save-row #save { margin-left: auto; flex: none; letter-spacing: 1px; }
 
 /* --- the desk test ----------------------------------------------------- */
 
-.test.unavailable > :not(.card-head) { opacity: 0.4; pointer-events: none; }
 .test-height { display: grid; grid-template-columns: 120px 1fr 64px; align-items: center; gap: 10px; }
 .test-height label { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .test-height output { text-align: right; }

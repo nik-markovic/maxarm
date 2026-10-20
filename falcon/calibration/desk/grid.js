@@ -11,7 +11,8 @@ const INK = {
   label: 'rgba(138, 151, 166, 0.55)', reach: '#f0524a', fan: 'rgba(65, 195, 99, 0.07)',
   base: '#0c1116', baseEdge: '#3a4553', hatch: 'rgba(80, 95, 112, 0.35)',
   arm: 'rgba(205, 215, 228, 0.16)', armLine: 'rgba(205, 215, 228, 0.5)',
-  green: '#41c363', says: '#ffffff', neutral: '#8d9aa9', warn: '#e6b84a', bad: '#f0524a',
+  green: '#41c363', says: '#ffffff', saysStale: 'rgba(255, 255, 255, 0.3)', neutral: '#8d9aa9', warn: '#e6b84a',
+  bad: '#f0524a',
 };
 
 export class GridView {
@@ -22,7 +23,7 @@ export class GridView {
     this.ctx = canvas.getContext('2d');
     this.size = 0;
     this.hover = null;
-    this.view = { step: 20, rotation: 0, fine: [0, 0], points: [], sent: null, says: null, target: null };
+    this.view = { step: 20, rotation: 0, points: [], sent: null, says: null, target: null, isReading: false };
     new ResizeObserver(() => this.resize()).observe(canvas);
     canvas.addEventListener('pointermove', (event) => { this.hover = this.snapped(event); this.draw(); });
     canvas.addEventListener('pointerleave', () => { this.hover = null; this.draw(); });
@@ -224,9 +225,9 @@ export class GridView {
     }
     if (says) {
       const [x, y] = this.toScreen(says[0], says[1]);
-      ctx.fillStyle = INK.says;
+      ctx.fillStyle = this.view.isReading ? INK.saysStale : INK.says;
       ctx.shadowColor = INK.says;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = this.view.isReading ? 0 : 8;
       ctx.beginPath();
       ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
       ctx.fill();
@@ -243,7 +244,7 @@ export class GridView {
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
     ctx.stroke();
-    const text = `${this.hover[0] + this.view.fine[0]}, ${this.hover[1] + this.view.fine[1]}`;
+    const text = `${this.hover[0]}, ${this.hover[1]}`;
     ctx.font = '600 11px "JetBrains Mono", ui-monospace, monospace';
     const width = ctx.measureText(text).width + 12;
     const left = Math.min(x + 12, this.size - width - 4);
