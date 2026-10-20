@@ -22,9 +22,9 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 2. **Spread the points.** At least three, spanning 200 mm in X and 150 in Y, and not in a row. From the fourth on,
    each point shows how far it sits off the plane through all of them: green within 1 mm, yellow within 2, red
    beyond. Touch a red one again, or delete it (×).
-3. **SAVE.** The plane goes to `config/desk.json`, and the file it replaces to `desk-previous.json`. From 6 points
-   spread 80 mm in reach, SAVE also fits the elbow servo's offset from the firmware's zero (-4.4 degrees on the owner's
-   arm), and the plane is fitted where the cup really is; the page shows how much that helps.
+3. **SAVE.** The plane goes to `config/desk.json`, and the file it replaces to `desk-previous.json`. Points are
+   true z, as the library reports them, so a level desk is a level plane. A `desk.json` saved before the library
+   corrected heights is not used: SAVE again. Points recorded then are converted to true z when the page loads.
 4. **Try it.** *desk* in the table sends the cup over that point in desk space, at the point test height: 4 mm,
    down to 0. The first comes down from above, like `grab()`; the next ones glide, slowly and level, so the gap
    between cup and desk can be watched all the way. Any other move in between, and the next one comes from above
@@ -33,8 +33,8 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 | control                   | does                                                                           |
 | ------------------------- | ------------------------------------------------------------------------------ |
 | grid click                | over to that grid point plus X and Y fine; from low down, straight up first    |
-| HEIGHT, Z fine, Z 0.1     | z is their sum: 34 to 212, then -4 to 4, then -1.0 to 1.0. Down to 30 as it is |
-| LOW REACH                 | HEIGHT down to -20, the firmware's floor at full reach. The desk lifts the arm |
+| HEIGHT, Z fine, Z 0.1     | z is their sum: 34 to 209, then -4 to 4, then -1.0 to 1.0. Down to 30 as it is |
+| LOW REACH                 | HEIGHT down to 12, the firmware's floor at full reach. The desk lifts the arm  |
 | X fine, Y fine, nudge pad | offsets of up to a grid step, 1 mm at a time. The pad follows the view's turn  |
 | Cup                       | the cup's servo, -90 to 90                                                     |
 | RECORD                    | keeps where the servos say the cup is, read afresh; the target beside it       |

@@ -166,19 +166,14 @@ function renderDesk() {
       <span class="chip ${high - low >= need ? 'ok' : 'bad'}">≥ ${need}</span>`;
   }).join(' &nbsp; ') : 'Range covered: no points yet';
   const fit = desk.fit;
-  const { elbow_points: elbowPoints, elbow_reach: elbowReach } = limits.desk;
   $('fit').innerHTML = !fit ? 'Plane: needs 3 points, not in a row' : `Plane: tilted <b>${fmt(fit.tilt_deg, 2)}°</b>`
     + (fit.rms === null ? ' — a 4th point shows how well they agree'
-      : `, points off it by <b>${fmt(fit.rms, 2)}</b> mm RMS, <b>${fmt(fit.worst, 2)}</b> at worst`)
-    + '<br>' + (fit.is_elbow_fitted
-      ? `Elbow servo <b>${fmt(fit.elbow_deg, 2, true)}°</b> off the firmware's zero`
-        + ` (a plane alone: <b>${fmt(fit.rms_plane_only, 2)}</b> mm RMS)`
-      : `Elbow offset: needs ${elbowPoints} points, ${elbowReach} mm apart in reach`);
+      : `, points off it by <b>${fmt(fit.rms, 2)}</b> mm RMS, <b>${fmt(fit.worst, 2)}</b> at worst`);
   $('save-state').innerHTML = desk.save_problem ? `<span class="chip bad">not ready</span> ${desk.save_problem}`
     : '<span class="chip ok">ready to SAVE</span>';
   const test = $('test');
   test.classList.toggle('unavailable', !desk.saved.exists);
-  $('desk-file').textContent = desk.saved.exists ? `config/desk.json: ${desk.saved.summary}` : 'no config/desk.json yet';
+  $('desk-file').textContent = desk.saved.summary ? `config/desk.json: ${desk.saved.summary}` : 'no config/desk.json yet';
   $('glide-hint').innerHTML = desk.is_gliding
     ? `Next point test <b>glides</b> there, slowly and level at ${fmt(ui.testHeight)} mm.`
     : 'Next point test comes down from above, the way grab() does.';

@@ -39,9 +39,18 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
 - **`MoveType.PRECISE` is built.** The servos have a deadband: they ignore a target a few pulses away and stop short
   of a farther one, 1-3 mm. PRECISE moves slowly, reads the servos, and sends target + shortfall until each servo is
   within a pulse of its target: 1 mm steps went from 1.4 mm median error to 0.5 on the owner's arm, for ~1.2 s more.
-- **Desk space corrects the arm's own geometry.** `desk.json` may carry `joint_offsets_deg`, how far the servos sit
-  from the firmware's zeros; the owner's elbow is 4.4 degrees out, which made a flat desk read 8 mm higher near the
-  base. The desk page measures it; `geometry.true_position()` and `firmware_position()` convert, exactly.
+- **Heights are true z, on every call.** The firmware's own z (raw z) puts the cup higher than it says near the base
+  and lower at full reach: a flat desk read 50 at 100 mm out and 42 at 260. Every MaxArm is built the same, so the
+  library corrects every target before it is sent and every reading after it is read, in `protocol.py`:
+  `true z = raw z + 0.05 x (reach - 207)`, reach = sqrt(x^2 + y^2). x and y are untouched; at 207 mm out, where a
+  desk reads 44, the two agree. `MAXARM_TRACE` logs moves and reads as `(x, y, 44.0 [raw 49.0])`.
+  `raw.debug_use_raw(True)` (`maxarm/raw.py`) turns it off process-wide, for testing the firmware only.
+  `desk.json` is a plain plane again; one carrying the earlier elbow offset (`joint_offsets_deg`) is not used.
+- **Reach is 280 mm** (was 270); the firmware's own ends at 286.
+- **A default desk.** Without `desk.json`, desk space is arm space with z 44 taken off: the desk under an ideally
+  placed arm, in true z (`spaces.DEFAULT_DESK_Z_MM`, `spaces.default_desk_to_arm()`). Desk coordinates no longer need
+  a calibration. `Spaces.is_desk_known` (saved or default) and `is_desk_saved` replace `is_desk_calibrated`;
+  `ignored_desk` says why a `desk.json` was not used. Only `config_dir=None` means no desk at all.
 - **Positions are read from the servos' pulses**, with the firmware's kinematics on the host, in floats. The board's
   own read rounds to whole millimetres, and truncates negative values.
 - **`arm.use_calibration(config_dir)`** reads the calibration files afresh; `None` means none at all. A calibration
@@ -136,7 +145,7 @@ the arm.
 
 All of them are applied to every move, before anything is sent. `can_reach()` asks the same questions.
 
-- **Reach**: nothing more than 270 mm from the base axis, and nothing in the back 120 degrees.
+- **Reach**: nothing more than 280 mm from the base axis, and nothing in the back 120 degrees.
 - **Firmware**: what the board would refuse, or silently clamp, as `geometry.py` predicts it.
 - **Arm-base limit**: a box round the base, |x| and |y| up to 70 mm, from the desk to 200 mm up. A move whose
   straight line crosses it goes by a front corner instead, at half-way height.

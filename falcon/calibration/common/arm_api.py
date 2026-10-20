@@ -14,7 +14,8 @@
 
 import math
 
-from maxarm import Space, geometry, nozzle, path
+from maxarm import Space, geometry, nozzle, path, raw
+from maxarm.arm import home_position
 from maxarm.geometry import Position
 
 from .motion import HOVER_MM
@@ -61,10 +62,10 @@ def limits() -> dict:
         "reach": path.REACH_MAX_MM,
         "fan": geometry.BASE_FAN_DEG,
         "base_half": path.BASE_LIMIT_HALF_MM,
-        "home": list(geometry.HOME),
+        "home": list(home_position()),
         "z_min": Z_MIN_MM,
         "z_low": lowest_z(),
-        "z_max": geometry.HOME[2],
+        "z_max": math.floor(home_position()[2]),
         "cup": nozzle.NOZZLE_RANGE_DEG,
         "hover": {space.value: height for space, height in HOVER_MM.items()},
     }
@@ -75,7 +76,7 @@ def lowest_z() -> float:
     z = float(math.floor(-geometry.L0 - geometry.L2 - geometry.L3))
     while geometry.limit_reason((0.0, -path.REACH_MAX_MM, z)) is not None:
         z += 1.0
-    return z
+    return float(math.ceil(raw.true_position((0.0, -path.REACH_MAX_MM, z))[2]))
 
 
 def describe(point: Position) -> str:

@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from maxarm import path                                        # noqa: E402
 from maxarm.path import Planner, Refused                       # noqa: E402
 from maxarm.spaces import Affine, Spaces                       # noqa: E402
-from harness import BASELINE, check                            # noqa: E402
+from harness import BASELINE, check, with_raw_heights          # noqa: E402
 
 FLAT = Planner(Affine(np.eye(4)), is_desk_known=True)
 SHIPPED = Spaces(BASELINE)
@@ -39,7 +39,7 @@ def test_refusals() -> bool:
     print("what is refused, before anything moves:")
     reasons = {name: FLAT.problem_with(point) for name, point in {
         "good": (100.0, -200.0, 60.0),
-        "far": (0.0, -280.0, 60.0),
+        "far": (0.0, -path.REACH_MAX_MM - 5.0, 60.0),
         "behind": (0.0, 160.0, 60.0),
         "base": (40.0, -40.0, 60.0),
         "sunk": (100.0, -200.0, -10.0),
@@ -157,5 +157,6 @@ def _rounded(points):
     return [tuple(round(value, 1) for value in point) for point in points]
 
 
-TESTS = [test_ordinary_move_is_one_leg, test_refusals, test_clearance, test_round_the_base,
-         test_no_leg_sags_past_the_margin]
+TESTS = [with_raw_heights(test) for test in [
+    test_ordinary_move_is_one_leg, test_refusals, test_clearance, test_round_the_base,
+    test_no_leg_sags_past_the_margin]]

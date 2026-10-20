@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 from maxarm import MaxArm, Space, Spaces                       # noqa: E402
 from maxarm.geometry import HOME                               # noqa: E402
 from fake_arm import fake_pyserial, instant_waits              # noqa: E402
-from harness import BASELINE, check                            # noqa: E402
+from harness import BASELINE, check, with_raw_heights          # noqa: E402
 
 FRAME = ROOT / "training" / "tiles" / "baseline" / "tiles-1.png"
 
@@ -70,4 +70,4 @@ def _load(path: Path):
     return module
 
 
-TESTS = [test_example_runs]
+TESTS = [with_raw_heights(test_example_runs)]

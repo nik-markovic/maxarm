@@ -13,22 +13,26 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from typing import Callable, Optional
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path[:0] = [str(ROOT), str(ROOT / "calibration"), str(HERE)]
 
-from maxarm import MaxArm, Space, Spaces, geometry           # noqa: E402
+from maxarm import MaxArm, Space, Spaces                     # noqa: E402
 from maxarm.arm import MOVE_FAST_MM_S, MOVE_SLOW_MM_S        # noqa: E402
 from maxarm.geometry import HOME                             # noqa: E402
 from common import arm_api                                   # noqa: E402
 from common.motion import GLIDE_STEP_MM, HOVER_MM, Motion    # noqa: E402
 from common.server import Server                             # noqa: E402
 from common.worker import Worker                             # noqa: E402
+from desk import store                                       # noqa: E402
+from desk.plane import Plane                                  # noqa: E402
+from desk.store import Point                                  # noqa: E402
 from desk.api import DeskSession                             # noqa: E402
 import fake_arm                                              # noqa: E402
 from fake_arm import fake_pyserial, instant_waits            # noqa: E402
-from harness import BASELINE, check                          # noqa: E402
+from harness import BASELINE, check, with_raw_heights        # noqa: E402
 
 CMD_MM = 0.005
 # Five touch points round the work area on z = 0.01 x - 0.05 y + 30, the last 1.5 mm above it. They span
@@ -38,13 +42,17 @@ TOUCHES = [(-100.0, -250.0, 41.5), (100.0, -250.0, 43.5), (0.0, -95.0, 34.75), (
 
 
 @contextlib.contextmanager
-def app(with_desk: bool = True):
-    """Yields post(path, **body) -> reply, state() -> dict, the fake board, and the scratch config."""
+def app(with_desk: bool = True, prepare: Optional[Callable[[Path], None]] = None):
+    """Yields post(path, **body) -> reply, state() -> dict, the fake board, and the scratch config.
+
+    `prepare` writes files into the scratch config before the app starts."""
     gain, fake_arm.TRACKING_GAIN = fake_arm.TRACKING_GAIN, 1.0       # the servos get where they are sent
     with tempfile.TemporaryDirectory() as scratch, fake_pyserial() as boards, instant_waits():
         config = Path(scratch)
         if with_desk:
             shutil.copy(BASELINE / "desk.json", config)
+        if prepare:
+            prepare(config)
         worker = Worker(Motion(MaxArm(config_dir=None), config))
         server = Server(ROOT / "calibration", home="desk")
         arm_api.register(server, worker)
@@ -272,60 +280,85 @@ def test_input_and_reset() -> bool:
     ])
 
 
-def touching(x: float, y: float, elbow: float, desk_z: float) -> float:
-    """The board z at which a cup whose elbow is `elbow` degrees off really meets a flat desk at `desk_z`."""
-    low, high = desk_z - 30.0, desk_z + 30.0
-    for _ in range(60):
-        middle = (low + high) / 2.0
-        if geometry.true_position((x, y, middle), (0.0, 0.0, elbow))[2] < desk_z:
-            low = middle
-        else:
-            high = middle
-    return (low + high) / 2.0
+def firmware_z(x: float, y: float, true_z: float) -> float:
+    """The raw z the board should get for a true z: the PILOT's formula, written out here and not taken
+    from the library, so that this checks it."""
+    return true_z - 0.05 * (math.hypot(x, y) - 207.0)
 
 
-def test_elbow_offset() -> bool:
-    print("an arm whose elbow sits 4.4 degrees off: SAVE finds it, and the desk test stays level:")
-    elbow, desk_z = -4.4, 52.0                     # the true desk; the cup touches it at board z 41-51
-    spots = [(-100.0, -245.0), (100.0, -245.0), (0.0, -90.0), (-120.0, -110.0), (130.0, -100.0), (0.0, -170.0),
-             (-180.0, -160.0), (170.0, -170.0)]
-    with app() as (post, state, board, config):
+def test_true_heights() -> bool:
+    """What the page sends, against the formula. Nothing here trusts the fake board's readings."""
+    print("true heights: the page's arm z 44 and its desk tests, as the firmware is sent them:")
+    desk_z = 44.0
+    spots = [(-100.0, -245.0), (0.0, -90.0), (130.0, -100.0), (-180.0, -160.0), (100.0, -245.0)]
+    points = [Point(index + 1, x, y, desk_z, None) for index, (x, y) in enumerate(spots)]
+
+    def level_desk(config: Path) -> None:
+        store.save_points(config, points, len(points) + 1)
+        store.save_desk(config, Plane(0.0, 0.0, desk_z), points)
+
+    with app(with_desk=False, prepare=level_desk) as (post, _, board, _):
+        misses = []
         for x, y in spots:
             post("jump", x=x, y=y)
-            post("move", x=x, y=y, z=touching(x, y, elbow, desk_z))
-            post("desk/record")
-        fit = state()["desk"]["fit"]
-        post("desk/save")
-        saved = json.loads((config / "desk.json").read_text())
+            post("move", x=x, y=y, z=desk_z)
+            misses.append(legs(board)[-1][0][2] - firmware_z(x, y, desk_z))
         post("desk/test-point", id=1, height=4.0)
         legs(board)
         post("desk/test-point", id=2, height=4.0)
         glide = legs(board)
-    really = [geometry.true_position(point, (0.0, 0.0, elbow))[2] - desk_z for point, _ in glide]
+    over = [z - firmware_z(x, y, desk_z) for (x, y, z), _ in glide]
     return all([
-        check("the elbow found, within a tenth of a degree", abs(fit["elbow_deg"] - elbow) < 0.1,
-              f"{fit['elbow_deg']:+.2f} deg; points off the desk {fit['rms']:.2f} mm RMS, "
-              f"{fit['rms_plane_only']:.2f} with a plane alone"),
-        check("and saved for the library", abs(saved["joint_offsets_deg"][2] - elbow) < 0.1),
-        check("the glide keeps the real cup 4 mm over the real desk, within 0.3 mm",
-              len(glide) > 10 and max(abs(height - 4.0) for height in really) < 0.3,
-              f"{min(really):.2f} .. {max(really):.2f} mm over {len(glide)} legs"),
+        check("arm z 44 sends the firmware's own height for it, at every reach",
+              max(abs(miss) for miss in misses) < CMD_MM, f"worst {max(abs(miss) for miss in misses):.3f} mm"),
+        check("a glide over a level desk at true 44 is sent 4 mm over it in raw z, leg by leg",
+              len(glide) > 10 and max(abs(height - 4.0) for height in over) <= 2 * CMD_MM,
+              f"{min(over):.3f} .. {max(over):.3f} mm over {len(glide)} legs"),
+    ])
+
+
+def test_files_from_before() -> bool:
+    print("files written before the library corrected heights:")
+    with tempfile.TemporaryDirectory() as scratch:
+        config = Path(scratch)
+        (config / store.POINTS_FILE).write_text(json.dumps({"next_id": 2, "points": [
+            {"id": 1, "x": 0.0, "y": -260.0, "z": 41.85, "sent": [0.0, -260.0, 43.0]}]}))
+        points, _ = store.load_points(config)
+        store.save_points(config, points, 2)
+        again, _ = store.load_points(config)
+        desk = json.loads((BASELINE / "desk.json").read_text())
+        desk["joint_offsets_deg"] = [0.0, 0.0, -4.17]
+        (config / store.DESK_FILE).write_text(json.dumps(desk))
+        spaces, described = Spaces(config), store.describe_desk(config)
+        refusal = spaces.ignored_desk or ""
+        default = spaces.convert((0.0, -200.0, 44.0), Space.ARM, Space.DESK)
+    return all([
+        check("touch points in raw z are read as true z", points[0].z == 44.5 and points[0].sent[2] == 45.65,
+              f"{points[0]}"),
+        check("and saved as true z, so not converted twice", again == points),
+        check("a desk.json fitted with the elbow offset is not used: the default desk is",
+              not spaces.is_desk_saved and "SAVE" in refusal and abs(default[2]) < 1e-12, refusal),
+        check("and the page says to SAVE again", not described["exists"] and "SAVE" in described["summary"],
+              described["summary"]),
     ])
 
 
 def test_without_desk_json() -> bool:
-    print("no desk.json yet:")
-    with app(with_desk=False) as (post, state, _, _):
+    print("no desk.json yet: the desk tests use the default desk, arm z 44:")
+    with app(with_desk=False) as (post, state, board, _):
         record_touches(post)
+        legs(board)
         before = post("desk/test-point", id=1, height=4.0)
+        landed = legs(board)[-1][0]
         post("desk/save")
         after = post("desk/test-point", id=1, height=4.0)
     return all([
-        check("a desk test is refused, saying what to do", before["status"] == "refused"
-              and "SAVE" in before["detail"], before["detail"]),
-        check("and works once SAVE has written one", after["status"] == "done", after["detail"]),
+        check("a desk test works, 4 mm over arm z 44", before["status"] == "done" and abs(landed[2] - 48.0) < CMD_MM,
+              f"{before['detail']} {landed}"),
+        check("and once SAVE has written one", after["status"] == "done", after["detail"]),
     ])
 
 
-TESTS = [test_arm_space_moves, test_record_and_save, test_numbers_and_readings, test_refusals_to_save,
-         test_point_tests, test_input_and_reset, test_elbow_offset, test_without_desk_json]
+TESTS = [with_raw_heights(test) for test in [
+    test_arm_space_moves, test_record_and_save, test_numbers_and_readings, test_refusals_to_save, test_point_tests,
+    test_input_and_reset, test_without_desk_json]] + [test_true_heights, test_files_from_before]

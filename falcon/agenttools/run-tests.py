@@ -19,10 +19,12 @@ import test_example
 import test_kinematics
 import test_path
 import test_spaces
+import test_true_z
 from harness import run
 
 SUITES = {
     "kinematics": test_kinematics.TESTS,
+    "true-z": test_true_z.TESTS,
     "spaces": test_spaces.TESTS,
     "path": test_path.TESTS,
     "arm": test_arm.TESTS,

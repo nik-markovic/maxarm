@@ -7,8 +7,11 @@ library. `check()` prints its own line because the useful output of a run is
 the list of what was verified, not a dot.
 """
 
+import functools
 from pathlib import Path
 from typing import Callable, List, Sequence
+
+from maxarm import raw
 
 TestCase = Callable[[], bool]
 
@@ -20,6 +23,23 @@ BASELINE = Path(__file__).resolve().parent.parent / "training" / "tiles" / "base
 def check(label: str, is_ok: bool, detail: str = "") -> bool:
     print(f"  {'PASS' if is_ok else 'FAIL'}  {label}{'  ' + detail if detail else ''}")
     return bool(is_ok)
+
+
+def with_raw_heights(test: TestCase) -> TestCase:
+    """`test` with the library's height correction off, as `raw.debug_use_raw()` turns it off.
+
+    For checks written in the firmware's own heights: what they check -- plans,
+    timings, the pages' moves -- does not depend on it. `test_true_z.py` checks
+    the correction.
+    """
+    @functools.wraps(test)
+    def in_raw_heights() -> bool:
+        raw.debug_use_raw(True)
+        try:
+            return test()
+        finally:
+            raw.debug_use_raw(False)
+    return in_raw_heights
 
 
 def run(tests: Sequence[TestCase], title: str = "") -> int:

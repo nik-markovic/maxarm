@@ -57,8 +57,7 @@ class DeskSession:
         server.add_state(self.state)
         server.add_limits(lambda: {"desk": {
             "x_span": plane.X_SPAN_MIN_MM, "y_span": plane.Y_SPAN_MIN_MM,
-            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM,
-            "elbow_points": plane.ELBOW_POINTS_MIN, "elbow_reach": plane.ELBOW_REACH_SPREAD_MIN_MM}})
+            "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM}})
         for name, handler in (("record", self.record), ("delete", self.delete), ("clear", self.clear),
                               ("save", self.save), ("visit", self.visit), ("test-point", self.test_point),
                               ("test-height", self.test_height), ("test-input", self.test_input),
@@ -112,8 +111,7 @@ class DeskSession:
         motion.reload()
         self.saved = store.describe_desk(self.config_dir)
         self.glide_from = -1
-        return (f"desk.json saved: through {len(points)} points, the plane tilted "
-                f"{fitted.plane.tilt_deg:.2f} deg, the elbow {fitted.elbow_deg:+.2f} deg")
+        return f"desk.json saved: through {len(points)} points, the plane tilted {fitted.tilt_deg:.2f} deg"
 
     # --- going to them ----------------------------------------------------
 
@@ -200,7 +198,7 @@ class DeskSession:
         offsets = (plane.deviations(targets, fitted) if fitted and len(points) > 3
                    else [None] * len(points))
         motion = self.motion
-        is_saved = motion.spaces.is_desk_calibrated
+        is_saved = motion.spaces.is_desk_saved
         return {"desk": {
             "points": [{"id": point.id, "x": point.x, "y": point.y, "z": point.z,
                         "sent": point.sent, "deviation": offset}
@@ -216,7 +214,7 @@ class DeskSession:
             "is_gliding": self.glide_from == self.worker.count,
         }}
 
-    def _fitted(self, targets) -> Optional[plane.Desk]:
+    def _fitted(self, targets) -> Optional[plane.Plane]:
         """The desk through the points, fitted again only when they change: the page asks twice a second."""
         key = tuple(targets)
         if self._fit[0] != key:
@@ -233,20 +231,17 @@ class DeskSession:
 
     @staticmethod
     def _require_desk(motion: Motion) -> None:
-        if not motion.spaces.is_desk_calibrated:
-            raise Refused("there is no desk.json yet: record the points, then SAVE")
+        if not motion.spaces.is_desk_known:
+            raise Refused("no desk calibration is in use")
 
 
-def _summary(fitted: Optional[plane.Desk], targets, offsets: List[Optional[float]]) -> Optional[dict]:
+def _summary(fitted: Optional[plane.Plane], targets, offsets: List[Optional[float]]) -> Optional[dict]:
     if fitted is None:
         return None
     known = [offset for offset in offsets if offset is not None]
-    flat = plane.fit_plane(targets)
-    return {"tilt_deg": fitted.plane.tilt_deg, "elbow_deg": fitted.elbow_deg,
-            "is_elbow_fitted": plane.can_fit_elbow(targets),
+    return {"tilt_deg": fitted.tilt_deg,
             "rms": plane.rms(known) if known else None,
-            "worst": max((abs(offset) for offset in known), default=None),
-            "rms_plane_only": plane.rms([z - flat.z_at(x, y) for x, y, z in targets]) if known else None}
+            "worst": max((abs(offset) for offset in known), default=None)}
 
 
 def _span(targets) -> Optional[dict]:

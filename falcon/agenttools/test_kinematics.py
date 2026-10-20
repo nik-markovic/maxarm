@@ -61,7 +61,7 @@ def test_firmware_limits() -> bool:
 
 def test_reach_limit_is_inside_the_firmware() -> bool:
     """REACH_MAX_MM is where the owner stops the arm; the firmware stops it later, honestly."""
-    print("the 270 mm reach limit against the firmware's own:")
+    print(f"the {path.REACH_MAX_MM:.0f} mm reach limit against the firmware's own:")
     first_refusals = []
     silent_clamps = 0
     for z in range(30, 111, 10):
@@ -74,8 +74,8 @@ def test_reach_limit_is_inside_the_firmware() -> bool:
                 geometry.limit_reason(_polar(r, bearing, z)) in ("servo2_clamped", "servo3_clamped")
                 for r in range(60, int(path.REACH_MAX_MM) + 1, 5))
     return all([
-        check("at desk heights the firmware's reach ends 15 mm or more past it",
-              min(first_refusals) >= path.REACH_MAX_MM + 15.0, f"first at {min(first_refusals):.1f}"),
+        check("at desk heights the firmware's reach ends 5 mm or more past it",
+              min(first_refusals) >= path.REACH_MAX_MM + 5.0, f"first at {min(first_refusals):.1f}"),
         check("and no silent servo clamp anywhere inside it", silent_clamps == 0,
               f"{silent_clamps} fans with one"),
     ])

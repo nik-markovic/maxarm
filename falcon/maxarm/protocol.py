@@ -13,6 +13,10 @@
 stderr. `run()` is the only way anything reaches the board, so the trace is
 complete: a command that is not in it was not sent, and a gap in the
 timestamps is proof that nothing was sent then.
+
+**Positions here are true z** (`raw.py`): `set_position()` sends the raw z,
+and the reads give back true z. Only the commands themselves carry raw z, so
+the trace notes each move and read with both.
 """
 
 import ast
@@ -22,7 +26,7 @@ import time
 from statistics import median
 from typing import List, Optional, Tuple
 
-from . import geometry
+from . import geometry, raw
 from .geometry import Position
 from .transport import SerialTransport, TransportError
 
@@ -240,13 +244,14 @@ class ReplProtocol:
 
     def set_position(self, position: Position, duration_ms: int,
                      nozzle: Optional[Tuple[float, int]] = None) -> Optional[bool]:
-        """Send the arm somewhere: True accepted, False refused, None in the blind cylinder.
+        """Send the cup to a true position: True accepted, False refused, None in the blind cylinder.
 
         `nozzle`, as (angle, duration_ms), turns the cup in the same round trip,
         so the two start together. True is not a promise -- servo 2 can clamp
         silently -- which is why targets are checked with `geometry` first.
         """
-        x, y, z = position
+        trace_note(f"to {raw.describe(position)}")
+        x, y, z = raw.raw_position(position)
         command = f"arm.set_position(({x:.2f}, {y:.2f}, {z:.2f}), {int(duration_ms)})"
         if nozzle is not None:
             command = f"({_set_angle(*nozzle)}, {command})[1]"
@@ -268,21 +273,19 @@ class ReplProtocol:
         return tuple(reply)
 
     def read_position(self) -> Optional[Position]:
-        """Where the servos say the tip is, in tenths. None if the bus dropped a read.
+        """Where the servos say the tip is, true z. None if the bus dropped a read.
 
         The servos' pulses through the firmware's own kinematics, on the host. The
         board's `arm.read_position()` does the same and rounds with `int(v + 0.5)`,
         which truncates negative values: y in front of the arm, and x to its right,
         read up to 1 mm out.
         """
-        pulses = self.read_pulses()
-        return geometry.forward(geometry.pulse_to_deg(pulses)) if pulses else None
+        return _true_position(self.read_pulses())
 
     def read_settled_position(self, reads: int = SETTLE_READS,
                               wait_ms: int = SETTLE_MS) -> Optional[Position]:
-        """Let the arm stop creeping, then the tip from the median of several reads, servo by servo."""
-        pulses = self.read_settled_pulses(reads, wait_ms)
-        return geometry.forward(geometry.pulse_to_deg(pulses)) if pulses else None
+        """Let the arm stop creeping, then the tip, true z, from the median of several reads, servo by servo."""
+        return _true_position(self.read_settled_pulses(reads, wait_ms))
 
     def read_settled_pulses(self, reads: int = SETTLE_READS,
                             wait_ms: int = SETTLE_MS) -> Optional[Tuple[float, float, float]]:
@@ -293,6 +296,14 @@ class ReplProtocol:
         if not samples:
             return None
         return tuple(median(sample[servo] for sample in samples) for servo in range(3))
+
+
+def _true_position(pulses: Optional[Tuple[float, float, float]]) -> Optional[Position]:
+    if not pulses:
+        return None
+    position = raw.true_position(geometry.forward(geometry.pulse_to_deg(pulses)))
+    trace_note(f"at {raw.describe(position)}")
+    return position
 
 
 def _set_angle(angle_deg: float, duration_ms: int) -> str:

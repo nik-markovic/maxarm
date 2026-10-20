@@ -12,6 +12,9 @@ Every motion -- `move()`, `grab()`, `drop()`, `home()` -- goes through
 `_move()`, which plans and checks the whole path (`path.py`) before anything
 is sent, so a refusal means nothing moved. Each leg is one command, given the
 time its speed implies, and waited out. Nothing is read back on the way.
+
+Heights in and out are true z, where the cup really is; the firmware's own
+are corrected at the board (`raw.py`).
 """
 
 import math
@@ -23,7 +26,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-from . import geometry, nozzle
+from . import geometry, nozzle, raw
 from .geometry import Position
 from .path import CLEARANCE_MARGIN_MM, CROSSING_MM, Planner, Refused
 from .protocol import IS_TRACED, ProtocolError, ReplProtocol, trace_note
@@ -122,10 +125,10 @@ class MaxArm:
         self._spaces = Spaces(config_dir)
         self._coordinates = Space.ARM
         self._space = self._spaces.arm
-        self._planner = Planner(self._spaces.arm, self._spaces.is_desk_calibrated)
+        self._planner = Planner(self._spaces.arm, self._spaces.is_desk_known)
         self._clearance_mm = 0.0
         self._is_connected = False
-        self._position: Position = geometry.HOME      # arm space: where it was last sent
+        self._position: Position = home_position()     # arm space: where it was last sent
         self._servo_deg = 0.0
         self._is_suction_on = False
         self._held: Optional[_Held] = None
@@ -142,7 +145,7 @@ class MaxArm:
         """
         self._protocol.connect()
         self._protocol.check_board()
-        self._position = geometry.HOME      # where the board's main.py sends the arm on every reset
+        self._position = home_position()     # where the board's main.py sends the arm on every reset
         self._servo_deg, self._is_suction_on, self._held = 0.0, False, None
         self._is_connected, self._is_frozen = True, False
         self._abort.clear()
@@ -177,14 +180,15 @@ class MaxArm:
         spaces = Spaces(config_dir)
         space = spaces.get(self._coordinates)
         self._spaces, self._space = spaces, space
-        self._planner = Planner(spaces.arm, spaces.is_desk_calibrated)
+        self._planner = Planner(spaces.arm, spaces.is_desk_known)
 
     def set_clearance(self, height_mm: float) -> None:
         """The height above the desk below which nothing travels sideways.
 
         Objects on the desk shorter than this are never swept. What the cup
-        carries is allowed for on top of it. Needs the desk calibration;
-        without one it only sets the travel height of `grab()` and `drop()`.
+        carries is allowed for on top of it. The desk is `desk.json`'s, or the
+        default one; with no calibration in use at all (`config_dir=None`) it
+        only sets the travel height of `grab()` and `drop()`.
         """
         if height_mm < 0.0:
             raise ValueError(f"a clearance is a height above the desk, not {height_mm}")
@@ -264,7 +268,7 @@ class MaxArm:
     def home(self) -> MoveResult:
         """Back to the reset pose, by way of a move: from low down, it climbs first."""
         self._begin()
-        return self._move(self._spaces.arm.to_desk(geometry.HOME), MoveType.FAST)
+        return self._move(self._spaces.arm.to_desk(home_position()), MoveType.FAST)
 
     def set_suction(self, is_on: bool) -> MoveResult:
         """Suction on or off by hand, and waited for -- for jobs `grab()` and `drop()` do not fit.
@@ -340,7 +344,7 @@ class MaxArm:
         The arm is then taken to be at `target`: what it was sent to last is
         target plus a correction, which says less about where it is.
         """
-        wanted = [int(pulse) for pulse in geometry.deg_to_pulse(geometry.inverse(target))]
+        wanted = [int(pulse) for pulse in geometry.deg_to_pulse(geometry.inverse(raw.raw_position(target)))]
         last_miss = math.inf
         for _ in range(PRECISE_ROUNDS):
             if self._abort.is_set():
@@ -351,7 +355,7 @@ class MaxArm:
             miss = max(abs(goal - now) for goal, now in zip(wanted, pulses))
             if miss <= PRECISE_TOLERANCE_PULSES or miss > PRECISE_PROGRESS * last_miss:
                 break
-            here = geometry.forward(geometry.pulse_to_deg(pulses))
+            here = raw.true_position(geometry.forward(geometry.pulse_to_deg(pulses)))
             aim = tuple(goal + max(-PRECISE_CAP_MM, min(PRECISE_CAP_MM, goal - now))
                         for goal, now in zip(target, here))
             if self._planner.problem_with(self._spaces.arm.to_desk(aim)):
@@ -433,7 +437,7 @@ class MaxArm:
 
     def _crossing_height(self) -> Optional[float]:
         """How high anything travelling sideways must be, or None with no clearance to keep."""
-        if not self._clearance_mm or not self._spaces.is_desk_calibrated:
+        if not self._clearance_mm or not self._spaces.is_desk_known:
             return None
         carried = self._held.height if self._held else 0.0
         return self._clearance_mm + carried + CLEARANCE_MARGIN_MM
@@ -480,6 +484,11 @@ class MaxArm:
         if not self._clearance_mm:
             raise RuntimeError(f"{call}() needs a clearance: call set_clearance() once, with the "
                                f"height above the desk below which nothing may travel sideways")
+
+
+def home_position() -> Position:
+    """The reset pose, where every connect leaves the arm, in arm space."""
+    return raw.true_position(geometry.HOME)
 
 
 def _move_ms(distance_mm: float, speed_mm_s: float) -> int:

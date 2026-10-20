@@ -26,11 +26,12 @@ import threading
 from typing import List, Optional, Tuple
 
 from maxarm import MaxArm, MoveResult, MoveStatus, MoveType, ProtocolError, Space, Spaces
-from maxarm.geometry import HOME, Position, bearing_degrees
+from maxarm.arm import home_position
+from maxarm.geometry import Position, bearing_degrees
 from maxarm.path import CROSSING_MM
 
 # Above this nothing on the desk can be hit, so moves go fast; below it they go
-# slow. Arm z: the desk is at 34-48 under this arm (condor), as for any MaxArm
+# slow. Arm z: the desk is at about 44 under this arm, as for any MaxArm
 # standing on the desk it reaches. Desk z: a margin over the arm's +-3 mm.
 HOVER_MM = {Space.ARM: 80.0, Space.DESK: 20.0}
 # How far apart a glide's commands are. The kinematics model has the tip dip
@@ -54,7 +55,7 @@ class Motion:
         self.stopping = threading.Event()          # set by RESET: no further leg starts
         self.space = Space.ARM
         self.spaces = Spaces(config_dir)           # the saved calibration, for converting
-        self.sent: Position = HOME                 # arm space: where the arm was last sent
+        self.sent: Position = home_position()      # arm space: where the arm was last sent
         self.measured: Optional[Position] = None   # arm space: where its servos last said it was
         self.cup = 0.0                             # the cup servo's angle
         self.is_suction_on = False
@@ -157,7 +158,7 @@ class Motion:
         x, y, z = self.sent
         if z < HOVER_MM[Space.ARM]:
             self._go([((x, y, HOVER_MM[Space.ARM]), MoveType.SLOW)])   # refused or not, home next
-        result = self._track(self.arm.move(*HOME, angle=0.0))
+        result = self._track(self.arm.move(*home_position(), angle=0.0))
         if result:
             self.cup = 0.0
         return result

@@ -28,7 +28,7 @@ from maxarm.protocol import ReplProtocol                       # noqa: E402
 from maxarm.transport import SerialTransport                   # noqa: E402
 import fake_arm as fake_arm_module                             # noqa: E402
 from fake_arm import FakeSerial, fake_arm, instant_waits       # noqa: E402
-from harness import BASELINE, check                            # noqa: E402
+from harness import BASELINE, check, with_raw_heights          # noqa: E402
 
 FAST, SLOW = arm_module.MOVE_FAST_MM_S, arm_module.MOVE_SLOW_MM_S
 
@@ -354,26 +354,27 @@ def test_camera_space() -> bool:
 
 
 def test_without_a_desk_calibration() -> bool:
-    print("without desk.json:")
+    print("without desk.json: the default desk, arm z 44:")
     with flat_desk(with_desk=False) as config, fake_arm(config) as (arm, board, _):
-        try:
-            arm.use_coordinates(Space.DESK)
-            is_refused = False
-        except FileNotFoundError:
-            is_refused = True
+        arm.use_coordinates(Space.DESK)
+        arm.set_clearance(14.0)
+        arm.move(150.0, -150.0, 0.0)
+        on_desk = board.moves()[-1]
+        board.log.clear()
+        arm.move(-150.0, -150.0, 0.0)
+        low = board.moves()
+    with fake_arm(None) as (arm, board, _):
         arm.set_clearance(14.0)
         arm.move(150.0, -150.0, 44.0)
         board.log.clear()
         arm.move(-150.0, -150.0, 44.0)
-        low = board.moves()
-        board.log.clear()
-        arm.grab(-150.0, -150.0, 44.0)
-        heights = [z for _, _, z in board.moves()]
+        unguarded = board.moves()
     return all([
-        check("desk coordinates are refused", is_refused),
-        check("a low move goes straight: no desk, no guard", low == [(-150.0, -150.0, 44.0)], f"{low}"),
-        check("grab still travels clearance + 5 above its target", max(heights) == 63.0,
-              f"{heights}"),
+        check("desk z 0 is sent as arm z 44", on_desk[2] == 44.0, f"{on_desk}"),
+        check("a low move climbs over the clearance: 44 + 14 + 5", [z for _, _, z in low] == [63.0, 63.0, 44.0],
+              f"{low}"),
+        check("with no calibration at all, none: it goes straight", unguarded == [(-150.0, -150.0, 44.0)],
+              f"{unguarded}"),
     ])
 
 
@@ -433,8 +434,9 @@ def test_small_moves_are_sent() -> bool:
     ])
 
 
-TESTS = [test_connect_and_ask, test_fast_and_slow, test_precise, test_refusals_send_nothing,
-         test_turn_rides_on_the_move, test_grab_and_drop, test_turning_a_piece,
-         test_grab_lets_go_first_and_needs_clearance, test_clearance_guard, test_round_the_base,
-         test_stop, test_camera_space, test_without_a_desk_calibration, test_switching_calibration,
-         test_cup_to_either_end, test_small_moves_are_sent]
+TESTS = [with_raw_heights(test) for test in [
+    test_connect_and_ask, test_fast_and_slow, test_precise, test_refusals_send_nothing,
+    test_turn_rides_on_the_move, test_grab_and_drop, test_turning_a_piece,
+    test_grab_lets_go_first_and_needs_clearance, test_clearance_guard, test_round_the_base,
+    test_stop, test_camera_space, test_without_a_desk_calibration, test_switching_calibration,
+    test_cup_to_either_end, test_small_moves_are_sent]]

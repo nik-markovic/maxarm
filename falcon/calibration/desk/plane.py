@@ -1,28 +1,21 @@
-"""The desk, from the points where the cup touched it: a plane, and the arm's elbow offset.
+"""The desk, from the points where the cup touched it: a plane.
 
 At each point the cup was lowered onto the desk by hand, and a point is where
-the servos then said it was. The desk is the plane z = tilt_x * x + tilt_y * y
-+ offset through them: exactly, through three; the least-squares fit through
-more, and then how far each point sits off it says how far it can be trusted.
+the servos then said it was, in true z: the library corrects the firmware's
+heights, which made a flat desk read 8 mm higher near the base than at full
+reach. The desk is the plane z = tilt_x * x + tilt_y * y + offset through
+them: exactly, through three; the least-squares fit through more, and then how
+far each point sits off it says how far it can be trusted.
 
-The board's x, y, z are not quite where the cup is. On the owner's arm the
-elbow servo sits 4.4 degrees off the zero the firmware assumes, which makes a
-flat desk read 8 mm higher near the base than at full reach -- no plane fits
-that (STATUS-falcon 5.6). So when the points reach far enough in and out to
-tell the two apart, the elbow's offset is fitted too: the plane is then fitted
-where the cup really is, and the offset saved beside it for the library.
-
-Desk space is that true space with the plane taken off z: x and y the cup's
-own, z the height above the desk.
+Desk space is arm space with the plane taken off z: z the height above the desk.
 """
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence
 
 import numpy as np
 
-from maxarm import geometry
 from maxarm.geometry import Position
 
 # The owner's minimums for a calibration worth saving (PILOT-falcon).
@@ -34,13 +27,6 @@ ACROSS_SPREAD_MIN_MM = 25.0
 # Off the fitted plane by more than the first, a point is shown yellow; by
 # more than the second, red (PILOT-falcon).
 DEVIATION_LIMITS_MM = (1.0, 2.0)
-# An elbow offset changes the desk's height with reach, a tilt with direction:
-# telling them apart takes this many points, spread this far in and out.
-ELBOW_POINTS_MIN = 6
-ELBOW_REACH_SPREAD_MIN_MM = 80.0
-# How far from the firmware's zero the elbow is looked for, and how finely.
-ELBOW_SEARCH_DEG = 10.0
-ELBOW_RESOLUTION_DEG = 0.01
 
 
 @dataclass(frozen=True)
@@ -51,6 +37,10 @@ class Plane:
 
     def z_at(self, x: float, y: float) -> float:
         return self.tilt_x * x + self.tilt_y * y + self.offset
+
+    def height_of(self, arm_point: Position) -> float:
+        """How far above the desk the cup is at `arm_point`."""
+        return arm_point[2] - self.z_at(arm_point[0], arm_point[1])
 
     @property
     def tilt_deg(self) -> float:
@@ -64,34 +54,11 @@ class Plane:
                 [0.0, 0.0, 0.0, 1.0]]
 
 
-@dataclass(frozen=True)
-class Desk:
-    """The plane, where the cup really is, and the elbow offset that says where that is."""
-
-    plane: Plane
-    elbow_deg: float
-
-    @property
-    def joint_offsets(self) -> Tuple[float, float, float]:
-        return (0.0, 0.0, self.elbow_deg)
-
-    def height_of(self, arm_point: Position) -> float:
-        """How far above the desk the cup is when the board is sent `arm_point`."""
-        x, y, z = geometry.true_position(arm_point, self.joint_offsets)
-        return z - self.plane.z_at(x, y)
-
-
-def fit(points: Sequence[Position]) -> Optional[Desk]:
+def fit(points: Sequence[Position]) -> Optional[Plane]:
     """The desk through the points; None for fewer than three, or for three or more in a row."""
     if len(points) < 3 or across_spread(points) < 1.0:
         return None
-    elbow = _best_elbow(points) if can_fit_elbow(points) else 0.0
-    return Desk(fit_plane(_true(points, elbow)), elbow)
-
-
-def can_fit_elbow(points: Sequence[Position]) -> bool:
-    reach = [math.hypot(x, y) for x, y, _ in points]
-    return len(points) >= ELBOW_POINTS_MIN and max(reach) - min(reach) >= ELBOW_REACH_SPREAD_MIN_MM
+    return fit_plane(points)
 
 
 def fit_plane(points: Sequence[Position]) -> Plane:
@@ -102,34 +69,13 @@ def fit_plane(points: Sequence[Position]) -> Plane:
     return Plane(float(tilt_x), float(tilt_y), float(offset))
 
 
-def deviations(points: Sequence[Position], desk: Desk) -> List[float]:
+def deviations(points: Sequence[Position], desk: Plane) -> List[float]:
     """How far above the desk each point is: + where the cup touched higher than the desk says."""
     return [desk.height_of(point) for point in points]
 
 
 def rms(values: Sequence[float]) -> float:
     return math.sqrt(sum(value * value for value in values) / len(values))
-
-
-def _best_elbow(points: Sequence[Position]) -> float:
-    """The elbow offset that lets one plane fit the points best: coarse to fine, down to the resolution."""
-    best, step = 0.0, 1.0
-    while step >= ELBOW_RESOLUTION_DEG:
-        candidates = [best + step * index for index in range(-10, 11)]
-        candidates = [value for value in candidates if abs(value) <= ELBOW_SEARCH_DEG]
-        best = min(candidates, key=lambda elbow: _misfit(points, elbow))
-        step /= 10.0
-    return round(best, 2)
-
-
-def _misfit(points: Sequence[Position], elbow: float) -> float:
-    true = _true(points, elbow)
-    plane = fit_plane(true)
-    return rms([z - plane.z_at(x, y) for x, y, z in true])
-
-
-def _true(points: Sequence[Position], elbow: float) -> List[Position]:
-    return [geometry.true_position(point, (0.0, 0.0, elbow)) for point in points]
 
 
 def across_spread(points: Sequence[Position]) -> float:

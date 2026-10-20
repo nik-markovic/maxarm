@@ -16,9 +16,13 @@
 | `path`      | the limits, and the path round them -- arithmetic, no board    |
 | `spaces`    | coordinate spaces, and the calibration file behind each one    |
 | `geometry`  | the firmware's kinematics, host-side                           |
+| `raw`       | true z, which the library works in, and the firmware's raw z   |
 | `protocol`  | everything said to the board                                   |
 | `transport` | the serial port                                                |
 | `tunable`   | the `MAXARM_*` environment overrides                           |
+
+Heights are true z: where the cup really is. The firmware's own are off by up
+to 6 mm, depending on reach; the library corrects them at the board (`raw.py`).
 """
 
 from .arm import MaxArm, MoveResult, MoveStatus, MoveType, NotConnectedError

@@ -89,7 +89,7 @@ def test_shipped_desk_calibration() -> bool:
     heights = [spaces.arm.to_desk(cube)[2] for cube in CUBE_DESK_HEIGHTS]
     desk = spaces.get(Space.DESK)
     return all([
-        check("is there", spaces.is_desk_calibrated),
+        check("is there", spaces.is_desk_saved),
         check("desk height 0 on the bare desk under all three cubes",
               max(abs(h) for h in heights) < 1e-6, f"{[round(h, 6) for h in heights]}"),
         check("desk space is the identity onto itself",
@@ -105,12 +105,17 @@ def test_missing_and_wrong_files() -> bool:
     with tempfile.TemporaryDirectory() as empty:
         spaces = Spaces(Path(empty))
         refusals = []
-        for space in (Space.DESK, Space.CAMERA, Space.CUSTOM):
+        for space in (Space.CAMERA, Space.CUSTOM):
             try:
                 spaces.get(space)
             except FileNotFoundError as error:
-                refusals.append(space if "desk.json" in str(error) else None)
-        arm = spaces.get(Space.ARM)
+                refusals.append(space if f"{space.value}.json" in str(error) else None)
+        desk = spaces.convert((5.0, -200.0, 40.0), Space.ARM, Space.DESK)
+        try:
+            Spaces(None).get(Space.DESK)
+            is_none_refused = False
+        except FileNotFoundError:
+            is_none_refused = True
         (Path(empty) / "desk.json").write_text(json.dumps({"desk_to_arm": np.eye(4).tolist()}))
         (Path(empty) / "custom.json").write_text(json.dumps({"custom_to_desk": np.eye(3).tolist()}))
         try:
@@ -124,11 +129,12 @@ def test_missing_and_wrong_files() -> bool:
         except FileNotFoundError as error:
             no_camera = "camera.json" in str(error)
     return all([
-        check("no desk.json: not calibrated, and arm space is the identity",
-              not spaces.is_desk_calibrated
-              and math.dist(arm.to_desk((5.0, -200.0, 40.0)), (5.0, -200.0, 40.0)) < 1e-12),
-        check("every other space refuses, naming desk.json", refusals == [
-            Space.DESK, Space.CAMERA, Space.CUSTOM], f"{refusals}"),
+        check("no desk.json: the default desk, arm z 44 is desk z 0",
+              spaces.is_desk_known and not spaces.is_desk_saved
+              and math.dist(desk, (5.0, -200.0, -4.0)) < 1e-12, f"{desk}"),
+        check("camera and custom spaces refuse, naming their files", refusals == [
+            Space.CAMERA, Space.CUSTOM], f"{refusals}"),
+        check("config_dir=None: no desk at all, desk space refused", is_none_refused),
         check("a 3x3 where a 4x4 belongs is refused", wrong_shape),
         check("camera space without camera.json is refused, naming it", no_camera),
     ])

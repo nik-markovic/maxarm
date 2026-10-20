@@ -11,6 +11,8 @@ stay branch-for-branch identical to it; do not tidy them without re-running
 `anaconda/agenttools/validate-kinematics.py`.
 
 Angles are the board's servo-frame "angle1..3", not textbook joint angles.
+Positions are the firmware's own, raw z; the rest of the library works in
+true z and converts at the board (`raw.py`).
 """
 
 import math
@@ -128,29 +130,6 @@ def real_path(start: Position, end: Position, samples: int = 24) -> List[Positio
     return [forward(pulse_to_deg(tuple(b + (f - b) * step / samples
                                        for b, f in zip(begin, finish))))
             for step in range(samples + 1)]
-
-
-def true_position(position: Position, offsets: Angles) -> Position:
-    """Where the cup really is when the firmware is sent `position`, if its servos sit `offsets`
-    degrees off the zeros the firmware assumes. Points the arm cannot reach are left as they are."""
-    if not any(offsets):
-        return position
-    try:
-        angles = inverse(position)
-    except Unreachable:
-        return position
-    return forward(tuple(angle + offset for angle, offset in zip(angles, offsets)))
-
-
-def firmware_position(position: Position, offsets: Angles) -> Position:
-    """What to send the firmware for the cup to really go to `position`: `true_position()` undone."""
-    if not any(offsets):
-        return position
-    try:
-        angles = inverse(position)
-    except Unreachable:
-        return position
-    return forward(tuple(angle - offset for angle, offset in zip(angles, offsets)))
 
 
 def bearing_degrees(x: float, y: float) -> float:

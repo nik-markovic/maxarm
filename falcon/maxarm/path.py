@@ -10,7 +10,7 @@ belongs to the arm itself -- its reach and its base -- is checked in arm space.
 - **Reach.** Nothing more than `REACH_MAX_MM` from the base axis, and nothing in
   the back 120 degrees at any radius. The rest of the arm's envelope -- the
   top, the inside -- is the firmware's, and `geometry.limit_reason()` predicts
-  its refusals, servo 2's silent clamp included.
+  its refusals, servo 2's silent clamp included, from the raw z it will be sent.
 - **The arm-base limit.** A box round the base that the cup and its hose stay
   out of. A move whose straight line crosses it goes by a front corner instead,
   at half-way height.
@@ -31,15 +31,14 @@ Nothing is read back during a move.
 import math
 from typing import Callable, List, Optional
 
-from . import geometry
+from . import geometry, raw
 from .geometry import Position
-from .spaces import ArmSpace
+from .spaces import Affine
 from .tunable import tunable
 
-# Past this the arm, nearly straight, sags out of control and can push its own
-# base -- the owner's limit. The firmware's reach ends at 286-291 mm at desk
-# heights, with no silent clamp before that, so this keeps ~17 mm in hand.
-REACH_MAX_MM = 270.0
+# The owner's limit, raised from 270 on 2026-10-20. The firmware's reach ends at
+# 286-291 mm at desk heights, with no silent clamp before that: 6 mm in hand.
+REACH_MAX_MM = 280.0
 
 # Inside |x|, |y| <= 70 of the arm's own frame the cup or its hose can strike
 # the base (`work/PILOT-anaconda.md`). It was taken to apply at every height;
@@ -75,7 +74,7 @@ class Refused(Exception):
 class Planner:
     """The limits, applied to desk-space points. `arm` is the arm space."""
 
-    def __init__(self, arm: ArmSpace, is_desk_known: bool) -> None:
+    def __init__(self, arm: Affine, is_desk_known: bool) -> None:
         self.arm = arm
         self.is_desk_known = is_desk_known
 
@@ -92,7 +91,7 @@ class Planner:
             return "behind the base, where the arm cannot turn"
         if point[2] < BASE_LIMIT_HEIGHT_MM and _is_in_base_square(arm_point):
             return "inside the arm-base limit"
-        reason = geometry.limit_reason(arm_point)
+        reason = geometry.limit_reason(raw.raw_position(arm_point))
         if reason:
             return f"a pose the arm cannot hold ({reason.replace('_', ' ')})"
         return None
@@ -129,10 +128,11 @@ class Planner:
     def _sag(self, start: Position, end: Position) -> float:
         """How far the real path goes below the lower of its two ends, in desk height."""
         try:
-            trail = geometry.real_path(self.arm.from_desk(start), self.arm.from_desk(end))
+            trail = geometry.real_path(raw.raw_position(self.arm.from_desk(start)),
+                                       raw.raw_position(self.arm.from_desk(end)))
         except geometry.Unreachable:
             return 0.0              # an end the IK cannot solve is refused by problem_with()
-        return min(start[2], end[2]) - min(self.arm.to_desk(point)[2] for point in trail)
+        return min(start[2], end[2]) - min(self.arm.to_desk(raw.true_position(point))[2] for point in trail)
 
     def _round_base(self, start: Position, end: Position, depth: int) -> List[Position]:
         """`end`, or a front corner first if the straight line crosses the base limit.
@@ -167,8 +167,8 @@ class Planner:
     def _at_desk_height(self, x: float, y: float, height: float) -> Position:
         """The desk point at a desk height whose arm-space x and y are (x, y).
 
-        Desk x and y are the cup's true ones, a few millimetres and per cent from
-        the board's, so the desk point is corrected until the arm's x and y agree.
+        Desk x and y may differ a little from the arm's under a calibration, so the
+        desk point is corrected until the arm's x and y agree.
         """
         point = (x, y, height)
         for _ in range(CORNER_SOLVE_STEPS):

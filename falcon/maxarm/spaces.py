@@ -7,20 +7,21 @@ the cup snug on its surface.
 
 | space    | a point is           | onto desk space by                        | file          |
 | -------- | -------------------- | ----------------------------------------- | ------------- |
-| `ARM`    | the board's x, y, z  | the servos' offsets, then `desk_to_arm`   | `desk.json`   |
-| `DESK`   | x, y, height         | nothing to do                             | `desk.json`   |
+| `ARM`    | the arm's x, y, z    | `desk_to_arm`, a 4x4, inverted            | `desk.json`   |
+| `DESK`   | x, y, height         | nothing to do                             |               |
 | `CUSTOM` | your own x, y, z     | `custom_to_desk`, a 4x4                   | `custom.json` |
 | `CAMERA` | px, py, height       | `desk_to_pixel`, a 3x4, solved per height | `camera.json` |
 
-`desk.json` is the desk calibration and every other space hangs off it. Without
-it the library cannot know where the desk is: `ARM` still works, desk heights
-are then just the arm's z, and the clearance and desk-floor checks do nothing.
+Arm z is true z (`raw.py`): the library corrects the firmware's heights on
+the way to and from the board, so a level desk is a level plane in arm space,
+and under a MaxArm standing on it that plane is arm z = 44. That is the
+**default desk**, used whenever there is no `desk.json`: desk space is then arm
+space with 44 taken off z. `desk.json` is the desk calibration, for a desk that
+is not quite level under the arm or not quite where the default puts it.
 
-`desk.json` may also say how far the arm's servos sit from the zeros the
-firmware assumes (`joint_offsets_deg`). The board's x, y, z are then not where
-the cup really is, and desk space is measured from where it really is: the
-offsets are undone first, then `desk_to_arm`. On the owner's arm the elbow is
-4.4 degrees out, which alone made a flat desk read 8 mm higher near the base.
+A `desk.json` that carries `joint_offsets_deg` was fitted to the firmware's
+own heights, before the library corrected them: it is not used, the default
+is, and `ignored_desk` says why. The desk page's SAVE rewrites it.
 
 All four files live in `config/` and hold one matrix each.
 """
@@ -33,10 +34,20 @@ from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
-from . import geometry
-from .geometry import Angles, Position
+from .geometry import Position
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+
+# The desk under an ideally placed arm, in true z: the owner's desk, 66 touch
+# points, averaged 44.04 (raw.py), level to 0.1 degree. Raw and true z agree there.
+DEFAULT_DESK_Z_MM = 44.0
+
+
+def default_desk_to_arm() -> np.ndarray:
+    """The default desk as `desk.json` would hold it: x and y as they are, 44 added to z."""
+    matrix = np.eye(4)
+    matrix[2, 3] = DEFAULT_DESK_Z_MM
+    return matrix
 
 
 class Space(Enum):
@@ -101,21 +112,7 @@ class Camera:
         return vectors[-1][:3] / vectors[-1][3]
 
 
-class ArmSpace:
-    """The board's own x, y, z. Onto desk space by undoing the servos' offsets, then the plane."""
-
-    def __init__(self, desk_to_arm: np.ndarray, joint_offsets: Angles = (0.0, 0.0, 0.0)) -> None:
-        self.plane = Affine(np.linalg.inv(desk_to_arm))      # where the cup really is, onto desk space
-        self.joint_offsets = tuple(float(offset) for offset in joint_offsets)
-
-    def to_desk(self, point: Position) -> Position:
-        return self.plane.to_desk(geometry.true_position(point, self.joint_offsets))
-
-    def from_desk(self, point: Position) -> Position:
-        return geometry.firmware_position(self.plane.from_desk(point), self.joint_offsets)
-
-
-Transform = Union[Affine, ArmSpace, Camera]
+Transform = Union[Affine, Camera]
 
 
 def angle_to_desk(space: Transform, point: Position, angle: float) -> float:
@@ -129,31 +126,33 @@ def angle_from_desk(space: Transform, desk_point: Position, desk_angle: float) -
 
 
 class Spaces:
-    """The spaces `config_dir` describes. A missing file matters only when its space is asked for.
+    """The spaces `config_dir` describes. A missing file matters only when its space is asked for;
+    a missing `desk.json` not even then: the default desk stands in.
 
-    `config_dir=None` reads nothing: arm space only, as if every file were missing.
+    `config_dir=None` reads nothing and knows no desk at all: arm space only, no
+    desk floor. For a calibration app measuring where the desk is.
     """
 
     def __init__(self, config_dir: Optional[Union[str, Path]] = CONFIG_DIR) -> None:
         self.config_dir = Path(config_dir) if config_dir is not None else None
         desk_file = self.config_dir / "desk.json" if self.config_dir else None
-        self.is_desk_calibrated = desk_file is not None and desk_file.exists()
-        # No desk calibration yet: the identity stands in, so desk space is arm space.
-        if self.is_desk_calibrated:
-            self.arm = ArmSpace(_read_matrix(desk_file, "desk_to_arm", (4, 4)),
-                                json.loads(desk_file.read_text()).get("joint_offsets_deg", (0.0, 0.0, 0.0)))
+        self.ignored_desk = _why_unusable(desk_file) if desk_file and desk_file.exists() else None
+        self.is_desk_known = self.config_dir is not None
+        self.is_desk_saved = desk_file is not None and desk_file.exists() and not self.ignored_desk
+        if self.is_desk_saved:
+            desk_to_arm = _read_matrix(desk_file, "desk_to_arm", (4, 4))
+        elif self.is_desk_known:
+            desk_to_arm = default_desk_to_arm()
         else:
-            self.arm = ArmSpace(np.eye(4))
+            desk_to_arm = np.eye(4)      # no desk: desk space is arm space, and nothing checks it
+        self.arm = Affine(np.linalg.inv(desk_to_arm))
 
     def get(self, space: Space) -> Transform:
         if space is Space.ARM:
             return self.arm
-        if not self.is_desk_calibrated:
-            missing = (f"{self.config_dir / 'desk.json'} is missing" if self.config_dir
-                       else "none is in use")
-            raise FileNotFoundError(
-                f"{space.name} coordinates are measured from the desk, and there is no desk "
-                f"calibration: {missing}")
+        if not self.is_desk_known:
+            raise FileNotFoundError(f"{space.name} coordinates are measured from the desk, and no "
+                                    f"calibration is in use (config_dir=None)")
         if space is Space.DESK:
             return Affine(np.eye(4))
         if space is Space.CUSTOM:
@@ -168,6 +167,13 @@ class Spaces:
         source_space, target_space = self.get(source), self.get(target)
         desk_angle = angle_to_desk(source_space, point, angle)
         return angle_from_desk(target_space, source_space.to_desk(point), desk_angle)
+
+
+def _why_unusable(desk_file: Path) -> Optional[str]:
+    if any(json.loads(desk_file.read_text()).get("joint_offsets_deg", ())):
+        return (f"{desk_file} was fitted to the firmware's heights, before the library corrected them, "
+                f"so the default desk is used; SAVE it again on the desk page")
+    return None
 
 
 def _direction(convert: Callable[[Position], Position], point: Position, angle: float) -> float:
