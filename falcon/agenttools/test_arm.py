@@ -24,6 +24,7 @@ from maxarm import (BoardNotReadyError, MaxArm, MoveStatus, MoveType,  # noqa: E
 from maxarm import arm as arm_module                           # noqa: E402
 from maxarm import nozzle                                       # noqa: E402
 from maxarm.geometry import HOME, bearing_degrees              # noqa: E402
+from maxarm.path import REACH_MIN_MM                           # noqa: E402
 from maxarm.protocol import ReplProtocol                       # noqa: E402
 from maxarm.transport import SerialTransport                   # noqa: E402
 import fake_arm as fake_arm_module                             # noqa: E402
@@ -125,6 +126,27 @@ def test_precise() -> bool:
               bool(stuck) and len(stuck_sent) == 2 and stuck.position == (150.0, -150.0, 57.0),
               f"sent {[round(point[2], 2) for point in stuck_sent]}"),
     ])
+
+
+def test_precise_at_the_reach_limit() -> bool:
+    print(f"PRECISE at the {REACH_MIN_MM:.0f} mm reach limit: a correction may aim past it:")
+    target = (0.0, -REACH_MIN_MM - 0.5, 60.0)
+    with flat_desk() as config, fake_arm(config) as (arm, board, _):
+        arm.use_coordinates(Space.DESK)
+        arm.move(0.0, -150.0, 60.0)
+        gain, fake_arm_module.TRACKING_GAIN = fake_arm_module.TRACKING_GAIN, 1.0
+        arm.get_position()
+        board.arm.deadband_mm, board.arm.stop_short_mm = 1.5, 3.0     # 1 mm in or out is a pulse here
+        try:
+            board.log.clear()
+            result = arm.move(*target, MoveType.PRECISE)
+            landed, sent = math.hypot(*board.arm.actual[:2]), board.moves()
+        finally:
+            fake_arm_module.TRACKING_GAIN = gain
+    nearest = min(math.hypot(x, y) for x, y, _ in sent)
+    return check("stopped 3 mm short of 95.5, sent 3 mm inside the limit to make up for it; lands",
+                 bool(result) and nearest < REACH_MIN_MM and abs(landed - (REACH_MIN_MM + 0.5)) < 0.4,
+                 f"sent as near as {nearest:.2f} mm, lands at {landed:.2f}")
 
 
 def test_refusals_send_nothing() -> bool:
@@ -435,7 +457,8 @@ def test_small_moves_are_sent() -> bool:
 
 
 TESTS = [with_raw_heights(test) for test in [
-    test_connect_and_ask, test_fast_and_slow, test_precise, test_refusals_send_nothing,
+    test_connect_and_ask, test_fast_and_slow, test_precise, test_precise_at_the_reach_limit,
+    test_refusals_send_nothing,
     test_turn_rides_on_the_move, test_grab_and_drop, test_turning_a_piece,
     test_grab_lets_go_first_and_needs_clearance, test_clearance_guard, test_round_the_base,
     test_stop, test_camera_space, test_without_a_desk_calibration, test_switching_calibration,

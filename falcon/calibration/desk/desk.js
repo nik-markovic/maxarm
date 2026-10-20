@@ -18,9 +18,10 @@ const SCREEN = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const ARROWS = { up: '▲', down: '▼', left: '◀', right: '▶' };
 const SAME_MM = 0.005;
 // The height column, the owner's (PILOT-falcon): the slider runs from 80 down to 40 in 1 mm steps, for fine
-// control near the desk; SAFE sends the arm up to 120; each ▼ lets the slider go 2 mm lower, without end. The
-// desk is at about 44 under most arms, so the slider is yellow from 44 down to 42, and red below.
-const HEIGHT = { top: 80, bottom: 40, safe: 120, lower: 2, caution: 44, danger: 42 };
+// control near the desk; SAFE sends the arm up to 120; each ▼ lets the slider go 2 mm lower and each ▲ 20 mm
+// higher, without end. The desk is at about 44 under most arms, so the slider is yellow from 44 down to 42, and
+// red below.
+const HEIGHT = { top: 80, bottom: 40, safe: 120, lower: 2, higher: 20, caution: 44, danger: 42 };
 const OFFSETS = {
   fit: 'the plane fitted through the points', saved: 'the saved desk.json', default: 'the default desk',
 };
@@ -33,6 +34,7 @@ const ui = {
   rotation: remembered.rotation || 0,
   offsetsFrom: remembered.offsetsFrom in OFFSETS ? remembered.offsetsFrom : 'fit',
   isRaw: false,
+  top: HEIGHT.top,
   bottom: HEIGHT.bottom,
   base: { x: limits.home[0], y: limits.home[1], z: limits.home[2] },
   fine: { x: 0, y: 0 },
@@ -146,14 +148,14 @@ function renderHeight() {
   const shown = shownZ(target());
   const slider = $('z-slider');
   slider.min = ui.bottom;
-  slider.max = HEIGHT.top;
+  slider.max = ui.top;
   if (!isDragging) slider.value = Math.round(shown);
   $('z-out').textContent = fmt(shown);
   $('z-mode').textContent = ui.isRaw ? 'raw' : 'true';
   $('z-safe').classList.toggle('on', shown >= HEIGHT.safe - 0.5);
-  $('z-top').textContent = HEIGHT.top;
+  $('z-top').textContent = ui.top;
   $('z-bottom').textContent = ui.bottom;
-  const at = (z) => `${Math.min(100, Math.max(0, (100 * (HEIGHT.top - z)) / (HEIGHT.top - ui.bottom)))}%`;
+  const at = (z) => `${Math.min(100, Math.max(0, (100 * (ui.top - z)) / (ui.top - ui.bottom)))}%`;
   $('z-scale').style.background = `linear-gradient(to bottom, var(--line-strong) ${at(HEIGHT.caution)}, `
     + `var(--yellow) ${at(HEIGHT.caution)} ${at(HEIGHT.danger)}, var(--red) ${at(HEIGHT.danger)})`;
 }
@@ -300,6 +302,10 @@ $('z-safe').addEventListener('click', () => {
 });
 $('z-lower').addEventListener('click', () => {
   ui.bottom -= HEIGHT.lower;
+  render();
+});
+$('z-higher').addEventListener('click', () => {
+  ui.top += HEIGHT.higher;
   render();
 });
 

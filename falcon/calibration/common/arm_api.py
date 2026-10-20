@@ -57,6 +57,7 @@ def register(server: Server, worker: Worker) -> None:
 def limits() -> dict:
     return {
         "reach": path.REACH_MAX_MM,
+        "reach_min": path.REACH_MIN_MM,
         "fan": geometry.BASE_FAN_DEG,
         "base_half": path.BASE_LIMIT_HALF_MM,
         "home": list(home_position()),

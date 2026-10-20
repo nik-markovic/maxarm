@@ -8,7 +8,7 @@ const TURNTABLE_MM = 30;      // the base's own disc, as drawn
 
 const INK = {
   grid: 'rgba(138, 151, 166, 0.07)', major: 'rgba(138, 151, 166, 0.17)', axis: 'rgba(138, 151, 166, 0.38)',
-  label: 'rgba(138, 151, 166, 0.55)', reach: '#f0524a', fan: 'rgba(65, 195, 99, 0.07)',
+  label: 'rgba(138, 151, 166, 0.55)', reach: '#f0524a', reachMin: '#f08c3c', fan: 'rgba(65, 195, 99, 0.07)',
   base: '#0c1116', baseEdge: '#3a4553', hatch: 'rgba(80, 95, 112, 0.35)',
   arm: 'rgba(205, 215, 228, 0.16)', armLine: 'rgba(205, 215, 228, 0.5)',
   green: '#41c363', says: '#ffffff', saysStale: 'rgba(255, 255, 255, 0.3)', neutral: '#8d9aa9', warn: '#e6b84a',
@@ -112,21 +112,24 @@ export class GridView {
 
   drawReach() {
     const { ctx } = this;
-    const { reach, fan, base_half: baseHalf } = this.limits;
+    const { reach, reach_min: reachMin, fan } = this.limits;
     ctx.beginPath();
-    this.trace(this.arc(reach, -fan, fan).concat(this.arc(baseHalf, fan, -fan)));
+    this.trace(this.arc(reach, -fan, fan).concat(this.arc(reachMin, fan, -fan)));
     ctx.closePath();
     ctx.fillStyle = INK.fan;
     ctx.fill();
-    ctx.strokeStyle = INK.reach;
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    this.trace(this.arc(reach, -fan, fan));
-    ctx.stroke();
+    for (const [radius, ink] of [[reach, INK.reach], [reachMin, INK.reachMin]]) {
+      ctx.strokeStyle = ink;
+      ctx.beginPath();
+      this.trace(this.arc(radius, -fan, fan));
+      ctx.stroke();
+    }
+    ctx.strokeStyle = INK.reach;
     ctx.setLineDash([5, 5]);
     ctx.lineWidth = 1.2;
     for (const bearing of [-fan, fan]) {
-      this.line(this.atBearing(baseHalf * Math.SQRT2, bearing), this.atBearing(reach, bearing));
+      this.line(this.atBearing(reachMin, bearing), this.atBearing(reach, bearing));
     }
     ctx.setLineDash([]);
   }

@@ -46,7 +46,8 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
   desk reads 44, the two agree. `MAXARM_TRACE` logs moves and reads as `(x, y, 44.0 [raw 49.0])`.
   `raw.debug_use_raw(True)` (`maxarm/raw.py`) turns it off process-wide, for testing the firmware only.
   `desk.json` is a plain plane again; one carrying the earlier elbow offset (`joint_offsets_deg`) is not used.
-- **Reach is 280 mm** (was 270); the firmware's own ends at 286.
+- **Reach is 95 to 280 mm** (was up to 270); the firmware's own ends at 286. Nearer than 95 the arm folds too far to
+  be guided and the desk reads ~1.4 mm off the true z line. Both radii limit where a move ends, not the way there.
 - **A default desk.** Without `desk.json`, desk space is arm space with z 44 taken off: the desk under an ideally
   placed arm, in true z (`spaces.DEFAULT_DESK_Z_MM`, `spaces.default_desk_to_arm()`). Desk coordinates no longer need
   a calibration. `Spaces.is_desk_known` (saved or default) and `is_desk_saved` replace `is_desk_calibrated`;
@@ -145,7 +146,9 @@ the arm.
 
 All of them are applied to every move, before anything is sent. `can_reach()` asks the same questions.
 
-- **Reach**: nothing more than 280 mm from the base axis, and nothing in the back 120 degrees.
+- **Reach**: a move ends 95 to 280 mm from the base axis, and nothing goes into the back 120 degrees. The two radii
+  are for where a move ends: a path may pass inside 95 (nothing goes round it, unlike the arm-base limit), and a
+  move that only climbs or stays put is let out from anywhere, an arm stopped half-way say.
 - **Firmware**: what the board would refuse, or silently clamp, as `geometry.py` predicts it.
 - **Arm-base limit**: a box round the base, |x| and |y| up to 70 mm, from the desk to 200 mm up. A move whose
   straight line crosses it goes by a front corner instead, at half-way height.

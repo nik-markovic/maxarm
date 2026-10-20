@@ -7,10 +7,14 @@ anywhere -- and the same checks answer `can_reach()` without a connection.
 Points are in desk space (`spaces.py`): z is the height above the desk. What
 belongs to the arm itself -- its reach and its base -- is checked in arm space.
 
-- **Reach.** Nothing more than `REACH_MAX_MM` from the base axis, and nothing in
-  the back 120 degrees at any radius. The rest of the arm's envelope -- the
-  top, the inside -- is the firmware's, and `geometry.limit_reason()` predicts
-  its refusals, servo 2's silent clamp included, from the raw z it will be sent.
+- **Reach.** A move ends between `REACH_MIN_MM` and `REACH_MAX_MM` from the
+  base axis, and nothing goes into the back 120 degrees at any radius. The two
+  radii limit where a move goes, not the way there: unlike the arm-base limit,
+  nothing goes round them, and a move that only climbs or stays put is let out
+  of anywhere (an arm stopped half-way, say). The rest of the arm's envelope --
+  the top, the inside -- is the firmware's, and `geometry.limit_reason()`
+  predicts its refusals, servo 2's silent clamp included, from the raw z it
+  will be sent, on the way as well as at the end.
 - **The arm-base limit.** A box round the base that the cup and its hose stay
   out of. A move whose straight line crosses it goes by a front corner instead,
   at half-way height.
@@ -39,6 +43,10 @@ from .tunable import tunable
 # The owner's limit, raised from 270 on 2026-10-20. The firmware's reach ends at
 # 286-291 mm at desk heights, with no silent clamp before that: 6 mm in hand.
 REACH_MAX_MM = 280.0
+# The owner's limit, 2026-10-20. Nearer the base the arm folds so far that a
+# servo step moves the cup more than it can be guided, and the desk reads ~1.4
+# mm off the true z line at 81 mm (STATUS-falcon §11).
+REACH_MIN_MM = 95.0
 
 # Inside |x|, |y| <= 70 of the arm's own frame the cup or its hose can strike
 # the base (`work/PILOT-anaconda.md`). It was taken to apply at every height;
@@ -80,17 +88,26 @@ class Planner:
 
     def problem_with(self, point: Position) -> Optional[str]:
         """Why the cup cannot be sent to this desk point, or None if it can."""
+        return self._problem(point, is_end=True)
+
+    def problem_on_the_way(self, point: Position) -> Optional[str]:
+        """Why the cup cannot pass through this desk point, or None if it can: all but the reach limits."""
+        return self._problem(point, is_end=False)
+
+    def _problem(self, point: Position, is_end: bool) -> Optional[str]:
         arm_point = self.arm.from_desk(point)
         x, y, _ = arm_point
         reach = math.hypot(x, y)
         if self.is_desk_known and point[2] < DESK_FLOOR_MM:
             return f"{-point[2]:.0f} mm below the desk"
-        if reach > REACH_MAX_MM:
+        if is_end and reach > REACH_MAX_MM:
             return f"{reach:.0f} mm from the base axis, past the {REACH_MAX_MM:.0f} mm reach limit"
         if abs(geometry.bearing_degrees(x, y)) > geometry.BASE_FAN_DEG:
             return "behind the base, where the arm cannot turn"
         if point[2] < BASE_LIMIT_HEIGHT_MM and _is_in_base_square(arm_point):
             return "inside the arm-base limit"
+        if is_end and reach < REACH_MIN_MM:
+            return f"{reach:.0f} mm from the base axis, inside the {REACH_MIN_MM:.0f} mm reach limit"
         reason = geometry.limit_reason(raw.raw_position(arm_point))
         if reason:
             return f"a pose the arm cannot hold ({reason.replace('_', ' ')})"
@@ -103,14 +120,15 @@ class Planner:
         `crossing_height` is how high anything travelling sideways must be, or
         None when there is no clearance to keep.
         """
-        problem = self.problem_with(target)
+        problem = (self.problem_on_the_way(target) if _is_climbing_or_staying(start, target)
+                   else self.problem_with(target))
         if problem:
             raise Refused(problem)
         path = _over_clearance(start, target, crossing_height)
         path = _each_leg(start, path, lambda a, b: self._round_base(a, b, depth=2))
         path = _each_leg(start, path, lambda a, b: self._without_sag(a, b, SAG_SPLITS))
         for point in path:
-            problem = self.problem_with(point)
+            problem = self.problem_on_the_way(point)
             if problem:
                 raise Refused(f"on the way there: {problem}")
         return path
@@ -202,6 +220,12 @@ def _over_clearance(start: Position, target: Position,
     if target[2] < height:
         path.append((target[0], target[1], height))
     return path + [target]
+
+
+def _is_climbing_or_staying(start: Position, target: Position) -> bool:
+    """Whether a move goes nowhere new across the desk and not down: it leaves the arm no worse placed."""
+    return (math.hypot(target[0] - start[0], target[1] - start[1]) < CROSSING_MM
+            and target[2] >= start[2])
 
 
 def _is_in_base_square(arm_point: Position) -> bool:

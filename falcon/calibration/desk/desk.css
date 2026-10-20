@@ -32,6 +32,7 @@ main.desk {
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; }
 .swatch.reach { border: 2px solid var(--red); background: var(--green-wash); }
+.swatch.reach-min { border: 2px solid var(--orange); }
 .swatch.base { border: 1px solid #3a4553; background: repeating-linear-gradient(45deg, #2a333f 0 2px, #10151b 2px 5px); }
 .swatch.target { border: 2px solid var(--green); border-radius: 50%; }
 .swatch.says { width: 8px; height: 8px; margin: 0 8px 0 2px; border-radius: 50%; background: #fff;
@@ -52,6 +53,8 @@ main.desk {
 .btn.safe.on { background: var(--green); border-color: var(--green); color: #06210f;
   box-shadow: 0 0 16px var(--green-glow); }
 .btn.safe.on small { color: #0b3a1b; }
+.btn.higher { font-size: 11px; color: var(--green-bright); background: var(--green-wash);
+  border-color: rgba(65, 195, 99, 0.45); }
 .btn.lower { font-size: 11px; color: #ffb2ab; background: var(--red-wash); border-color: rgba(240, 82, 74, 0.5); }
 
 /* The slider's thumb travels half its size short of either end; the scale beside it is inset to match. */

@@ -29,6 +29,9 @@
       <div class="zcol">
         <span class="zlabel">HEIGHT <em id="z-mode"></em></span>
         <output class="num" id="z-out" title="The height the arm is sent to"></output>
+        <button class="btn higher" id="z-higher"
+          title="Let the slider go 20 mm higher, as often as wanted. Only the firmware's limits stop it"
+          >▲ 20 mm</button>
         <button class="btn safe" id="z-safe" title="Up to the safe height, clear of anything on the desk"></button>
         <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
         <div class="zbar">
@@ -45,6 +48,7 @@
     </div>
     <div class="legend">
       <span><i class="swatch reach"></i>reach: 280 mm, ±120°</span>
+      <span><i class="swatch reach-min"></i>nearest target: 95 mm</span>
       <span><i class="swatch base"></i>arm-base limit</span>
       <span><i class="swatch target"></i>target</span>
       <span><i class="swatch says"></i>arm says</span>

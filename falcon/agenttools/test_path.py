@@ -67,6 +67,34 @@ def test_refusals() -> bool:
     ])
 
 
+def test_reach_limits() -> bool:
+    print(f"the reach limits, {path.REACH_MIN_MM:.0f} to {path.REACH_MAX_MM:.0f} mm: where a move ends, not the way:")
+    near = FLAT.problem_with((0.0, -80.0, 60.0))
+    edge = FLAT.problem_with((0.0, -path.REACH_MIN_MM - 0.5, 60.0))
+    past = FLAT.plan((-96.0, -75.0, 60.0), (96.0, -75.0, 60.0), None)
+    leaving = FLAT.plan((0.0, -80.0, 10.0), (150.0, -150.0, 10.0), crossing_height=40.0)
+    up = FLAT.plan((0.0, -80.0, 10.0), (0.0, -80.0, 60.0), None)
+    back_in = FLAT.plan((0.0, -282.0, 60.0), (0.0, -200.0, 60.0), crossing_height=80.0)
+    try:
+        FLAT.plan((0.0, -80.0, 60.0), (0.0, -80.0, 10.0), None)
+        down = None
+    except Refused as reason:
+        down = str(reason)
+    return all([
+        check(f"a target inside {path.REACH_MIN_MM:.0f} mm is refused",
+              "inside the" in (near or "") and "reach limit" in near, f"{near}"),
+        check("one half a millimetre outside it is not", edge is None, f"{edge}"),
+        check("a line passing nearer the base is one leg: nothing goes round the limit",
+              past == [(96.0, -75.0, 60.0)], f"{past}"),
+        check("an arm left inside it gets out: up where it is, across, down",
+              leaving[0] == (0.0, -80.0, 40.0) and leaving[-1] == (150.0, -150.0, 10.0), f"{leaving}"),
+        check("straight up inside it is let through", up == [(0.0, -80.0, 60.0)], f"{up}"),
+        check("down inside it is not", "reach limit" in (down or ""), f"{down}"),
+        check(f"an arm left past {path.REACH_MAX_MM:.0f} mm comes back in the same way",
+              back_in[0] == (0.0, -282.0, 80.0) and back_in[-1] == (0.0, -200.0, 60.0), f"{back_in}"),
+    ])
+
+
 def test_clearance() -> bool:
     print("clearance: climb, cross, come down:")
     low = FLAT.plan((150.0, -150.0, 4.0), (-150.0, -150.0, 4.0), crossing_height=23.0)
@@ -158,5 +186,5 @@ def _rounded(points):
 
 
 TESTS = [with_raw_heights(test) for test in [
-    test_ordinary_move_is_one_leg, test_refusals, test_clearance, test_round_the_base,
+    test_ordinary_move_is_one_leg, test_refusals, test_reach_limits, test_clearance, test_round_the_base,
     test_no_leg_sags_past_the_margin]]

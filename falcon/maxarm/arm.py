@@ -358,7 +358,7 @@ class MaxArm:
             here = raw.true_position(geometry.forward(geometry.pulse_to_deg(pulses)))
             aim = tuple(goal + max(-PRECISE_CAP_MM, min(PRECISE_CAP_MM, goal - now))
                         for goal, now in zip(target, here))
-            if self._planner.problem_with(self._spaces.arm.to_desk(aim)):
+            if self._planner.problem_on_the_way(self._spaces.arm.to_desk(aim)):
                 break
             failed = self._drive(aim, MOVE_SLOW_MM_S, None)
             if failed is not None:

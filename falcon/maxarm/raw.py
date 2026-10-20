@@ -21,10 +21,10 @@ import math
 
 from .geometry import Position
 
-# Fitted on the owner's 66 desk touch points (STATUS-falcon), 2026-10-20: one
-# straight line by reach, the same at every height. With it the desk reads
-# 44.0 on average, 0.5 mm RMS, 1.4 worst; the 37 latest points alone give
-# 0.0498 and 207.3.
+# Fitted on the owner's desk touch points, 2026-10-20: one straight line by
+# reach, the same at every height. On the 63 within the reach limits the desk
+# reads 44.0 on average, 0.45 mm RMS, 0.98 worst -- the owner's touch accuracy;
+# robust fits give 0.050 and 207 too, and no curve does better (STATUS-falcon §11).
 TRUE_Z_PER_MM_OF_REACH = 0.05
 LEVEL_REACH_MM = 207.0
 

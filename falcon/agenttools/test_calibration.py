@@ -292,7 +292,7 @@ def test_true_heights() -> bool:
     """What the page sends, against the formula. Nothing here trusts the fake board's readings."""
     print("true heights: the page's arm z 44 and its desk tests, as the firmware is sent them:")
     desk_z = 44.0
-    spots = [(-100.0, -245.0), (0.0, -90.0), (130.0, -100.0), (-180.0, -160.0), (100.0, -245.0)]
+    spots = [(-100.0, -245.0), (0.0, -100.0), (130.0, -100.0), (-180.0, -160.0), (100.0, -245.0)]
     points = [Point(index + 1, x, y, desk_z, None) for index, (x, y) in enumerate(spots)]
 
     def level_desk(config: Path) -> None:

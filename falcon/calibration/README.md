@@ -37,10 +37,12 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 | control                   | does                                                                            |
 | ------------------------- | ------------------------------------------------------------------------------- |
 | grid click                | over to that grid point (10 or 20 mm grid); X and Y fine go back to 0           |
+| orange arc, red arc       | the reach limits, 95 and 280 mm: nothing is sent outside them, a move may cross |
 | height slider             | 80 down to 40, 1 mm steps; yellow from 44 to 42, red below: may touch the desk  |
 | 120 SAFE                  | up to 120; green while the arm is that high or higher, as after RESET           |
 | Z+, Z−                    | 1 mm up or down from the height sent; the label shows that height               |
 | ▼ 2 mm                    | the slider goes 2 mm lower, as often as wanted; only the firmware stops it      |
+| ▲ 20 mm                   | the slider goes 20 mm higher, as often as wanted; only the firmware stops it    |
 | X fine, Y fine, nudge pad | offsets of up to a grid step, 1 mm at a time. The pad follows the view's turn   |
 | TRUE / RAW                | arm z as the library has it, or the firmware's own; the ? says why they differ  |
 | Cup                       | the cup's servo, -90 to 90                                                      |
