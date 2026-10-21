@@ -63,7 +63,9 @@ def limits() -> dict:
         "home": list(home_position()),
         "cup": nozzle.NOZZLE_RANGE_DEG,
         "hover": {space.value: height for space, height in HOVER_MM.items()},
-        "true_z": {"per_mm_of_reach": raw.TRUE_Z_PER_MM_OF_REACH, "level_reach": raw.LEVEL_REACH_MM},
+        "true_z": {"per_mm_of_reach": raw.TRUE_Z_PER_MM_OF_REACH, "level_reach": raw.LEVEL_REACH_MM,
+                   "desk_z": raw.DESK_Z_MM, "stack": raw.STACK_MM, "tall_at_stack": raw.TALL_AT_STACK_MM,
+                   "tall_per_mm_of_reach": raw.TALL_PER_MM_OF_REACH},
     }
 
 

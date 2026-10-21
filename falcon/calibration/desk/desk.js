@@ -51,11 +51,23 @@ const target = () => [ui.base.x + ui.fine.x, ui.base.y + ui.fine.y, ui.base.z];
 const controls = () => JSON.stringify({ base: ui.base, fine: ui.fine });
 accepted = controls();
 
-// How much higher the cup really is than the firmware says, at (x, y): the library's correction (maxarm/raw.py).
-const trueMinusRaw = (x, y) => limits.true_z.per_mm_of_reach * (Math.hypot(x, y) - limits.true_z.level_reach);
+// The library's true z, as maxarm/raw.py has it: the raw z of a true point, and the true z of a raw one.
+const TRUE_Z = limits.true_z;
+const tooTallPerMm2 = (out) => (TRUE_Z.tall_at_stack + TRUE_Z.tall_per_mm_of_reach * out) / TRUE_Z.stack ** 2;
+function rawZ([x, y, z]) {
+  const out = Math.hypot(x, y) - TRUE_Z.level_reach;
+  const height = Math.max(z - TRUE_Z.desk_z, 0);
+  return z - TRUE_Z.per_mm_of_reach * out + tooTallPerMm2(out) * height ** 2;
+}
+function trueZ(x, y, z) {
+  const out = Math.hypot(x, y) - TRUE_Z.level_reach;
+  const byReach = z + TRUE_Z.per_mm_of_reach * out - TRUE_Z.desk_z;
+  if (byReach <= 0) return TRUE_Z.desk_z + byReach;
+  return TRUE_Z.desk_z + (2 * byReach) / (1 + Math.sqrt(1 + 4 * tooTallPerMm2(out) * byReach));
+}
 // Arm z as shown and typed in: true, or under RAW the firmware's own.
-const shownZ = ([x, y, z]) => (ui.isRaw ? z - trueMinusRaw(x, y) : z);
-const typedZ = (x, y, z) => (ui.isRaw ? z + trueMinusRaw(x, y) : z);
+const shownZ = (point) => (ui.isRaw ? rawZ(point) : point[2]);
+const typedZ = (x, y, z) => (ui.isRaw ? trueZ(x, y, z) : z);
 // What the arm says is out of date: a command is on its way, or the servos are still to be read after one.
 const isReading = () => inFlight > 0 || !state || state.is_reading;
 // The saved desk only while there is one.
@@ -327,14 +339,17 @@ for (const button of $('heights').children) {
     render();
   });
 }
-const { per_mm_of_reach: perMm, level_reach: level } = limits.true_z;
+const { per_mm_of_reach: perMm, level_reach: level, desk_z: deskZ, stack, tall_at_stack: tall } = TRUE_Z;
 $('heights-tip').innerHTML = `<b>True z</b> is where the cup really is. <b>Raw z</b> is the arm firmware's own
-  number, which is off by an amount that grows with the distance from the base: 100 mm out the firmware says
-  ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm ${fmt(perMm * (limits.reach - level))}
-  mm lower. The library corrects every height it sends and reads:
-  <code>true z = raw z + ${perMm} × (reach − ${level} mm)</code>
-  ${level} mm out the two agree. RAW only changes the numbers shown: the arm moves the same, and touch points,
-  offsets and SAVE always use true z.`;
+  number, which is off in two ways. On the desk it depends on the distance from the base: 100 mm out the firmware
+  says ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm
+  ${fmt(perMm * (limits.reach - level))} mm lower. Above the desk it reads too tall, the more the higher and the
+  further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. The library corrects every height it sends and
+  reads:
+  <code>true z = raw z + ${perMm} × (reach − ${level}) − (h / ${stack})² × (${tall} + ${TRUE_Z.tall_per_mm_of_reach}
+  × (reach − ${level}))</code>
+  h is the height above the desk, true z − ${deskZ}. RAW only changes the numbers shown: the arm moves the same, and
+  touch points, offsets and SAVE always use true z.`;
 
 $('cup').min = -limits.cup;
 $('cup').max = limits.cup;

@@ -53,13 +53,12 @@ BOARD_CHECK_ATTEMPTS = 3
 BOARD_CHECK_RETRY_S = 0.3
 # Asked of a servo id that is not fitted: if it answers, the bus is echoing.
 ABSENT_SERVO_ID = 5
-# The servos run off the barrel jack, measured 12.3 V; USB powers only the
-# ESP32. Far below that means the supply is off, and the servos still answer
-# reads while being unable to move.
+# The servos run off the barrel jack; USB powers only the ESP32. Below this the
+# supply is off, and the servos still answer reads while being unable to move.
 SERVO_VOLTAGE_MIN_MV = 6000
 
-# After a move lands the error keeps shrinking for this long, worth ~0.8 mm, and
-# a servo's read flickers by a pulse -- hence a median of several, after a wait.
+# A read waits for the arm to stop creeping after a move, then takes the median of
+# several: a servo's read flickers by a pulse.
 SETTLE_MS = 400
 SETTLE_READS = 5
 READ_PULSES = "[bus_servo.get_position(i) for i in (1, 2, 3)]"

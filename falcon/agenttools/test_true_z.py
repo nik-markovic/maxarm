@@ -25,7 +25,10 @@ import numpy as np                                             # noqa: E402
 
 
 def firmware_z(x: float, y: float, true_z: float) -> float:
-    return true_z - 0.05 * (math.hypot(x, y) - 207.0)
+    """The PILOT's formula, written out here and not taken from the library, so that this checks it."""
+    out = math.hypot(x, y) - 207.0
+    height = max(true_z - 44.0, 0.0)
+    return true_z - 0.05 * out + (height / 120.0) ** 2 * (3.4 + 0.0126 * out)
 
 
 def test_formula() -> bool:
@@ -39,6 +42,26 @@ def test_formula() -> bool:
         check("x and y untouched, and the round trip exact", max(trips) < 1e-12, f"{max(trips):.1e}"),
         check("logs show both", raw.describe((0.0, -107.0, 44.0)) == "(0.0, -107.0, 44.0 [raw 49.0])",
               raw.describe((0.0, -107.0, 44.0))),
+    ])
+
+
+def test_above_the_desk() -> bool:
+    print("above the desk, by the height and the reach:")
+    stack = {reach: raw.raw_position((0.0, -reach, 164.0))[2] for reach in (110.0, 207.0, 240.0)}
+    spots = [(math.sin(turn) * reach, -math.cos(turn) * reach, z) for turn in (-1.5, 0.0, 0.7)
+             for reach in (95.0, 160.0, 207.0, 280.0) for z in (-20.0, 44.0, 44.5, 84.0, 164.0, 205.0)]
+    misses = [abs(raw.raw_position(spot)[2] - firmware_z(*spot)) for spot in spots]
+    solved = [abs(raw.true_position((x, y, firmware_z(x, y, z)))[2] - z) for x, y, z in spots]
+    return all([
+        check("120 mm up, 207 mm out: true 164 is sent as 3.4 mm higher", abs(stack[207.0] - 167.4) < 1e-9,
+              f"{stack[207.0]:.4f}"),
+        check("and that much more further out, less nearer: the formula at 110 and 240 mm",
+              abs(stack[110.0] - firmware_z(0.0, -110.0, 164.0)) < 1e-9
+              and abs(stack[240.0] - firmware_z(0.0, -240.0, 164.0)) < 1e-9, f"{stack}"),
+        check("anywhere, at any height: as written out here", max(misses) < 1e-9, f"{max(misses):.1e}"),
+        check("a reading solved back to the true z it came from", max(solved) < 1e-9, f"{max(solved):.1e}"),
+        check("on and below the desk the reach line alone", raw.raw_position((0.0, -207.0, 30.0))[2] == 30.0
+              and raw.raw_position((0.0, -207.0, 44.0))[2] == 44.0),
     ])
 
 
@@ -65,8 +88,8 @@ def test_on_the_wire() -> bool:
             raw.debug_use_raw(False)
     expected = firmware_z(0.0, -107.0, 44.0)
     return all([
-        check("a reading is the firmware's z plus the formula",
-              abs(start[2] - firmware[2] - 0.05 * (math.hypot(*firmware[:2]) - 207.0)) < 1e-9,
+        check("a reading is the true z the formula takes to the firmware's",
+              abs(firmware_z(*start) - firmware[2]) < 1e-9,
               f"read {start[2]:.2f}, the firmware's own {firmware[2]:.2f}"),
         check("arm z 44, 107 mm out, is sent as raw 49", abs(sent[2] - expected) < 0.005, f"{sent}"),
         check("and the trace says both", "44.0 [raw 49.0]" in trace.getvalue()),
@@ -89,4 +112,4 @@ def test_firmware_limits_in_raw() -> bool:
                  f"{disagreements[:3]}")
 
 
-TESTS = [test_formula, test_on_the_wire, test_firmware_limits_in_raw]
+TESTS = [test_formula, test_above_the_desk, test_on_the_wire, test_firmware_limits_in_raw]

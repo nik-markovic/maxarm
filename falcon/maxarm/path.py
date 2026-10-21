@@ -20,16 +20,6 @@ belongs to the arm itself -- its reach and its base -- is checked in arm space.
   at half-way height.
 - **Clearance.** Given a crossing height, a move that travels sideways below it
   climbs first, crosses at that height, and comes down at the end.
-
-The arm does not move in straight lines: it interpolates its servos, and
-`geometry.real_path()` says where the tip really goes. Sideways, the real path
-keeps its radius between the two ends', bowing away from the base and never
-towards it, so a straight line clear of the base limit is clearer still. Down,
-a long move in or out at low height sags below its ends -- 6 mm at a typical
-crossing, 13 mm near the desk -- so a leg that would sag more than
-`CLEARANCE_MARGIN_MM` is halved until it does not. That margin is also what a
-crossing keeps above the clearance, so the real path never goes below it.
-Nothing is read back during a move.
 """
 
 import math
@@ -40,38 +30,27 @@ from .geometry import Position
 from .spaces import Affine
 from .tunable import tunable
 
-# The owner's limit, raised from 270 on 2026-10-20. The firmware's reach ends at
-# 286-291 mm at desk heights, with no silent clamp before that: 6 mm in hand.
+# How far from the base axis a move may end: the owner's limits.
 REACH_MAX_MM = 280.0
-# The owner's limit, 2026-10-20. Nearer the base the arm folds so far that a
-# servo step moves the cup more than it can be guided, and the desk reads ~1.4
-# mm off the true z line at 81 mm (STATUS-falcon §11).
 REACH_MIN_MM = 95.0
 
-# Inside |x|, |y| <= 70 of the arm's own frame the cup or its hose can strike
-# the base (`work/PILOT-anaconda.md`). It was taken to apply at every height;
-# 200 mm keeps that, as the arm cannot reach into the square above z~195 anyway.
+# Inside this square of the arm's own frame, and below this height, the cup or
+# its hose can strike the base.
 BASE_LIMIT_HALF_MM = tunable("BASE_LIMIT_HALF_MM", 70.0)
 BASE_LIMIT_HEIGHT_MM = tunable("BASE_LIMIT_HEIGHT_MM", 200.0)
-# How far outside the corner, on both axes, a move round the base passes. The
-# arm lands within ~2.6 mm of where it is sent.
+# How far outside the corner, on both axes, a move round the base passes.
 BASE_CORNER_MARGIN_MM = 10.0
 
-# Added above the clearance wherever something travels sideways, and the most
-# any leg's real path may sag below its lower end. Fixed, by the owner's spec.
+# Added above the clearance wherever something travels sideways: the owner's spec.
 CLEARANCE_MARGIN_MM = 5.0
-# Halvings allowed to get a leg's sag under the margin. One takes the worst
-# measured, 13 mm, to about 3: the sag goes with the square of the distance.
-SAG_SPLITS = 3
-# Corrections allowed to find the desk point over a base corner; each takes the
-# error down by the calibration's x/y stretch, a few per cent.
+# Corrections allowed to find the desk point over a base corner.
 CORNER_SOLVE_STEPS = 20
 # A sideways shift smaller than this is not travelling across the desk: it is
 # below the arm's own accuracy.
 CROSSING_MM = 2.0
 # The lowest desk height a move may ask for. A little under the surface, as the
-# cup is a bellows that seals by being pressed (condor §10.5). Far under it is
-# a point given in the wrong space -- desk heights passed as arm z, typically.
+# cup is a bellows that seals by being pressed. Far under it is a point given in
+# the wrong space -- desk heights passed as arm z, typically.
 DESK_FLOOR_MM = -5.0
 
 
@@ -126,31 +105,11 @@ class Planner:
             raise Refused(problem)
         path = _over_clearance(start, target, crossing_height)
         path = _each_leg(start, path, lambda a, b: self._round_base(a, b, depth=2))
-        path = _each_leg(start, path, lambda a, b: self._without_sag(a, b, SAG_SPLITS))
         for point in path:
             problem = self.problem_on_the_way(point)
             if problem:
                 raise Refused(f"on the way there: {problem}")
         return path
-
-    def _without_sag(self, start: Position, end: Position, splits: int) -> List[Position]:
-        """`end`, or the half-way point first, until the real path sags no more than the margin."""
-        if self._sag(start, end) <= CLEARANCE_MARGIN_MM:
-            return [end]
-        if splits == 0:
-            raise Refused("the arm's own swing would sag too far on the way there")
-        middle = tuple((a + b) / 2.0 for a, b in zip(start, end))
-        return (self._without_sag(start, middle, splits - 1)
-                + self._without_sag(middle, end, splits - 1))
-
-    def _sag(self, start: Position, end: Position) -> float:
-        """How far the real path goes below the lower of its two ends, in desk height."""
-        try:
-            trail = geometry.real_path(raw.raw_position(self.arm.from_desk(start)),
-                                       raw.raw_position(self.arm.from_desk(end)))
-        except geometry.Unreachable:
-            return 0.0              # an end the IK cannot solve is refused by problem_with()
-        return min(start[2], end[2]) - min(self.arm.to_desk(raw.true_position(point))[2] for point in trail)
 
     def _round_base(self, start: Position, end: Position, depth: int) -> List[Position]:
         """`end`, or a front corner first if the straight line crosses the base limit.

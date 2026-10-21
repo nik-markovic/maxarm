@@ -21,8 +21,9 @@
 | `transport` | the serial port                                                |
 | `tunable`   | the `MAXARM_*` environment overrides                           |
 
-Heights are true z: where the cup really is. The firmware's own are off by up
-to 6 mm, depending on reach; the library corrects them at the board (`raw.py`).
+Heights are true z: where the cup really is. The firmware's own are off by
+several mm, depending on the reach and the height; the library corrects them
+at the board (`raw.py`).
 """
 
 from .arm import MaxArm, MoveResult, MoveStatus, MoveType, NotConnectedError

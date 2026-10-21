@@ -285,7 +285,9 @@ def test_input_and_reset() -> bool:
 def firmware_z(x: float, y: float, true_z: float) -> float:
     """The raw z the board should get for a true z: the PILOT's formula, written out here and not taken
     from the library, so that this checks it."""
-    return true_z - 0.05 * (math.hypot(x, y) - 207.0)
+    out = math.hypot(x, y) - 207.0
+    height = max(true_z - 44.0, 0.0)
+    return true_z - 0.05 * out + (height / 120.0) ** 2 * (3.4 + 0.0126 * out)
 
 
 def test_true_heights() -> bool:
@@ -325,24 +327,39 @@ def test_true_heights() -> bool:
 
 
 def test_files_from_before() -> bool:
-    print("files written before the library corrected heights:")
+    print("touch points kept as the servos read them, and files written before:")
+    stack = (0.0, -239.52, 167.81)                   # the owner's #77, in true z by reach alone
     with tempfile.TemporaryDirectory() as scratch:
         config = Path(scratch)
         (config / store.POINTS_FILE).write_text(json.dumps({"next_id": 2, "points": [
             {"id": 1, "x": 0.0, "y": -260.0, "z": 41.85, "sent": [0.0, -260.0, 43.0]}]}))
         points, _ = store.load_points(config)
         store.save_points(config, points, 2)
+        kept = json.loads((config / store.POINTS_FILE).read_text())
         again, _ = store.load_points(config)
+        (config / store.POINTS_FILE).write_text(json.dumps({"heights": "true", "next_id": 3, "points": [
+            {"id": 1, "x": 0.0, "y": -260.02, "z": 44.5, "sent": None},
+            {"id": 2, "x": stack[0], "y": stack[1], "z": stack[2], "sent": list(stack)}]}))
+        first_day, _ = store.load_points(config)
         desk = json.loads((BASELINE / "desk.json").read_text())
         desk["joint_offsets_deg"] = [0.0, 0.0, -4.17]
         (config / store.DESK_FILE).write_text(json.dumps(desk))
         spaces, described = Spaces(config), store.describe_desk(config)
         refusal = spaces.ignored_desk or ""
         default = spaces.convert((0.0, -200.0, 44.0), Space.ARM, Space.DESK)
+    by_reach_alone = stack[2] - 0.05 * (math.hypot(*stack[:2]) - 207.0)
     return all([
-        check("touch points in raw z are read as true z", points[0].z == 44.5 and points[0].sent[2] == 45.65,
-              f"{points[0]}"),
-        check("and saved as true z, so not converted twice", again == points),
+        check("touch points in raw z are read as true z",
+              abs(points[0].z - 44.5) < 0.001 and abs(points[0].sent[2] - 45.65) < 0.001, f"{points[0]}"),
+        check("and kept as the servos read them, raw", kept["heights"] == "raw"
+              and kept["points"][0]["z"] == 41.85 and kept["points"][0]["sent"][2] == 43.0, f"{kept['points']}"),
+        check("read back as they were", again == points),
+        check("a file in true z by reach alone: a desk touch reads as it did",
+              abs(first_day[0].z - 44.5) <= 0.01, f"{first_day[0]}"),
+        check("and a stack touch is the same raw reading, through the formula as it is now",
+              abs(firmware_z(*first_day[1].target) - by_reach_alone) < 0.006
+              and abs(firmware_z(*first_day[1].sent) - by_reach_alone) < 0.006,
+              f"{first_day[1].z} true, raw {by_reach_alone:.2f}"),
         check("a desk.json fitted with the elbow offset is not used: the default desk is",
               not spaces.is_desk_saved and "SAVE" in refusal and abs(default[2]) < 1e-12, refusal),
         check("and the page says to SAVE again", not described["exists"] and "SAVE" in described["summary"],

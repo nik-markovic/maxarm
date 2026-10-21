@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""The planner: what is refused, and the path round clearance, the arm-base limit and sag.
+"""The planner: what is refused, and the path round clearance and the arm-base limit.
 
 Arithmetic only, no board. Most checks plan in a desk that is the arm's own
-frame (an identity calibration), so the numbers read directly; the sag and
-the base checks also run through elephant's calibration.
+frame (an identity calibration), so the numbers read directly; the base
+check also runs through elephant's calibration.
 """
 
-import math
 import sys
 from pathlib import Path
 
@@ -140,38 +139,6 @@ def test_round_the_base() -> bool:
     ])
 
 
-def test_no_leg_sags_past_the_margin() -> bool:
-    """The real path sags on long moves in or out; the planner halves those legs."""
-    print("sag: long moves low over the desk, through the shipped calibration:")
-    worst, legs_used, moves = 0.0, 0, 0
-    for height in (2.0, 10.0, 23.0, 40.0):
-        for r_start in (110.0, 170.0, 265.0):
-            for r_end in (110.0, 170.0, 265.0):
-                for bearing in (-60.0, 0.0, 60.0):
-                    start = _desk_at(r_start, bearing, height)
-                    end = _desk_at(r_end, -bearing / 2.0, height)
-                    plan = CALIBRATED.plan(start, end, None)
-                    cursor = start
-                    for point in plan:
-                        worst = max(worst, CALIBRATED._sag(cursor, point))
-                        cursor = point
-                    legs_used = max(legs_used, len(plan))
-                    moves += 1
-    unsplit = CALIBRATED._sag(_desk_at(110.0, 0.0, 2.0), _desk_at(265.0, 0.0, 2.0))
-    return all([
-        check("one long low leg would sag past the margin", unsplit > path.CLEARANCE_MARGIN_MM,
-              f"{unsplit:.1f} mm"),
-        check(f"planned, no leg of {moves} moves sags past it", worst <= path.CLEARANCE_MARGIN_MM,
-              f"worst {worst:.1f} mm, at most {legs_used} legs"),
-    ])
-
-
-def _desk_at(radius: float, bearing: float, height: float):
-    """The desk point over the arm-space polar position, at a desk height."""
-    heading = math.radians(bearing)
-    return CALIBRATED._at_desk_height(radius * math.sin(heading), -radius * math.cos(heading), height)
-
-
 def _is_clear(planner: Planner, start, plan) -> bool:
     cursor = start
     for point in plan:
@@ -186,5 +153,4 @@ def _rounded(points):
 
 
 TESTS = [with_raw_heights(test) for test in [
-    test_ordinary_move_is_one_leg, test_refusals, test_reach_limits, test_clearance, test_round_the_base,
-    test_no_leg_sags_past_the_margin]]
+    test_ordinary_move_is_one_leg, test_refusals, test_reach_limits, test_clearance, test_round_the_base]]

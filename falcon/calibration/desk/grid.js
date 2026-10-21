@@ -1,6 +1,6 @@
 // The view from above, in arm space: reach, the arm-base limit, the touch points and the arm.
 // A click picks the grid point nearest to it. The view turns in quarters; at 0 the arm reaches up the screen,
-// +x to the right -- condor's blue cube top left, green top right, red down the middle.
+// +x to the right.
 
 const CENTRE = [0, -65];      // mm: the middle of the reachable fan, which then fills the square
 const HALF = 290;             // mm from the centre to an edge

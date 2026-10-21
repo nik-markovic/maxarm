@@ -14,13 +14,11 @@ from typing import Optional
 
 from .geometry import Position, bearing_degrees
 
-# The cup swings its full 180 degrees in about 1.2 s, measured (condor). That is
-# the servo's own rate: a shorter duration only sends the pulse ahead of the horn.
+# The cup servo's own rate: a shorter duration only sends the pulse ahead of the horn.
 NOZZLE_TURN_DEG_PER_S = 150.0
 # The board ramps the cup on a 20 ms timer and stretches anything shorter to that.
 NOZZLE_TURN_MIN_MS = 20
-# The cup reports nothing, so its arrival is a wait. A guess: raise it if the
-# cup is still turning when the arm moves on.
+# The cup reports nothing, so its arrival is a wait.
 NOZZLE_SETTLE_MS = 150
 NOZZLE_RANGE_DEG = 90.0
 # A direction reaches the servo through two coordinate conversions, which can

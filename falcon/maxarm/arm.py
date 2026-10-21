@@ -50,21 +50,19 @@ MOVE_MAX_MS = 30000
 # The pump is a physical thing and the board reports nothing about it, so a grip
 # and a release are waits. A release is longer: the board vents the cup for 1 s
 # and then shuts the valve, and lifting before the residual vacuum bleeds away
-# brings the piece up with the cup (condor §5: 3 s is reliable, 0 is not).
+# brings the piece up with the cup.
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
 SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 
-# Each servo has a deadband: it does not move for a target 2-5 pulses away, and
-# stops 1-4 short of one further off -- 1-3 mm, more against gravity. It does so
-# the same way every time from the same side (STATUS-falcon 5.7), so sending the
-# target plus what it fell short by lands it: on the owner's arm, 1 mm steps
-# went from 1.8 mm median error to 0.5, one pulse, the floor through the firmware.
+# Each servo has a deadband: it does not move for a target a few pulses away, and
+# stops short of one further off, the same way every time from the same side. So
+# sending the target plus what it fell short by lands it.
 # Landed is every servo within this many pulses of the pulse the firmware sends
 # for the target: the servos only take whole pulses, and the firmware truncates.
 PRECISE_TOLERANCE_PULSES = 1.0
 PRECISE_ROUNDS = 3
-# A correction is never bigger than this on any axis: the shortfall is 1-3 mm,
-# and a cup held up by something solid must not be pushed into it much further.
+# A correction is never bigger than this on any axis: a cup held up by something
+# solid must not be pushed into it much further.
 PRECISE_CAP_MM = 3.0
 # A round that does not take the worst servo's miss below this share of the last
 # one ends it: something is in the way, or what is left is within the deadband.
@@ -141,7 +139,7 @@ class MaxArm:
         """Open the port and check the board can drive the arm.
 
         Opening the port resets the board, which homes the arm and centres the
-        cup: ~4 s, sometimes 15. Raises `BoardNotReadyError` naming the remedy.
+        cup. Raises `BoardNotReadyError` naming the remedy.
         """
         self._protocol.connect()
         self._protocol.check_board()

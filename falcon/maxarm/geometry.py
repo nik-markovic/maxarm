@@ -5,10 +5,8 @@ Pure arithmetic, no board. A target is checked before a byte goes down the
 wire, which matters because the firmware lies in one place: `set_position()`
 returns True while servo 2 sits silently clamped and the arm goes elsewhere.
 
-Provenance: `anaconda/agenttools/kinematics_reference.py`, checked against the
-live board over 336 points. `inverse()`, `base_angle()` and `deg_to_pulse()`
-stay branch-for-branch identical to it; do not tidy them without re-running
-`anaconda/agenttools/validate-kinematics.py`.
+`inverse()`, `base_angle()` and `deg_to_pulse()` follow the firmware branch for
+branch: do not tidy them.
 
 Angles are the board's servo-frame "angle1..3", not textbook joint angles.
 Positions are the firmware's own, raw z; the rest of the library works in
@@ -16,7 +14,7 @@ true z and converts at the board (`raw.py`).
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 Position = Tuple[float, float, float]
 Angles = Tuple[float, float, float]
@@ -118,18 +116,6 @@ def forward(angles: Angles) -> Position:
     heading = math.radians(BASE_FAN_DEG - angle1)
     return (radius * math.sin(heading), -radius * math.cos(heading),
             L0 + L2 * math.sin(upper) + L3 * math.sin(fore))
-
-
-def real_path(start: Position, end: Position, samples: int = 24) -> List[Position]:
-    """Where the tip really goes on one `set_position()` from `start` to `end`.
-
-    The board solves the end pose and gives all three servos the same duration,
-    so their pulses move together in a straight line -- and the tip does not.
-    """
-    begin, finish = deg_to_pulse(inverse(start)), deg_to_pulse(inverse(end))
-    return [forward(pulse_to_deg(tuple(b + (f - b) * step / samples
-                                       for b, f in zip(begin, finish))))
-            for step in range(samples + 1)]
 
 
 def bearing_degrees(x: float, y: float) -> float:

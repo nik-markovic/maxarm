@@ -7,15 +7,20 @@
 | `desk-previous.json` | the `desk.json` that the last SAVE replaced                   |
 | `desk-points.json`   | the points being recorded, kept on every change for a restart |
 
-Points are arm space, true z. Files written before the library corrected the
-firmware's heights hold raw z (no `"heights": "true"`), and are converted on loading.
+Points are arm space, true z -- except in `desk-points.json`, which keeps them
+as the servos read them, in the firmware's own raw z (`"heights": "raw"`), so
+that a refined formula for true z never changes what a recorded touch means.
+They become true z on loading, through the library's formula as it is then.
+Files from the first day of true z hold true z by reach alone
+(`"heights": "true"`); older ones raw z with no marker. Both are read.
 """
 
 import json
+import math
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from maxarm import raw
 from maxarm.geometry import Position
@@ -25,6 +30,10 @@ from .plane import Plane
 DESK_FILE = "desk.json"
 PREVIOUS_FILE = "desk-previous.json"
 POINTS_FILE = "desk-points.json"
+# True z as the library had it on its first day, 2026-10-20, by reach alone:
+# what a points file marked "true" holds.
+FIRST_TRUE_Z_PER_MM_OF_REACH = 0.05
+FIRST_LEVEL_REACH_MM = 207.0
 
 
 @dataclass(frozen=True)
@@ -46,15 +55,17 @@ def load_points(config_dir: Path) -> Tuple[List[Point], int]:
     if not path.exists():
         return [], 1
     content = json.loads(path.read_text())
-    points = [_point(entry) for entry in content["points"]]
-    if content.get("heights") != "true":
-        points = [_raw_to_true(point) for point in points]
+    to_raw = _first_true_to_raw if content.get("heights") == "true" else (lambda position: position)
+    points = [_converted(_point(entry), lambda position: raw.true_position(to_raw(position)))
+              for entry in content["points"]]
     return points, content.get("next_id", max((point.id for point in points), default=0) + 1)
 
 
 def save_points(config_dir: Path, points: List[Point], next_id: int) -> None:
-    _write(config_dir / POINTS_FILE, {"heights": "true", "next_id": next_id,
-                                      "points": [asdict(point) for point in points]})
+    _write(config_dir / POINTS_FILE, {
+        "about": "touch points as the servos read them, firmware (raw) z; the desk page shows them in true z",
+        "heights": "raw", "next_id": next_id,
+        "points": [asdict(_converted(point, raw.raw_position, 3)) for point in points]})
 
 
 def save_desk(config_dir: Path, plane: Plane, points: List[Point]) -> None:
@@ -67,7 +78,7 @@ def save_desk(config_dir: Path, plane: Plane, points: List[Point]) -> None:
                   f"calibration/desk through the {len(points)} touch points below, as the servos read them "
                   "(arm x, y, true z)."),
         "desk_to_arm": plane.desk_to_arm(),
-        "points": [list(point.target) for point in points],
+        "points": [[round(value, 2) for value in point.target] for point in points],
     }, keep=config_dir / PREVIOUS_FILE)
 
 
@@ -93,10 +104,17 @@ def _point(entry: dict) -> Point:
     return Point(**entry)
 
 
-def _raw_to_true(point: Point) -> Point:
-    x, y, z = (round(value, 2) for value in raw.true_position(point.target))
-    sent = [round(value, 2) for value in raw.true_position(tuple(point.sent))] if point.sent else None
+def _converted(point: Point, convert: Callable[[Position], Position], digits: Optional[int] = None) -> Point:
+    """`point` with its touch and its target through `convert`, rounded to `digits` if given."""
+    tidy = (lambda value: value) if digits is None else (lambda value: round(value, digits))
+    x, y, z = (tidy(value) for value in convert(point.target))
+    sent = [tidy(value) for value in convert(tuple(point.sent))] if point.sent else None
     return Point(point.id, x, y, z, sent)
+
+
+def _first_true_to_raw(position: Position) -> Position:
+    x, y, z = position
+    return (x, y, z - FIRST_TRUE_Z_PER_MM_OF_REACH * (math.hypot(x, y) - FIRST_LEVEL_REACH_MM))
 
 
 def _write(path: Path, content: dict, keep: Optional[Path] = None) -> None:

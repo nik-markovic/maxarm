@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Coordinate spaces: round trips, the camera, directions, and what elephant's calibration says.
+"""Coordinate spaces: round trips, the camera, directions, and missing or wrong files.
 
 Arithmetic only. The camera checks use elephant's `camera.json` (`harness.BASELINE`),
 a real 3x4, so a point at any height and its pixel can be compared exactly.
@@ -18,10 +18,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from maxarm import Camera, Space, Spaces                      # noqa: E402
 from maxarm.spaces import Affine, angle_from_desk, angle_to_desk  # noqa: E402
 from harness import BASELINE, check                            # noqa: E402
-
-# condor's cube bases: arm x, y, and the board z of the bare desk there, as the
-# owner measured them. Desk height 0 must land on all three.
-CUBE_DESK_HEIGHTS = [(100.0, -254.0, 38.0), (-100.0, -254.0, 36.0), (0.0, -90.0, 48.0)]
 
 
 def test_affine_round_trip() -> bool:
@@ -83,23 +79,6 @@ def test_directions_are_exact() -> bool:
     return check("desk to image and back, 24 directions", worst < 1e-6, f"worst {worst:.1e} deg")
 
 
-def test_shipped_desk_calibration() -> bool:
-    print("elephant's desk.json:")
-    spaces = Spaces(BASELINE)
-    heights = [spaces.arm.to_desk(cube)[2] for cube in CUBE_DESK_HEIGHTS]
-    desk = spaces.get(Space.DESK)
-    return all([
-        check("is there", spaces.is_desk_saved),
-        check("desk height 0 on the bare desk under all three cubes",
-              max(abs(h) for h in heights) < 1e-6, f"{[round(h, 6) for h in heights]}"),
-        check("desk space is the identity onto itself",
-              math.dist(desk.to_desk((1.0, 2.0, 3.0)), (1.0, 2.0, 3.0)) < 1e-12),
-        check("convert() goes through desk space",
-              math.dist(spaces.convert((100.0, -254.0, 38.0), Space.ARM, Space.DESK)[2:],
-                        (0.0,)) < 1e-6),
-    ])
-
-
 def test_missing_and_wrong_files() -> bool:
     print("what a config directory without the files does:")
     with tempfile.TemporaryDirectory() as empty:
@@ -141,4 +120,4 @@ def test_missing_and_wrong_files() -> bool:
 
 
 TESTS = [test_affine_round_trip, test_camera, test_directions_are_exact,
-         test_shipped_desk_calibration, test_missing_and_wrong_files]
+         test_missing_and_wrong_files]

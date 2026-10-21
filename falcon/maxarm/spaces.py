@@ -35,12 +35,13 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 
 from .geometry import Position
+from .raw import DESK_Z_MM
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
-# The desk under an ideally placed arm, in true z: the owner's desk, 66 touch
-# points, averaged 44.04 (raw.py), level to 0.1 degree. Raw and true z agree there.
-DEFAULT_DESK_Z_MM = 44.0
+# The desk under an ideally placed arm, in true z: true z counts heights above the
+# desk from it.
+DEFAULT_DESK_Z_MM = DESK_Z_MM
 
 
 def default_desk_to_arm() -> np.ndarray:

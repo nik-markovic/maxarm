@@ -18,7 +18,7 @@ until they are within half a millimetre.
 
 Two spaces. ARM uses no calibration at all: the desk is what is being measured,
 so no desk floor from an older calibration may keep the cup off it. DESK uses
-the saved `desk.json`, to try it out.
+the saved `desk.json`, to try it out, or the library's default desk without one.
 """
 
 import math
@@ -32,11 +32,9 @@ from maxarm.path import CROSSING_MM
 
 # Above this nothing on the desk can be hit, so moves go fast; below it they go
 # slow. Arm z, true z: 10 mm over the default desk, 44 (the owner's, PILOT-falcon).
-# Desk z: a margin over the arm's +-3 mm.
 HOVER_MM = {Space.ARM: 54.0, Space.DESK: 20.0}
-# How far apart a glide's commands are. The kinematics model has the tip dip
-# between the points it is sent to on moves in or out, with the square of the
-# distance (STATUS-falcon 5.4, not measured): 10 mm legs, under 0.05 mm.
+# How far apart a glide's commands are: it is sent as points along the line, each
+# at the glide's height.
 GLIDE_STEP_MM = 10.0
 # How far a jump lowers its crossing height at a time, looking for one at which
 # the far end is in reach: near the reset pose, little is.

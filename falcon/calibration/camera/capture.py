@@ -1,8 +1,7 @@
 """One still frame from the camera, at the largest size it will actually hand over.
 
-Lifted from `condor/calibration/calibrate.py` unchanged in behaviour: both
-formats are tried and the bigger frame wins, the camera's auto-exposure is let
-settle, and several frames of the still scene are averaged. The frame size is
+Both formats are tried and the bigger frame wins, the camera's auto-exposure is
+let settle, and several frames of the still scene are averaged. The frame size is
 judged by what comes back, never by what the device agreed to.
 """
 

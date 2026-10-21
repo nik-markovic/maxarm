@@ -26,8 +26,9 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
    within 2, red beyond. Touch a red one again, or delete it (×).
 3. **SAVE CALIBRATION.** The plane goes to `config/desk.json`, and the file it replaces to `desk-previous.json`.
    Points are true z, as the library reports them, so a level desk is a level plane. A `desk.json` saved before the
-   library corrected heights is not used: SAVE again. Points recorded then are converted to true z when the page
-   loads.
+   library corrected heights is not used: SAVE again. `config/desk-points.json` keeps the points as the servos read
+   them, in raw z, so a refined formula for true z never changes a recorded touch; the page shows them in true z.
+   The plane goes through every point in the list: delete touches on anything but the desk before saving.
 4. **Try it.** *desk* in the table sends the cup over that point in desk space, at the point test height: 4 mm,
    down to 0. The first comes down from above, like `grab()`; the next ones glide, slowly and level, so the gap
    between cup and desk can be watched all the way. Any other move in between, and the next one comes from above

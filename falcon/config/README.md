@@ -8,7 +8,7 @@ Every `.json` here belongs to one rig, so none of them is in git (`../.gitignore
 | `desk.json`          | `desk_to_arm`, 4x4: desk space to the arm's own x, y, z | `calibration/`, desk page |
 | `camera.json`        | `desk_to_pixel`, 3x4: desk space to camera pixels       | the camera calibration    |
 | `custom.json`        | `custom_to_desk`, 4x4: a frame of your own, if wanted   | you; there is none here   |
-| `desk-points.json`   | the desk page's touch points, kept on every change      | `calibration/`, desk page |
+| `desk-points.json`   | the desk page's touch points, as the servos read them   | `calibration/`, desk page |
 | `desk-previous.json` | the `desk.json` the last SAVE replaced                  | `calibration/`, desk page |
 
 Desk space is millimetres on the desk with z the height above its surface, 0 being the cup snug on it.

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """A MaxArm that exists only in RAM: the board, its firmware's habits, and the serial port.
 
+**It is just fake.** Use it to check what the library sends, in what order, and
+what it waits for. Never draw conclusions from it about how the arm behaves --
+where it goes, how it lands, how long it takes: the real arm often does not
+behave the same.
+
 It replaces pyserial and nothing else, so the transport, the raw-REPL framing,
 the result marker and the board's stdout chatter are all exercised for real.
 What it reproduces is how this board misleads its driver:
@@ -12,8 +17,7 @@ What it reproduces is how this board misleads its driver:
   5. and, when asked (`deadband_mm`, `stop_short_mm`), the servos' deadband: a
      target closer than the deadband is ignored, a farther one stopped short of.
 
-Reachability uses the library's validated `geometry`, so "the fake refused"
-means the real board would have. Everything the board is told lands in
+Reachability uses the library's `geometry`. Everything the board is told lands in
 `FakeSerial.log`, in order: ("move", (x, y, z), ms), ("turn", angle, ms),
 ("suction", is_on).
 """

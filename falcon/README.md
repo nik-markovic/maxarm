@@ -32,7 +32,7 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
 | `tiles/`       | The tile finder from dolphin. No coordinate code of its own                        |
 | `training/`    | The tile reader's recipe, and its baseline scenes                                  |
 | `files/`       | The reader, `reader.tflite`, and what it was built from                            |
-| `agenttools/`  | Offline tests, the fake board and the app on it, `try-arm.py`. Removed at release  |
+| `agenttools/`  | Offline tests, the fake board and the app on it. Removed at release                |
 
 ## What changed in the library since elephant
 
@@ -40,10 +40,12 @@ That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback fo
   of a farther one, 1-3 mm. PRECISE moves slowly, reads the servos, and sends target + shortfall until each servo is
   within a pulse of its target: 1 mm steps went from 1.4 mm median error to 0.5 on the owner's arm, for ~1.2 s more.
 - **Heights are true z, on every call.** The firmware's own z (raw z) puts the cup higher than it says near the base
-  and lower at full reach: a flat desk read 50 at 100 mm out and 42 at 260. Every MaxArm is built the same, so the
+  and lower at full reach: a flat desk read 50 at 100 mm out and 42 at 260. Above the desk it reads too tall, the
+  more the higher and the further out: a 120 mm stack, 3.4 mm at 207 mm out. Every MaxArm is built the same, so the
   library corrects every target before it is sent and every reading after it is read, in `protocol.py`:
-  `true z = raw z + 0.05 x (reach - 207)`, reach = sqrt(x^2 + y^2). x and y are untouched; at 207 mm out, where a
-  desk reads 44, the two agree. `MAXARM_TRACE` logs moves and reads as `(x, y, 44.0 [raw 49.0])`.
+  `true z = raw z + 0.05 x (reach - 207) - (h / 120)^2 x (3.4 + 0.0126 x (reach - 207))`, reach =
+  sqrt(x^2 + y^2), h = true z - 44, the height above the desk (0 below it). x and y are untouched; on the desk at
+  207 mm out, where it reads 44, the two agree. `MAXARM_TRACE` logs moves and reads as `(x, y, 44.0 [raw 49.0])`.
   `raw.debug_use_raw(True)` (`maxarm/raw.py`) turns it off process-wide, for testing the firmware only.
   `desk.json` is a plain plane again; one carrying the earlier elbow offset (`joint_offsets_deg`) is not used.
 - **Reach is 95 to 280 mm** (was up to 270); the firmware's own ends at 286. Nearer than 95 the arm folds too far to
@@ -154,13 +156,8 @@ All of them are applied to every move, before anything is sent. `can_reach()` as
   straight line crosses it goes by a front corner instead, at half-way height.
 - **Clearance**, with a calibrated desk: nothing travels sideways below `clearance + carried + 5 mm`.
 - **Desk floor**, with a calibrated desk: nothing more than 5 mm into it.
-- **Path dip**: the kinematics predict that a long, low move in or out dips below its ends; such a leg is halved
-  until the predicted dip is 5 mm or less. A precaution: the dip has never been measured on the arm.
 
-The arm does not move in straight lines -- it interpolates its servos -- but straight lines are still the right thing
-to check: sideways, by the model its path keeps between the two ends' distances from the base, bowing outward.
-Downward the model predicts a dip on long moves in or out, which the last row guards against; nothing on the arm has
-been seen to sag (work/STATUS-falcon.md §5.4). See [`maxarm/path.py`](maxarm/path.py).
+See [`maxarm/path.py`](maxarm/path.py).
 
 ## What you can tune
 
@@ -186,8 +183,6 @@ Everything else is a constant in the module that uses it, with where it came fro
 ../.venv/bin/python agenttools/serve-fake.py       # the same, on a fake arm
 ./main.py                                          # camera snapshot, then pick up the tiles
 ./main.py training/tiles/baseline/tiles-1.png      # a saved frame instead
-../.venv/bin/python agenttools/try-arm.py          # the motion on the real arm, stage by stage, no camera
-../.venv/bin/python agenttools/try-arm.py --dry-run
 ../.venv/bin/python agenttools/run-tests.py        # every offline check, a few seconds, no board
 ../.venv/bin/python training/tiles/check-reader.py # the tile finder on its baseline scenes
 ```
