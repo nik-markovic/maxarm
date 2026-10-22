@@ -1,0 +1,5 @@
+# Calibration results: each rig's own, written by calibration/ (work/PILOT-gecko.md).
+config/*.json
+config/*.partial
+config/*.png
+config/*.jpg

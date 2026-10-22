@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camera calibration · MaxArm</title>
+  <link rel="stylesheet" href="/common/page.css">
+  <link rel="stylesheet" href="/common/view.css">
+  <link rel="stylesheet" href="camera.css">
+  <script type="module" src="camera.js"></script>
+</head>
+<body>
+<header class="top"></header>
+
+<main class="camera">
+
+  <section class="card view">
+    <div class="card-head">
+      <h2>Desk space, from above</h2>
+      <div class="tools">
+        <span class="hint">grid, mm</span>
+        <div class="seg" id="steps"></div>
+        <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
+          ⟳ Rotate view</button>
+        <span class="hint" id="facing"></span>
+      </div>
+    </div>
+    <div class="view-body">
+      <canvas id="grid" title="Click to send the arm over that grid point, high enough to slide a cube under"></canvas>
+      <div class="zcol">
+        <span class="zlabel">HEIGHT <em>desk</em></span>
+        <output class="num" id="z-out" title="The height over the desk the arm is sent to"></output>
+        <button class="btn higher" id="z-higher"
+          title="Let the slider go 20 mm higher, as often as wanted. Only the arm's limits stop it">▲ 20 mm</button>
+        <button class="btn safe" id="z-safe" title="Up to a height well clear of the cubes"></button>
+        <button class="btn notch" id="z-notch"
+          title="Down to 4 mm over a cube's top: centre the cube under the cup here"></button>
+        <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
+        <div class="zbar">
+          <input type="range" class="vertical" id="z-slider" step="1">
+          <span class="zscale" id="z-scale"></span>
+          <span class="znotch" id="z-notch-mark"><b></b></span>
+          <span class="zend top" id="z-top"></span>
+          <span class="zend bottom" id="z-bottom"></span>
+        </div>
+        <button class="btn zstep" id="z-down" title="1 mm down">Z−</button>
+        <button class="btn lower" id="z-lower"
+          title="Let the slider go 2 mm lower, as often as wanted. Below the desk the cup presses into it"
+          >▼ 2 mm</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="swatch reach"></i>reach: 280 mm, ±120°</span>
+      <span><i class="swatch reach-min"></i>nearest target: 95 mm</span>
+      <span><i class="swatch base"></i>arm-base limit</span>
+      <span><i class="swatch target"></i>target</span>
+      <span><i class="swatch says"></i>arm says</span>
+      <span><i class="swatch suggested"></i>suggested place for a cube</span>
+      <span><i class="swatch cube"></i>recorded cube</span>
+      <span><i class="swatch caution"></i>height: on the desk, into it</span>
+    </div>
+  </section>
+
+  <section class="card cubes">
+    <div class="card-head">
+      <h2>Cubes</h2>
+      <div class="tools">
+        <span id="progress"></span>
+        <button class="btn guide" id="guide" title="How to place the camera and the cubes">? GUIDE</button>
+      </div>
+    </div>
+
+    <div class="readout" id="readout">
+      <span></span><span>X</span><span>Y</span><span>Z</span>
+      <span class="label">Target</span>
+      <b class="num" id="target-x"></b><b class="num" id="target-y"></b><b class="num" id="target-z"></b>
+      <span class="label says">Arm says<i class="spinner" title="Reading the servos"></i></span>
+      <span class="num says" id="says-x"></span><span class="num says" id="says-y"></span>
+      <span class="num says" id="says-z"></span>
+    </div>
+    <p class="hint space">Desk space, mm: z is the height over the desk. A cube's top is at 40.</p>
+
+    <div class="cube-rows" id="cube-rows"></div>
+
+    <p class="hint">Click the grid to bring the arm over a place, set the cube down under the cup, bring the cup
+      down to the notch and centre the cube under it. RECORD keeps where the arm says it is.</p>
+  </section>
+
+  <section class="card shots">
+    <div class="card-head">
+      <h2>Camera</h2>
+      <span class="hint" id="feed-device"></span>
+    </div>
+    <div class="feed-box">
+      <img id="feed" alt="">
+      <span class="feed-badge" id="feed-badge"></span>
+      <span class="feed-note" id="feed-note"></span>
+    </div>
+
+    <div class="calibrate-row">
+      <button class="btn primary" id="calibrate">◎ CALIBRATE</button>
+      <button class="btn" id="check" title="Park the arm and take a new image to check the calibration by">
+        CHECK CALIBRATION</button>
+    </div>
+    <p class="hint" id="calibration-file"></p>
+
+    <div class="check-row">
+      <button class="check-box" id="check-box" title="See it full size"><img id="check-image" alt=""></button>
+      <div class="check-info" id="check-info"></div>
+    </div>
+  </section>
+
+</main>
+<div id="toasts"></div>
+</body>
+</html>

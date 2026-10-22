@@ -1,0 +1,65 @@
+/* What every page that moves the arm shows: the view from above, the height column beside it as tall as it,
+   and the readout of where the arm was sent and where its servos say it is. */
+
+/* --- the view ---------------------------------------------------------- */
+
+.btn.rotate { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.55);
+  letter-spacing: 0.3px; }
+.btn.rotate:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+
+.view-body { display: grid; grid-template-columns: 1fr 92px; gap: 12px; }
+#grid { display: block; align-self: start; width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: crosshair;
+  background: radial-gradient(circle at 50% 60%, #0d1218, #070a0d); border: 1px solid var(--line); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; }
+.swatch.reach { border: 2px solid var(--red); background: var(--green-wash); }
+.swatch.reach-min { border: 2px solid var(--orange); }
+.swatch.base { border: 1px solid #3a4553; background: repeating-linear-gradient(45deg, #2a333f 0 2px, #10151b 2px 5px); }
+.swatch.target { border: 2px solid var(--green); border-radius: 50%; }
+.swatch.says { width: 8px; height: 8px; margin: 0 8px 0 2px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 6px #fff; vertical-align: 0; }
+.swatch.caution { width: 6px; background: linear-gradient(var(--yellow) 0 50%, var(--red) 50%); }
+
+/* --- the height, beside the view: as tall as it ------------------------ */
+
+.zcol { display: flex; flex-direction: column; gap: 6px; padding: 10px 8px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.zlabel { color: var(--faint); font-size: 10px; letter-spacing: 1.4px; text-align: center; }
+.zlabel em { font-style: normal; color: var(--muted); }
+#z-out { font-size: 16px; font-weight: 600; text-align: center; }
+.zcol .btn { padding: 6px 0; font-size: 12px; }
+.btn.safe { display: grid; line-height: 1.15; font-size: 15px; }
+.btn.safe small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
+.btn.safe.on { background: var(--green); border-color: var(--green); color: #06210f;
+  box-shadow: 0 0 16px var(--green-glow); }
+.btn.safe.on small { color: #0b3a1b; }
+.btn.higher { font-size: 11px; color: var(--green-bright); background: var(--green-wash);
+  border-color: rgba(65, 195, 99, 0.45); }
+.btn.lower { font-size: 11px; color: #ffb2ab; background: var(--red-wash); border-color: rgba(240, 82, 74, 0.5); }
+
+/* The slider's thumb travels half its size short of either end; the scale beside it is inset to match. */
+.zbar { position: relative; flex: 1; min-height: 160px; }
+input.vertical { position: absolute; top: 0; left: 8px; width: 24px; height: 100%; margin: 0;
+  writing-mode: vertical-lr; direction: rtl; accent-color: var(--green); cursor: pointer; }
+.zscale { position: absolute; top: 8px; bottom: 8px; left: 38px; width: 5px; border-radius: 3px; }
+.zend { position: absolute; left: 48px; color: var(--faint); font: 10px var(--mono); }
+.zend.top { top: 8px; transform: translateY(-50%); }
+.zend.bottom { bottom: 8px; transform: translateY(50%); }
+
+/* --- the arm ----------------------------------------------------------- */
+
+.readout { display: grid; grid-template-columns: 82px repeat(3, 1fr); gap: 2px 10px; align-items: baseline;
+  padding: 10px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.readout > span:nth-child(-n+4) { color: var(--faint); font-size: 10.5px; letter-spacing: 1.2px; text-align: right; }
+.readout .label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.readout .num { text-align: right; }
+.readout b { font-size: 21px; font-weight: 600; }
+.readout span.num { color: var(--muted); transition: color 0.2s; }
+.readout span.num.off { color: var(--yellow); }
+.readout span.num.far { color: var(--red); }
+.readout.stale .says, .readout.stale span.num.says { color: var(--faint); }
+.spinner { display: none; width: 9px; height: 9px; margin-left: 6px; vertical-align: -1px; border-radius: 50%;
+  border: 2px solid var(--green-wash); border-top-color: var(--green); animation: spin 0.8s linear infinite; }
+.readout.stale .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }

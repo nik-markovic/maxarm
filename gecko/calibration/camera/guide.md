@@ -1,0 +1,27 @@
+**Camera placement**
+
+- Place the camera so that it covers the whole desk area where the items will be placed for the intended
+  application, an app that works with tiles for example.
+- Do not place it too far away either: that costs accuracy.
+- The live view on this page is there to aim it by.
+
+**Cube placement and calibration**
+
+- Place the blue, green and red cubes on the desk far apart from each other, but in clear view of the camera.
+  Suggested locations are shown on the grid.
+- The red cube goes on the side closer to the camera. If the camera is directly in front of the arm, either side
+  is OK.
+- Click on the grid to move the arm to where a cube will go. It comes over at a height you can slide a cube under.
+- Place each cube so that its top and two of its sides are clearly seen by the camera: roughly, a pointy edge
+  points toward the camera.
+- Bring the cup down to the cube's notch, **44**, which is 4 mm over the cube's top: the button with the cube on
+  it beside the height slider, or drag the slider there and it snaps.
+- Place the cube directly and evenly below the suction cup: the circle of the cup equally far from each edge of
+  the cube. **This affects the accuracy of the calibration the most**: even a few millimetres of error can
+  affect the application.
+- When a cube is in place, click RECORD on its row. RECORD keeps where the arm says it is.
+- When all three cubes are recorded, click CALIBRATE. The arm moves out of the camera's way first.
+- If re-opening the app with a previous calibration, click CHECK CALIBRATION to take a new image to check it by.
+- Verify that the outlines in the generated image match the cubes. Click the image to see it full size.
+
+**Do not move the camera once the calibration is complete.** If you do, you will need to re-do the calibration.

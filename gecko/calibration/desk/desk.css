@@ -1,0 +1,93 @@
+/* The desk page's layout: the view with the height beside it, the arm's controls, the points, the desk test. */
+
+main.desk {
+  display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
+  grid-template-columns: minmax(520px, 1.3fr) minmax(370px, 0.9fr) minmax(400px, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "view arm points" "view arm test";
+}
+.view { grid-area: view; }
+.arm { grid-area: arm; }
+.points { grid-area: points; }
+.test { grid-area: test; }
+
+@media (max-width: 1560px) {
+  main.desk { grid-template-columns: minmax(500px, 1.15fr) minmax(370px, 1fr);
+    grid-template-areas: "view arm" "points test"; }
+}
+@media (max-width: 960px) {
+  main.desk { grid-template-columns: 1fr; grid-template-areas: "view" "arm" "points" "test"; }
+}
+
+/* --- the view: common/view.css has it, but for the touch points ------- */
+
+.swatch.point { border-radius: 50%; background: var(--green); }
+
+/* --- the arm ----------------------------------------------------------- */
+
+.desk-line { min-height: 20px; margin: 8px 2px 14px; color: var(--muted); font-size: 12.5px; }
+.desk-line b { font-family: var(--mono); font-weight: 600; color: var(--green-bright); }
+
+.info { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--line-strong); color: var(--muted); font-size: 11px; font-weight: 700; cursor: help; }
+.info:hover, .info:focus { color: var(--green-bright); border-color: var(--green); outline: none; }
+.info .tip { display: none; position: absolute; top: 26px; right: 0; z-index: 30; width: 360px; padding: 12px 14px;
+  background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); color: var(--text); font-size: 12.5px; font-weight: 400;
+  line-height: 1.5; text-align: left; cursor: auto; }
+.info:hover .tip, .info:focus .tip { display: block; }
+.tip code { display: block; margin: 6px 0; color: var(--green-bright); font: 12px var(--mono); }
+
+.fine { display: grid; grid-template-columns: 70px 1fr 50px; align-items: center; gap: 10px; margin-bottom: 9px; }
+.fine label { color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.fine output { text-align: right; }
+
+.nudge { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+.pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 34px); gap: 4px; }
+.pad .btn { padding: 0; font-size: 11.5px; }
+.pad [data-dir="up"] { grid-area: 1 / 2; }
+.pad [data-dir="left"] { grid-area: 2 / 1; }
+.pad .hub { grid-area: 2 / 2; display: grid; place-items: center; color: var(--faint); font-size: 10px; }
+.pad [data-dir="right"] { grid-area: 2 / 3; }
+.pad [data-dir="down"] { grid-area: 3 / 2; }
+.nudge .hint { margin: 0; }
+
+.cup { display: grid; grid-template-columns: 70px 1fr 50px auto; align-items: center; gap: 10px;
+  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.cup > label:first-child { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.cup output { text-align: right; }
+
+/* --- the points -------------------------------------------------------- */
+
+#record { letter-spacing: 1px; }
+.table-wrap { max-height: 360px; overflow: auto; }
+.badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  font-size: 11.5px; font-weight: 700; background: #8d9aa9; color: #0b0f14; }
+.badge.ok { background: var(--green); }
+.badge.warn { background: var(--yellow); }
+.badge.bad { background: var(--red); color: white; }
+td.dev.ok { color: var(--green-bright); }
+td.dev.warn { color: var(--yellow); }
+td.dev.bad { color: var(--red); }
+td.faint { color: var(--faint); }
+td.actions { white-space: nowrap; }
+td.actions .btn { margin-left: 3px; }
+
+.summary { display: grid; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 12.5px; }
+.summary b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+.offsets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+.save-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding-top: 10px;
+  border-top: 1px solid var(--line); }
+.save-row #save { margin-left: auto; flex: none; letter-spacing: 1px; }
+
+/* --- the desk test ----------------------------------------------------- */
+
+.test-height { display: grid; grid-template-columns: 120px 1fr 64px; align-items: center; gap: 10px; }
+.test-height label { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.test-height output { text-align: right; }
+#glide-hint { margin: 8px 0 12px; }
+#glide-hint b { color: var(--green-bright); font-weight: 600; }
+.desk-input { display: grid; grid-template-columns: repeat(4, minmax(60px, 1fr)) auto; gap: 8px; align-items: end; }
+.desk-input label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.test p.hint:last-child { margin: 12px 0 0; }
