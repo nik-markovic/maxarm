@@ -1,24 +1,23 @@
 // The camera calibration page: aim the camera, set each cube down under the cup and record where the cup is, then
-// CALIBRATE, which parks the arm and takes the frame the calibration is fitted to.
+// CALIBRATE, which parks the arm, takes the frame and fits the camera to the cubes in it. VALIDATE CALIBRATION draws
+// the saved calibration on a new frame.
 //
 // Everything is desk space: millimetres, z the height over the desk. The arm's target is the grid point last
 // clicked and the height column. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
-// target with it, and a move the arm refuses puts it back where the arm last went.
+// target with it, and a move the arm refuses puts it back where the arm last went. The height column is shared
+// with the tests page (common/height.js).
 
 import { $, api, fmt, mountHeader, openModal, report, showHeader, startPolling } from '/common/page.js';
 import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
+import { HeightColumn, SAFE_MM, cubeIcon } from '/common/height.js';
 import { CubeGrid } from './grid.js';
 import { showGuide } from './guide.js';
 
 const SAME_MM = 0.005;
-// The height column, the owner's (PILOT-gecko): the slider runs from 70 down to -2 over the desk, yellow from the
-// desk down a millimetre and red below, where the cup presses into it. The notch over a cube's top catches the
-// slider from a millimetre either side. SAFE is well clear of the cubes anywhere in reach.
-const HEIGHT = { top: 70, bottom: -2, safe: 80, lower: 2, higher: 20, caution: 0, danger: -1, snap: 1 };
 // Where the cubes might go, desk mm (PILOT-gecko). Red goes on the side nearer the camera: either of its two.
 const SUGGESTED = [
-  { colour: 'blue', x: -160, y: -220 }, { colour: 'green', x: 160, y: -220 },
-  { colour: 'red', x: -160, y: 0 }, { colour: 'red', x: 160, y: 0 },
+  { colour: 'blue', x: -140, y: -220 }, { colour: 'green', x: 140, y: -220 },
+  { colour: 'red', x: -140, y: 0 }, { colour: 'red', x: 140, y: 0 },
 ];
 const GUIDE_SEEN = 'camera-guide-seen';
 const FEED = '/api/camera/feed';
@@ -35,20 +34,19 @@ const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
   rotation: remembered.rotation || 0,
-  top: HEIGHT.top,
-  bottom: HEIGHT.bottom,
-  target: { x: limits.home[0], y: limits.home[1], z: HEIGHT.safe },
+  target: { x: limits.home[0], y: limits.home[1], z: SAFE_MM },
 };
 let state = null;
 let inFlight = 0;
 let accepted = JSON.stringify(ui.target);
-let isDragging = false;
 let isLost = false;
 let checkShown = null;
 
 const grid = new CubeGrid($('grid'), limits, jump);
+const column = new HeightColumn(NOTCH, {
+  get: () => ui.target.z, set: (z) => { ui.target.z = z; }, render: () => render(), send: () => move(),
+});
 const target = () => [ui.target.x, ui.target.y, ui.target.z];
-const isAtNotch = (z) => Math.abs(z - NOTCH) < 0.05;
 // What the arm says is out of date: a command is on its way, or the servos are still to be read after one.
 const isReading = () => inFlight > 0 || !state || state.is_reading;
 const isBusy = () => inFlight > 0 || !state || Boolean(state.doing) || state.queued > 0;
@@ -80,7 +78,7 @@ function show(next, isReply = false) {
   isLost = !next;
   state = next;
   showHeader(state);
-  if (state && !isDragging && inFlight === 0 && (isReply || (!state.doing && !state.queued))) {
+  if (state && !column.isDragging && inFlight === 0 && (isReply || (!state.doing && !state.queued))) {
     follow(state.camera.position);
     accepted = JSON.stringify(ui.target);
   }
@@ -101,15 +99,10 @@ function jump(x, y) {
   command('camera/jump', { x, y }, 'Over to the grid point', { isRevertible: true });
 }
 
-function setHeight(z) {
-  ui.target.z = z;
-  move();
-}
-
 // --- drawing it all --------------------------------------------------------------------------------
 
 function render() {
-  renderHeight();
+  column.render(ui.target.z);
   renderReadout();
   renderView();
   if (state) {
@@ -121,27 +114,6 @@ function render() {
     cubes: state ? state.camera.cubes : {}, sent: state ? state.sent : null,
     says: state ? state.camera.measured : null,
   });
-}
-
-function renderHeight() {
-  const { z } = ui.target;
-  const slider = $('z-slider');
-  slider.min = ui.bottom;
-  slider.max = ui.top;
-  if (!isDragging) slider.value = Math.round(z);
-  $('z-out').textContent = fmt(z);
-  $('z-out').classList.toggle('at-notch', isAtNotch(z));
-  $('z-notch').classList.toggle('on', isAtNotch(z));
-  $('z-safe').classList.toggle('on', z >= HEIGHT.safe - 0.5);
-  $('z-top').textContent = ui.top;
-  $('z-bottom').textContent = ui.bottom;
-  const share = (value) => Math.min(1, Math.max(0, (ui.top - value) / (ui.top - ui.bottom)));
-  const at = (value) => `${100 * share(value)}%`;
-  $('z-scale').style.background = `linear-gradient(to bottom, var(--line-strong) ${at(HEIGHT.caution)}, `
-    + `var(--yellow) ${at(HEIGHT.caution)} ${at(HEIGHT.danger)}, var(--red) ${at(HEIGHT.danger)})`;
-  const mark = $('z-notch-mark');
-  mark.hidden = NOTCH > ui.top || NOTCH < ui.bottom;
-  mark.style.top = `calc(8px + (100% - 16px) * ${share(NOTCH)})`;
 }
 
 function renderReadout() {
@@ -189,8 +161,8 @@ function renderCamera() {
   const missing = COLOURS.filter((colour) => !cubes[colour]);
   $('calibrate').disabled = missing.length > 0 || isBusy();
   $('calibrate').title = missing.length ? `Record ${missing.join(', ')} first`
-    : 'Park the arm, then take the frame the calibration is fitted to';
-  $('check').disabled = isBusy();
+    : 'Park the arm, take the frame, and fit the camera to the cubes in it';
+  $('validate').disabled = isBusy();
   $('calibration-file').textContent = `config/${calibration.summary}`;
   $('check-box').classList.toggle('empty', !check);
   if (check && check.stamp !== checkShown) {
@@ -200,14 +172,7 @@ function renderCamera() {
   $('check-info').innerHTML = check
     ? `<b>Calibration check</b><br>taken ${check.taken}, ${check.size[0]} × ${check.size[1]}<br>`
       + 'click it to see it full size'
-    : '<b>No check image yet</b><br>CALIBRATE or CHECK CALIBRATION takes one, with the arm out of the way.';
-}
-
-// An isometric cube in the cube's colour: lit from above.
-function cubeIcon(colour) {
-  return `<svg class="cube-icon ${colour}" viewBox="0 0 32 32" aria-hidden="true">
-    <path class="top" d="M16 3 28 9.5 16 16 4 9.5Z"/><path class="left" d="M4 9.5 16 16v13L4 22.5Z"/>
-    <path class="right" d="M28 9.5 16 16v13l12-6.5Z"/></svg>`;
+    : '<b>No check image yet</b><br>CALIBRATE or VALIDATE CALIBRATION takes one, with the arm out of the way.';
 }
 
 function buildCubeRows() {
@@ -244,22 +209,6 @@ function connectFeed() {
 
 // --- wiring ----------------------------------------------------------------------------------------
 
-function onSlide(slider, apply, send) {
-  slider.addEventListener('input', () => { isDragging = true; apply(Number(slider.value)); render(); });
-  slider.addEventListener('change', () => { isDragging = false; apply(Number(slider.value)); send(); });
-}
-
-onSlide($('z-slider'), (value) => { ui.target.z = Math.abs(value - NOTCH) <= HEIGHT.snap ? NOTCH : value; }, move);
-$('z-up').addEventListener('click', () => setHeight(ui.target.z + 1));
-$('z-down').addEventListener('click', () => setHeight(ui.target.z - 1));
-$('z-safe').innerHTML = `${HEIGHT.safe}<small>SAFE</small>`;
-$('z-safe').addEventListener('click', () => setHeight(HEIGHT.safe));
-$('z-notch').innerHTML = `${cubeIcon('notch')}<span>${fmt(NOTCH, 0)}<small>CUBE</small></span>`;
-$('z-notch').addEventListener('click', () => setHeight(NOTCH));
-$('z-notch-mark').firstElementChild.textContent = fmt(NOTCH, 0);
-$('z-lower').addEventListener('click', () => { ui.bottom -= HEIGHT.lower; render(); });
-$('z-higher').addEventListener('click', () => { ui.top += HEIGHT.higher; render(); });
-
 $('steps').innerHTML = STEPS.map((step) => `<button>${step}</button>`).join('');
 for (const button of $('steps').children) {
   button.addEventListener('click', () => {
@@ -285,7 +234,7 @@ $('cube-rows').addEventListener('click', (event) => {
 });
 
 $('calibrate').addEventListener('click', () => command('camera/calibrate', {}, 'CALIBRATE'));
-$('check').addEventListener('click', () => command('camera/check', {}, 'CHECK CALIBRATION'));
+$('validate').addEventListener('click', () => command('camera/validate', {}, 'VALIDATE CALIBRATION'));
 $('check-box').addEventListener('click', () => { if (checkShown !== null) showCheck(); });
 $('guide').addEventListener('click', showGuide);
 if (!localStorage.getItem(GUIDE_SEEN)) {

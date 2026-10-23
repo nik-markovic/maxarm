@@ -102,6 +102,7 @@ class UnplacedLetters(Exception):
 
 
 def find_tiles(frame: np.ndarray, camera: Camera, reader: read.Reader) -> List[Tile]:
+    camera.check_frame(frame)
     view = topdown.render(frame, camera, TILE_HEIGHT_MM)
     field = pose.EdgeField(view, camera.position())
     found = glyphs.find_glyphs(view)

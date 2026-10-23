@@ -4,9 +4,8 @@ Spec: [`work/PILOT-gecko.md`](../work/PILOT-gecko.md).
 State of play: [`work/STATUS-gecko.md`](../work/STATUS-gecko.md).
 
 The pilot adds the calibration web app's second page: the camera. The arm is brought over each of the three cubes,
-the cubes are centred under the cup and recorded, and CALIBRATE parks the arm and takes the frame the camera is
-fitted to. **Fitting `config/camera.json` from that frame is the next step, and not built yet.** The library is
-falcon's. Move, grab and drop, in whichever coordinates you work in; the library owns every coordinate conversion,
+the cubes are centred under the cup and recorded, and CALIBRATE parks the arm, takes a frame and fits the camera to
+the cubes in it: `config/camera.json`. The library is falcon's. Move, grab and drop, in whichever coordinates you work in; the library owns every coordinate conversion,
 and an app only finds things and passes their coordinates.
 
 ```
@@ -25,7 +24,7 @@ for tile, (px, py) in zip(find_tiles(frame, camera, reader), SLOTS):
 ```
 
 That is [`main.py`](main.py), give or take its Ctrl-C handling and a fallback for tiles the cup cannot turn far enough.
-It needs `config/camera.json`, which the camera page will write once its fit is built.
+It needs `config/camera.json`, which the camera page's CALIBRATE writes.
 
 | directory      | holds                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------ |
@@ -40,14 +39,31 @@ It needs `config/camera.json`, which the camera page will write once its fit is 
 ## What changed since falcon
 
 - **The camera page** (`calibration/camera/`, guide in `calibration/README.md`): the arm over the cubes in desk
-  space, a point per cube in `config/camera-points.json`, the live view, CALIBRATE and CHECK CALIBRATION.
+  space, a point per cube in `config/camera-points.json`, the live view, CALIBRATE and VALIDATE CALIBRATION.
+- **The camera calibration**: CALIBRATE fits a square-pixel camera to the three cubes' edges and takes in the arm's
+  own x/y error through where it recorded them (`calibration/camera/fit.py`); `camera.json` holds `desk_to_pixel`
+  as the library reads it, the frame size, and the fit behind it. VALIDATE draws it on a new frame and says whether
+  the camera has moved. The check image draws each cube whole: the edges its faces hide fainter, and an X across
+  its bottom, crossing under its centre.
+- **The tests page** (`calibration/tests/`), there once `camera.json` is: FIND RED CUBE finds the red cube in the
+  live view, through the calibration, and brings the cup down 4 mm over its top; ARM TO DESK sends the arm to the
+  point of the desk clicked in the live view, shown full size, down to 4 mm over it. The live view carries the
+  calibration's marks: the reach, the arm, the cube found, the point clicked with the cup's rim round it.
+- **The red cube's points refine the calibration** (the tests page, its tab now Fine Tune): the red cube set down in place after place,
+  FIND RED CUBE brings the cup over it, the cube is centred under the cup, and RECORD POINT keeps where the arm says
+  the cup is and where the camera, the arm parked, sees the cube (`config/camera-refine-points.json`). SAVE
+  CALIBRATION fits the arm's x/y error again to all of them and the three cubes, the camera kept
+  (`calibration/camera/refine.py`). The camera page suggests the cubes at x ±140 now, inside the reach.
 - **RESET lifts over the cubes.** After its slow lift off the desk it goes straight up, fast, to arm z 104 -- 60 mm
   over the default desk -- before heading home, so it clears whatever the camera page put on the desk.
 - **The camera is found**, not assumed to be `/dev/video1`: the owner's by its USB port if plugged in, else the first
   that is not virtual (`calibration/camera/devices.py`). `capture()` and `main.py` use it too.
-- **The library is unchanged** but for one thing the arm does not see: a settled read takes its wait and its count of
-  reads from the module's constants when it runs, not when it was defined. The offline checks could not shorten
-  the wait before, so the desk page's took 87 s; all of them now take 2.
+- **The library is unchanged** but for three things. The reach is 270 mm again (`path.REACH_MAX_MM`), as before
+  falcon: at 280 the arm stretches too far and misses more (the owner). A settled read takes its wait and its count
+  of reads from the module's constants when it runs, not when it was defined: the offline checks could not shorten
+  the wait before, so the desk page's took 87 s; all of them now take 10. And `Camera` knows the frame size it was
+  calibrated at, if `camera.json` says (`frame_size`), and `check_frame()` refuses a frame of another size, which
+  `find_tiles()` now calls first: at another size every pixel means another place.
 - The library's earlier changes, since elephant: [`falcon/README.md`](../falcon/README.md).
 
 ## The calls
@@ -133,7 +149,7 @@ the arm.
 
 All of them are applied to every move, before anything is sent. `can_reach()` asks the same questions.
 
-- **Reach**: a move ends 95 to 280 mm from the base axis, and nothing goes into the back 120 degrees. The two radii
+- **Reach**: a move ends 95 to 270 mm from the base axis, and nothing goes into the back 120 degrees. The two radii
   are for where a move ends: a path may pass inside 95 (nothing goes round it, unlike the arm-base limit), and a
   move that only climbs or stays put is let out from anywhere, an arm stopped half-way say.
 - **Firmware**: what the board would refuse, or silently clamp, as `geometry.py` predicts it.
@@ -165,11 +181,12 @@ Everything else is a constant in the module that uses it, with where it came fro
 
 ```
 ../.venv/bin/python calibration/calibration.py     # the calibration app, on the arm
-../.venv/bin/python agenttools/serve-fake.py       # the same, on a fake arm, the camera a still frame
+../.venv/bin/python agenttools/serve-fake.py       # the same, on a fake arm, the camera three drawn cubes
 ../.venv/bin/python agenttools/serve-fake.py --real-camera   # a fake arm, the real camera
+../.venv/bin/python agenttools/refit-frame.py      # camera.json fitted afresh to the frame CALIBRATE kept
 ./main.py                                          # camera snapshot, then pick up the tiles
 ./main.py training/tiles/baseline/tiles-1.png      # a saved frame instead
-../.venv/bin/python agenttools/run-tests.py        # every offline check, a few seconds, no board
+../.venv/bin/python agenttools/run-tests.py        # every offline check, about 10 s, no board
 ../.venv/bin/python training/tiles/check-reader.py # the tile finder on its baseline scenes
 ```
 

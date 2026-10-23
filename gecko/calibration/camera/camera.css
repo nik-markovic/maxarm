@@ -1,7 +1,5 @@
 /* The camera page's layout: the view with the height beside it, the cubes, and the camera with its check image. */
 
-:root { --cube-blue: #4c8dff; --cube-green: #2fd47a; --cube-red: #ff4d5e; }
-
 main.camera {
   display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
   grid-template-columns: minmax(520px, 1.3fr) minmax(390px, 0.95fr) minmax(400px, 1fr);
@@ -19,24 +17,11 @@ main.camera {
   main.camera { grid-template-columns: 1fr; grid-template-areas: "view" "cubes" "shots"; }
 }
 
-/* --- the view's marks, and the notch over a cube ----------------------- */
+/* --- the view's marks --------------------------------------------------- */
 
 .swatch.suggested { border: 1.5px dashed var(--cube-blue); background: rgba(76, 141, 255, 0.12); }
 .swatch.cube { background: var(--cube-green); box-shadow: 0 0 8px var(--cube-green); }
 
-.btn.notch { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 0; }
-.btn.notch .cube-icon { width: 17px; height: 17px; }
-.btn.notch span { display: grid; line-height: 1.1; font-size: 15px; }
-.btn.notch small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
-.btn.notch.on { background: #e9eef4; border-color: #ffffff; color: #0b0f14;
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.35); }
-.btn.notch.on small { color: #3a4553; }
-#z-out.at-notch { color: #ffffff; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
-
-/* A tick across the slider and its scale where the notch is; the slider snaps to it. */
-.znotch { position: absolute; left: 3px; width: 42px; height: 0; border-top: 2px solid #ffffff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); transform: translateY(-1px); pointer-events: none; }
-.znotch b { position: absolute; left: 45px; top: -8px; color: #ffffff; font: 600 10px var(--mono); }
 
 /* --- the cubes --------------------------------------------------------- */
 
@@ -44,16 +29,6 @@ main.camera {
   letter-spacing: 0.6px; }
 .btn.guide:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
 .hint.space { margin: 8px 2px 0; }
-
-.cube-icon { width: 30px; height: 30px; flex: none; }
-.cube-icon path { stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.6; stroke-linejoin: round; }
-.cube-icon .top { fill: color-mix(in srgb, var(--c) 68%, white); }
-.cube-icon .left { fill: var(--c); }
-.cube-icon .right { fill: color-mix(in srgb, var(--c) 60%, black); }
-.cube-icon.blue { --c: var(--cube-blue); }
-.cube-icon.green { --c: var(--cube-green); }
-.cube-icon.red { --c: var(--cube-red); }
-.cube-icon.notch { --c: #aab6c4; }
 
 .cube-rows { display: grid; gap: 8px; margin: 14px 0 12px; }
 .cube-row { --c: var(--faint); display: grid; grid-template-columns: 34px 1fr auto; align-items: center;
@@ -77,25 +52,11 @@ main.camera {
 .btn.record:hover:not(:disabled) { border-color: var(--c);
   box-shadow: 0 0 12px color-mix(in srgb, var(--c) 45%, transparent); }
 
-/* --- the camera, and the check image ----------------------------------- */
-
-.feed-box { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px;
-  background: radial-gradient(circle at 50% 45%, #0d1218, #05070a); border: 1px solid var(--line); }
-.feed-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.feed-badge { position: absolute; top: 10px; left: 10px; padding: 3px 10px; border-radius: 999px;
-  background: rgba(10, 13, 17, 0.78); border: 1px solid var(--line-strong); font-size: 11px; font-weight: 650;
-  letter-spacing: 1.3px; }
-.feed-badge:empty { display: none; }
-.feed-badge.live { color: #ff6b62; }
-.feed-badge.snapshot { color: var(--yellow); }
-.feed-badge.failed { color: var(--red); }
-.feed-note { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center;
-  color: var(--muted); background: rgba(5, 7, 10, 0.55); pointer-events: none; }
-.feed-note:empty { display: none; }
+/* --- the check image ---------------------------------------------------- */
 
 .calibrate-row { display: flex; gap: 10px; margin: 14px 0 6px; }
 .calibrate-row #calibrate { flex: 1; padding: 10px 14px; font-size: 14px; letter-spacing: 1.2px; }
-.calibrate-row #check { letter-spacing: 0.6px; }
+.calibrate-row #validate { letter-spacing: 0.6px; }
 
 .check-row { display: grid; grid-template-columns: 176px 1fr; gap: 14px; align-items: center; margin-top: 12px;
   padding-top: 12px; border-top: 1px solid var(--line); }

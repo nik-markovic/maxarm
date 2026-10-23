@@ -81,12 +81,22 @@ class Camera:
     height it is a plane-to-image homography, inverted to go the other way.
     """
 
-    def __init__(self, desk_to_pixel: np.ndarray) -> None:
+    def __init__(self, desk_to_pixel: np.ndarray, frame_size: Optional[Tuple[int, int]] = None) -> None:
         self.matrix = np.asarray(desk_to_pixel, dtype=float)
+        self.frame_size = tuple(frame_size) if frame_size else None     # width, height; None if not known
 
     @classmethod
     def load(cls, path: Union[str, Path]) -> "Camera":
-        return cls(_read_matrix(Path(path), "desk_to_pixel", (3, 4)))
+        path = Path(path)
+        matrix = _read_matrix(path, "desk_to_pixel", (3, 4))
+        return cls(matrix, json.loads(path.read_text()).get("frame_size"))
+
+    def check_frame(self, frame: np.ndarray) -> None:
+        """Raise if `frame` is not the size the camera was calibrated at: there, every pixel means another place."""
+        size = (frame.shape[1], frame.shape[0])
+        if self.frame_size and size != self.frame_size:
+            raise ValueError(f"the frame is {size[0]} x {size[1]}, the camera was calibrated at "
+                             f"{self.frame_size[0]} x {self.frame_size[1]}")
 
     def to_desk(self, point: Position) -> Position:
         px, py, height = point

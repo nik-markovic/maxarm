@@ -3,6 +3,7 @@
 const PAGES = [
   { id: 'desk', title: 'Desk', href: '/desk/' },
   { id: 'camera', title: 'Camera', href: '/camera/' },
+  { id: 'tests', title: 'Fine Tune', href: '/tests/' },
 ];
 const POLL_MS = 500;
 const TOAST_MS = 5000;
@@ -64,8 +65,8 @@ export function report(reply, what) {
 }
 
 export function mountHeader(active) {
-  const tabs = PAGES.map((page) => `<a href="${page.href}" class="${page.id === active ? 'active' : ''}
-    ${page.isSoon ? 'soon' : ''}">${page.title}</a>`).join('');
+  const tabs = PAGES.map((page) => `<a href="${page.href}" data-page="${page.id}"
+    class="${page.id === active ? 'active' : ''} ${page.isSoon ? 'soon' : ''}">${page.title}</a>`).join('');
   document.querySelector('header.top').innerHTML = `
     <div class="brand">${LOGO}<div>MaxArm calibration<small>Avnet demo</small></div></div>
     <nav class="tabs">${tabs}</nav>
@@ -77,6 +78,9 @@ export function mountHeader(active) {
     </div>`;
   $('reset').onclick = async () => report(await api('reset', {}), 'RESET');
   $('retry').onclick = async () => report(await api('connect', {}), 'Connecting');
+  for (const link of document.querySelectorAll('nav.tabs a')) {
+    link.addEventListener('click', (event) => { if (link.classList.contains('unavailable')) event.preventDefault(); });
+  }
 }
 
 export function showHeader(state) {
@@ -88,6 +92,12 @@ export function showHeader(state) {
     ready: 'arm ready', connecting: 'connecting…', failed: connection.detail || 'not connected',
   }[connection.status];
   $('retry').hidden = connection.status !== 'failed' || !state;
+  // A page that cannot be used yet, the camera not calibrated say, is greyed, and says why.
+  for (const link of document.querySelectorAll('nav.tabs a')) {
+    const why = state && state.unavailable ? state.unavailable[link.dataset.page] : null;
+    link.classList.toggle('unavailable', Boolean(why));
+    link.title = why || '';
+  }
   const doing = $('doing');
   const waiting = state && state.queued ? ` · ${state.queued} waiting` : '';
   doing.className = `pill ${state && state.doing ? 'busy' : 'idle'}`;

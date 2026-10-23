@@ -20,8 +20,15 @@
   the cube. **This affects the accuracy of the calibration the most**: even a few millimetres of error can
   affect the application.
 - When a cube is in place, click RECORD on its row. RECORD keeps where the arm says it is.
-- When all three cubes are recorded, click CALIBRATE. The arm moves out of the camera's way first.
-- If re-opening the app with a previous calibration, click CHECK CALIBRATION to take a new image to check it by.
-- Verify that the outlines in the generated image match the cubes. Click the image to see it full size.
+- When all three cubes are recorded, click CALIBRATE. The arm moves out of the camera's way, the camera takes its
+  picture, and the calibration is fitted to the cubes in it. Leave the cubes where they are until it is done.
+- If the cubes cannot all be found, or do not stand where the arm recorded them, nothing is saved, and the check
+  image shows what the camera found instead.
+- If re-opening the app with a previous calibration, click VALIDATE CALIBRATION: a new image with the calibration
+  drawn on it, and, if the cubes are still in place, how far the camera has moved since.
+- Verify that the pink outlines in the generated image sit on the cubes, and the cyan circles on the arm's
+  suction cups. Click the image to see it full size.
+- Then make it better on the Fine Tune page: **Refine the calibration** with the red cube alone, set down and
+  centred under the cup, in ten places or more.
 
 **Do not move the camera once the calibration is complete.** If you do, you will need to re-do the calibration.

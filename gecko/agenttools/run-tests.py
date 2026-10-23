@@ -17,8 +17,10 @@ import test_arm
 import test_calibration
 import test_camera
 import test_example
+import test_fit
 import test_path
 import test_spaces
+import test_tests_page
 import test_true_z
 from harness import run
 
@@ -29,7 +31,9 @@ SUITES = {
     "arm": test_arm.TESTS,
     "example": test_example.TESTS,
     "calibration": test_calibration.TESTS,
+    "fit": test_fit.TESTS,
     "camera": test_camera.TESTS,
+    "tests-page": test_tests_page.TESTS,
 }
 
 

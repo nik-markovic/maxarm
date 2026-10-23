@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The calibration web app. One page per calibration, each a tab: the desk first, then the camera.
+"""The calibration web app. One page per calibration, each a tab: the desk first, then the camera; then the tests.
 
     ../.venv/bin/python calibration/calibration.py                  # then open http://localhost:8080
     ../.venv/bin/python calibration/calibration.py --host 0.0.0.0   # on the board, for another machine's browser
@@ -28,15 +28,17 @@ from common.motion import Motion                             # noqa: E402
 from common.server import Server                             # noqa: E402
 from common.worker import Worker                             # noqa: E402
 from desk.api import DeskSession                             # noqa: E402
+from tests.api import TestsSession                           # noqa: E402
 
 
 def run(host: str, port: int, config_dir: Path = CONFIG_DIR, camera: Optional[str] = None) -> None:
     worker = Worker(Motion(MaxArm(config_dir=None), config_dir))
     feed = Feed(camera)
-    server = Server(HERE, home="desk", pages=["camera"])
+    server = Server(HERE, home="desk", pages=["camera", "tests"])
     arm_api.register(server, worker)
     DeskSession(worker, config_dir).register(server)
     CameraSession(worker, feed, config_dir).register(server)
+    TestsSession(worker, feed, config_dir).register(server)
     worker.start()
     feed.start()
     print(f"calibration: http://{'localhost' if host in ('127.0.0.1', '0.0.0.0') else host}:{port}/"

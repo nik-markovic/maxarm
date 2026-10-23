@@ -1,5 +1,8 @@
 /* What every page that moves the arm shows: the view from above, the height column beside it as tall as it,
-   and the readout of where the arm was sent and where its servos say it is. */
+   and the readout of where the arm was sent and where its servos say it is. For the pages with cubes on the desk
+   (camera, tests): the notch over a cube's top, the cubes' icons, and the camera's live view. */
+
+:root { --cube-blue: #4c8dff; --cube-green: #2fd47a; --cube-red: #ff4d5e; }
 
 /* --- the view ---------------------------------------------------------- */
 
@@ -63,3 +66,45 @@ input.vertical { position: absolute; top: 0; left: 8px; width: 24px; height: 100
   border: 2px solid var(--green-wash); border-top-color: var(--green); animation: spin 0.8s linear infinite; }
 .readout.stale .spinner { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- the notch over a cube, and the cubes' icons ------------------------ */
+
+.btn.notch { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 0; }
+.btn.notch .cube-icon { width: 17px; height: 17px; }
+.btn.notch span { display: grid; line-height: 1.1; font-size: 15px; }
+.btn.notch small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
+.btn.notch.on { background: #e9eef4; border-color: #ffffff; color: #0b0f14;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.35); }
+.btn.notch.on small { color: #3a4553; }
+#z-out.at-notch { color: #ffffff; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+
+/* A tick across the slider and its scale where the notch is; the slider snaps to it. */
+.znotch { position: absolute; left: 3px; width: 42px; height: 0; border-top: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); transform: translateY(-1px); pointer-events: none; }
+.znotch b { position: absolute; left: 45px; top: -8px; color: #ffffff; font: 600 10px var(--mono); }
+
+.cube-icon { width: 30px; height: 30px; flex: none; }
+.cube-icon path { stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.6; stroke-linejoin: round; }
+.cube-icon .top { fill: color-mix(in srgb, var(--c) 68%, white); }
+.cube-icon .left { fill: var(--c); }
+.cube-icon .right { fill: color-mix(in srgb, var(--c) 60%, black); }
+.cube-icon.blue { --c: var(--cube-blue); }
+.cube-icon.green { --c: var(--cube-green); }
+.cube-icon.red { --c: var(--cube-red); }
+.cube-icon.notch { --c: #aab6c4; }
+
+/* --- the camera's live view --------------------------------------------- */
+
+.feed-box { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px;
+  background: radial-gradient(circle at 50% 45%, #0d1218, #05070a); border: 1px solid var(--line); }
+.feed-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.feed-badge { position: absolute; top: 10px; left: 10px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(10, 13, 17, 0.78); border: 1px solid var(--line-strong); font-size: 11px; font-weight: 650;
+  letter-spacing: 1.3px; }
+.feed-badge:empty { display: none; }
+.feed-badge.live { color: #ff6b62; }
+.feed-badge.snapshot { color: var(--yellow); }
+.feed-badge.failed { color: var(--red); }
+.feed-note { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center;
+  color: var(--muted); background: rgba(5, 7, 10, 0.55); pointer-events: none; }
+.feed-note:empty { display: none; }

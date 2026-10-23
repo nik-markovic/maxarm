@@ -20,6 +20,9 @@ export function rememberView(step, rotation) {
   localStorage.setItem(VIEW_KEY, JSON.stringify({ step, rotation }));
 }
 
+// The cubes' colours, as the pages draw them (common/view.css has them for the page).
+export const CUBE_INK = { blue: '#4c8dff', green: '#2fd47a', red: '#ff4d5e' };
+
 export const INK = {
   grid: 'rgba(138, 151, 166, 0.07)', major: 'rgba(138, 151, 166, 0.17)', axis: 'rgba(138, 151, 166, 0.38)',
   label: 'rgba(138, 151, 166, 0.55)', reach: '#f0524a', reachMin: '#f08c3c', fan: 'rgba(65, 195, 99, 0.07)',

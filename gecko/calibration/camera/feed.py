@@ -3,6 +3,7 @@
     feed = Feed()                  # the camera is found when a page first watches
     feed.start()
     for jpeg in feed.frames(): ... # what the page's <img> is sent, for as long as it watches
+    frame = feed.still()           # a frame of the view, as the camera gave it, taken after asking
     frame, described = feed.snapshot()   # the still frame a calibration takes, full size
     feed.close()
 
@@ -31,6 +32,11 @@ VIEW_SIZE = (800, 600)
 VIEW_FPS = 10.0
 VIEW_QUALITY = 70
 RETRY_S = 2.0
+# still() hands over a frame that came this many after it was asked for: the newest one may have been taken
+# before the arm stopped. More if the view had to start for it, so that the camera's exposure settles first.
+FRESH_FRAMES = 3
+STARTING_FRAMES = 15
+STILL_WAIT_S = 15.0
 
 
 def open_view(device: str):
@@ -49,6 +55,8 @@ class Feed:
         self.condition = threading.Condition()
         self.viewers = 0
         self.jpeg: Optional[bytes] = None   # the newest frame while the view runs
+        self.image: Optional[np.ndarray] = None    # the same, as the camera gave it
+        self.size: Optional[Tuple[int, int]] = None   # the view's frame size, once a frame has come
         self.count = 0                      # frames so far: a viewer waits for the next number
         self.is_streaming = False           # the view has the camera open
         self.is_paused = False              # a snapshot has the camera
@@ -85,6 +93,23 @@ class Feed:
                 self.viewers -= 1
                 self.condition.notify_all()
 
+    def still(self) -> np.ndarray:
+        """A frame of the view as the camera gave it, taken after this was asked. The view runs for it if no page
+        watches."""
+        with self.condition:
+            wanted = self.count + (FRESH_FRAMES if self.is_streaming else STARTING_FRAMES)
+            self.viewers += 1
+            self.condition.notify_all()
+            try:
+                self.condition.wait_for(lambda: self.is_closed or self.count >= wanted, timeout=STILL_WAIT_S)
+                image = self.image if self.count >= wanted else None
+            finally:
+                self.viewers -= 1
+                self.condition.notify_all()
+        if image is None:
+            raise RuntimeError(f"the camera gave no frame: {self.status['detail'] or self.status['status']}")
+        return image
+
     def snapshot(self) -> Tuple[np.ndarray, str]:
         """The still frame, at the camera's largest size, and a line saying how it was taken."""
         with self.condition:
@@ -102,7 +127,7 @@ class Feed:
 
     def state(self) -> dict:
         with self.condition:
-            return dict(self.status)
+            return {**self.status, "size": list(self.size) if self.size else None}
 
     # --- the view's thread ------------------------------------------------
 
@@ -139,13 +164,14 @@ class Feed:
                 jpeg = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, VIEW_QUALITY])[1].tobytes()
                 sent = time.monotonic()
                 with self.condition:
-                    self.jpeg, self.count = jpeg, self.count + 1
+                    self.jpeg, self.image, self.count = jpeg, image, self.count + 1
+                    self.size = (image.shape[1], image.shape[0])
                     self.status = {"status": "live", "detail": f"{name}, {image.shape[1]}x{image.shape[0]}"}
                     self.condition.notify_all()
         finally:
             camera.release()
             with self.condition:
-                self.is_streaming, self.jpeg = False, None
+                self.is_streaming, self.jpeg, self.image = False, None, None
                 if self.status["status"] in ("starting", "live"):
                     self.status = {"status": "idle", "detail": ""}
                 self.condition.notify_all()

@@ -1,9 +1,8 @@
 // The camera page's view from above: the shared grid in desk space, with where the cubes are suggested to go,
-// dashed, and where each one was recorded, solid, the cross at its centre where the cup was.
+// dashed -- fainter once that cube is recorded -- and where each one was recorded, solid, the cross at its centre
+// where the cup was.
 
-import { GridView } from '/common/grid.js';
-
-export const CUBE_INK = { blue: '#4c8dff', green: '#2fd47a', red: '#ff4d5e' };
+import { CUBE_INK, GridView } from '/common/grid.js';
 
 export class CubeGrid extends GridView {
   constructor(canvas, limits, onPick) {
@@ -19,8 +18,8 @@ export class CubeGrid extends GridView {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const spot of this.view.suggested) {
-      if (this.view.cubes[spot.colour]) continue;
       const ink = CUBE_INK[spot.colour];
+      ctx.globalAlpha = this.view.cubes[spot.colour] ? 0.45 : 1;
       this.square(spot.x, spot.y, half);
       ctx.fillStyle = `${ink}1f`;
       ctx.fill();
@@ -31,6 +30,7 @@ export class CubeGrid extends GridView {
       ctx.setLineDash([]);
       ctx.fillStyle = ink;
       ctx.fillText(spot.colour, ...this.toScreen(spot.x, spot.y));
+      ctx.globalAlpha = 1;
     }
     for (const [colour, cube] of Object.entries(this.view.cubes)) {
       if (!cube) continue;

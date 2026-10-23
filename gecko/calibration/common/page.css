@@ -59,6 +59,7 @@ nav.tabs a { padding: 6px 14px; border-radius: 7px; color: var(--muted); text-de
 nav.tabs a.active { background: var(--green-wash); color: var(--green-bright);
   box-shadow: inset 0 0 0 1px rgba(65, 195, 99, 0.35); }
 nav.tabs a.soon { opacity: 0.45; pointer-events: none; }
+nav.tabs a.unavailable:not(.active) { opacity: 0.4; cursor: not-allowed; }
 nav.tabs a.soon::after { content: " soon"; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
 
 .status { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -168,6 +169,18 @@ table.list td { text-align: right; padding: 5px 8px; border-bottom: 1px solid rg
 table.list th:first-child, table.list td:first-child { text-align: left; }
 table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 table.list .empty td { text-align: center; color: var(--faint); padding: 18px; }
+/* A point's number, coloured by how far off it is (desk, tests); the same colours for the number in its row. */
+.badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  font-size: 11.5px; font-weight: 700; background: #8d9aa9; color: #0b0f14; }
+.badge.ok { background: var(--green); }
+.badge.warn { background: var(--yellow); }
+.badge.bad { background: var(--red); color: white; }
+td.dev.ok { color: var(--green-bright); }
+td.dev.warn { color: var(--yellow); }
+td.dev.bad { color: var(--red); }
+td.faint { color: var(--faint); }
+td.actions { white-space: nowrap; }
+td.actions .btn { margin-left: 3px; }
 
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px;
   font-weight: 600; background: var(--panel-raised); border: 1px solid var(--line-strong); color: var(--muted); }

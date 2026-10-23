@@ -4,12 +4,14 @@
     ../.venv/bin/python agenttools/serve-fake.py                 # then open http://localhost:8080
     ../.venv/bin/python agenttools/serve-fake.py --port 8081
     ../.venv/bin/python agenttools/serve-fake.py --real-camera   # the camera that is plugged in, the arm fake
-    ../.venv/bin/python agenttools/serve-fake.py --frame shot.png
+    ../.venv/bin/python agenttools/serve-fake.py --frame config/camera-frame.png   # the owner's cubes, as taken
 
 The library still waits out every move, so the pages run at the real arm's
 pace; the fake arm goes exactly where it is sent. The camera is a still frame
-(`fake_camera.py`) unless --real-camera. config/ is copied to a scratch
-directory first, so nothing written touches the real one.
+(`fake_camera.py`) unless --real-camera: by default three cubes drawn at the
+places the camera page suggests (`cube_scene.py`), so CALIBRATE has something
+to fit. config/ is copied to a scratch directory first, so nothing written
+touches the real one.
 """
 
 import argparse
@@ -26,11 +28,10 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path[:0] = [str(ROOT), str(ROOT / "calibration"), str(HERE)]
 
+import cube_scene                                             # noqa: E402
 import fake_arm                                               # noqa: E402
 from fake_camera import fake_camera                           # noqa: E402
 from maxarm.spaces import CONFIG_DIR                          # noqa: E402
-
-FRAME = ROOT / "training" / "tiles" / "baseline" / "tiles-1.png"
 
 
 def load_app():
@@ -44,10 +45,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--real-camera", action="store_true", help="the camera that is plugged in, not a still frame")
-    parser.add_argument("--frame", type=Path, default=FRAME, help="the still frame the fake camera sees")
+    parser.add_argument("--frame", type=Path, help="the still frame the fake camera sees, not the drawn cubes")
     args = parser.parse_args()
     fake_arm.TRACKING_GAIN = 1.0
-    frame = None if args.real_camera else cv2.imread(str(args.frame))
+    frame = cv2.imread(str(args.frame)) if args.frame else cube_scene.render().frame
     if not args.real_camera and frame is None:
         parser.error(f"cannot read {args.frame}")
     camera = contextlib.nullcontext() if args.real_camera else fake_camera(frame)

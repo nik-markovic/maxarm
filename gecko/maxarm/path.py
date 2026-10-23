@@ -31,7 +31,7 @@ from .spaces import Affine
 from .tunable import tunable
 
 # How far from the base axis a move may end: the owner's limits.
-REACH_MAX_MM = 280.0
+REACH_MAX_MM = 270.0
 REACH_MIN_MM = 95.0
 
 # Inside this square of the arm's own frame, and below this height, the cup or

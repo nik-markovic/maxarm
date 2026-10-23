@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The camera page against the fake board and a fake camera: what each request sends the arm, the cubes'
-points, CALIBRATE and CHECK, the live view, which camera is picked, and the page's own scripts.
+points, CALIBRATE and VALIDATE, the live view, which camera is picked, and the page's own scripts.
 
 The handlers are called as the server calls them, but for the live view, which is fetched over a real socket:
 how the stream is framed is the point. The library's waits are recorded instead of slept; config/ is a scratch
@@ -45,14 +45,17 @@ from common.worker import Worker                              # noqa: E402
 from desk import store as desk_store                          # noqa: E402
 from desk.api import DeskSession                              # noqa: E402
 from desk.plane import Plane                                  # noqa: E402
+from tests.api import TestsSession                            # noqa: E402
 import fake_arm                                               # noqa: E402
 from fake_arm import fake_pyserial, instant_waits             # noqa: E402
 from fake_camera import fake_camera                           # noqa: E402
+import cube_scene                                             # noqa: E402
+import test_fit                                               # noqa: E402
 from harness import check, with_raw_heights                   # noqa: E402
 from test_calibration import CMD_MM, legs, speed              # noqa: E402
 
 DESK_Z = 44.0
-SPOTS = {"blue": (-160.0, -220.0), "green": (160.0, -220.0), "red": (160.0, 0.0)}
+SPOTS = cube_scene.SPOTS
 GUIDE = ROOT / "calibration" / "camera" / "guide.md"
 
 
@@ -67,7 +70,7 @@ FRAME = still_frame()
 
 @contextlib.contextmanager
 def app():
-    """The app as calibration.py builds it, on the fake board and camera.
+    """The app as calibration.py builds it, the tests page too, on the fake board and camera.
 
     Yields post(path, **body) -> reply, state() -> dict, the fake board, the fake camera, the scratch config and
     the server."""
@@ -78,10 +81,11 @@ def app():
         desk_store.save_desk(config, Plane(0.0, 0.0, DESK_Z), [])
         worker = Worker(Motion(MaxArm(config_dir=None), config))
         feed = Feed()
-        server = Server(ROOT / "calibration", home="desk", pages=["camera"])
+        server = Server(ROOT / "calibration", home="desk", pages=["camera", "tests"])
         arm_api.register(server, worker)
         DeskSession(worker, config).register(server)
         CameraSession(worker, feed, config).register(server)
+        TestsSession(worker, feed, config).register(server)
         worker.thread.start()
         feed.start()
         worker.connect()
@@ -115,16 +119,16 @@ def height(point) -> float:
 def test_moves_over_the_cubes() -> bool:
     print("the arm over the cubes: across at 60 mm over the desk, down onto a cube slowly, corrected there:")
     with app() as (post, state, board, _, _, _):
-        jumped = post("camera/jump", x=-160.0, y=-220.0)
+        jumped = post("camera/jump", x=-140.0, y=-220.0)
         first = legs(board)
-        lowered = post("camera/move", x=-160.0, y=-220.0, z=NOTCH_MM)
+        lowered = post("camera/move", x=-140.0, y=-220.0, z=NOTCH_MM)
         down = legs(board)
-        post("camera/jump", x=160.0, y=-220.0)
+        post("camera/jump", x=140.0, y=-220.0)
         across = legs(board)
         position = state()["camera"]["position"]
     return all([
         check("from home, over the blue cube's place, high above it", jumped["status"] == "done"
-              and len(first) == 1 and first[0][0][:2] == (-160.0, -220.0)
+              and len(first) == 1 and first[0][0][:2] == (-140.0, -220.0)
               and height(first[0][0]) >= OVER_CUBES_MM, f"{first}"),
         check("down to the notch: fast to 60 over the desk, then slowly",
               lowered["status"] == "done"
@@ -132,10 +136,10 @@ def test_moves_over_the_cubes() -> bool:
               and abs(speed(down[0][0], down[1]) - MOVE_SLOW_MM_S) < 0.1, f"{down}"),
         check("to the next place: slowly up to 60, fast across at 60, and it stays there",
               [round(height(point), 2) for point, _ in across] == [OVER_CUBES_MM, OVER_CUBES_MM]
-              and abs(speed((-160.0, -220.0, DESK_Z + NOTCH_MM), across[0]) - MOVE_SLOW_MM_S) < 0.1
+              and abs(speed((-140.0, -220.0, DESK_Z + NOTCH_MM), across[0]) - MOVE_SLOW_MM_S) < 0.1
               and abs(speed(across[0][0], across[1]) - MOVE_FAST_MM_S) < 1, f"{across}"),
         check("the page is told where it was sent, in desk space",
-              max(abs(a - b) for a, b in zip(position, (160.0, -220.0, OVER_CUBES_MM))) < CMD_MM, f"{position}"),
+              max(abs(a - b) for a, b in zip(position, (140.0, -220.0, OVER_CUBES_MM))) < CMD_MM, f"{position}"),
     ])
 
 
@@ -143,7 +147,7 @@ def test_points() -> bool:
     print("a point per cube: where the servos say the cup is, in desk space, kept in config/camera-points.json:")
     with app() as (post, state, board, _, config, _):
         over(post, "blue")
-        board.arm.position = board.arm.actual = (-160.6, -219.2, DESK_Z + 44.7)   # settled off where it was sent
+        board.arm.position = board.arm.actual = (-140.6, -219.2, DESK_Z + 44.7)   # settled off where it was sent
         recorded = post("camera/record", colour="blue")
         cubes = state()["camera"]["cubes"]
         on_file = json.loads((config / camera_store.POINTS_FILE).read_text())["cubes"]
@@ -155,8 +159,8 @@ def test_points() -> bool:
     blue = cubes["blue"]
     return all([
         check("recorded where the servos are, with where it was sent beside it",
-              abs(blue["x"] + 160.6) < 0.7 and abs(blue["y"] + 219.2) < 0.7 and abs(blue["z"] - 44.7) < 0.7
-              and blue["sent"] == [-160.0, -220.0, NOTCH_MM], recorded["detail"]),
+              abs(blue["x"] + 140.6) < 0.7 and abs(blue["y"] + 219.2) < 0.7 and abs(blue["z"] - 44.7) < 0.7
+              and blue["sent"] == [-140.0, -220.0, NOTCH_MM], recorded["detail"]),
         check("kept on file, the cubes not recorded as null", on_file == cubes, f"{on_file}"),
         check("and read back as written", read_back["blue"] == camera_store.CubePoint(**blue)
               and read_back["green"] is None),
@@ -167,24 +171,37 @@ def test_points() -> bool:
 
 
 def test_calibrate_and_check() -> bool:
-    print("CALIBRATE and CHECK: the arm out of the picture first, then the snapshot:")
+    print("CALIBRATE and VALIDATE: the arm out of the picture first, then the snapshot and the fit:")
     with app() as (post, state, board, camera, config, server):
         early = post("camera/calibrate")
         for colour in SPOTS:
             over(post, colour)
             post("camera/record", colour=colour)
+        recorded = {colour: (point.x, point.y) for colour, point in camera_store.load_points(config).items()}
+        scene = cube_scene.render(spots=recorded)              # the cubes where the arm says they are
+        camera.frame = scene.frame
         board.log.clear()
         calibrated = post("camera/calibrate")
         parked = [entry for entry in board.log if entry[0] == "move"]
         snapshots = camera.snapshots
         frame = cv2.imread(str(config / camera_store.FRAME_FILE))
         frame_written = (config / camera_store.FRAME_FILE).stat().st_mtime_ns
-        described = state()["camera"]["check"]
+        saved = camera_store.load_camera(config)
+        described = state()["camera"]
         image = server.byte_routes["/api/camera/check.jpg"]()
-        checked = post("camera/check")
+        checked = post("camera/validate")
+        checked_snapshots = camera.snapshots
         after = state()["camera"]
         is_frame_kept = (config / camera_store.FRAME_FILE).stat().st_mtime_ns == frame_written
+        camera.frame = FRAME                                    # the cubes gone
+        lost = post("camera/validate")
+        failed = post("camera/calibrate")
+        is_camera_kept = (np.array_equal(camera_store.load_camera(config).desk_to_pixel, saved.desk_to_pixel)
+                          and (config / camera_store.FRAME_FILE).stat().st_mtime_ns == frame_written)
+        camera.frame = cv2.resize(scene.frame, (648, 486))      # another size
+        resized = post("camera/validate")
     red_x, red_y = SPOTS["red"]
+    apart = test_fit.apart_px(saved, scene) if saved else np.array([np.inf])
     return all([
         check("refused until all three cubes are recorded", early["status"] == "refused"
               and "blue, green and red cubes" in early["detail"], early["detail"]),
@@ -192,14 +209,24 @@ def test_calibrate_and_check() -> bool:
               [entry[1] for entry in parked] == [(red_x, red_y, RESET_LIFT_MM), HOME], f"{parked}"),
         check("then one snapshot, kept as config/camera-frame.png as it was taken",
               calibrated["status"] == "done" and snapshots == 1 and frame is not None
-              and np.array_equal(frame, FRAME), calibrated["detail"]),
-        check("which says the fit is still to come", "not built yet" in calibrated["detail"]),
-        check("the check image is the frame for now, and the page can fetch it",
-              described["size"] == [FRAME.shape[1], FRAME.shape[0]] and image[1] == "image/jpeg"
-              and image[0][:2] == b"\xff\xd8", f"{described}"),
-        check("CHECK: a new snapshot for the check image, the calibration's frame left alone",
-              checked["status"] == "done" and camera.snapshots == 2 and is_frame_kept
-              and after["check"]["stamp"] != described["stamp"], checked["detail"]),
+              and np.array_equal(frame, scene.frame), calibrated["detail"]),
+        check("camera.json fitted to it: the desk within 2 px of the drawing's camera, in reach",
+              apart.max() < 2.0, f"median {np.median(apart):.2f}, worst {apart.max():.2f} px"),
+        check("the page is told how well it fits; the check image is the fit drawn, at the frame's size",
+              "cube edges within" in described["calibration"]["summary"] and image[1] == "image/jpeg"
+              and described["check"]["size"] == [scene.frame.shape[1], scene.frame.shape[0]],
+              described["calibration"]["summary"]),
+        check("VALIDATE: a new snapshot, the calibration's frame left alone, the camera found not to have moved",
+              checked["status"] == "done" and checked_snapshots == 2 and is_frame_kept
+              and after["check"]["stamp"] != described["check"]["stamp"] and " 0.0 mm" in checked["detail"],
+              checked["detail"]),
+        check("VALIDATE with the cubes gone: drawn all the same, the cubes not found",
+              lost["status"] == "done" and "not where they were" in lost["detail"], lost["detail"]),
+        check("CALIBRATE with the cubes gone: refused, saying what it saw; camera.json and its frame as they were",
+              failed["status"] == "refused" and "no calibration" in failed["detail"] and is_camera_kept,
+              failed["detail"]),
+        check("VALIDATE on a frame of another size: refused", resized["status"] == "refused"
+              and "CALIBRATE again" in resized["detail"], resized["detail"]),
     ])
 
 
