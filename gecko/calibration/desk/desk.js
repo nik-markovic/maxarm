@@ -49,22 +49,35 @@ const target = () => [ui.base.x + ui.fine.x, ui.base.y + ui.fine.y, ui.base.z];
 const controls = () => JSON.stringify({ base: ui.base, fine: ui.fine });
 accepted = controls();
 
-// The library's true z, as maxarm/raw.py has it: the raw z of a true point, and the true z of a raw one.
+// The library's true position, as maxarm/raw.py has it: the raw point of a true one, and the true point of a raw one.
 const TRUE_Z = limits.true_z;
+const TRUE_XY = limits.true_xy;
 const tooTallPerMm2 = (out) => (TRUE_Z.tall_at_stack + TRUE_Z.tall_per_mm_of_reach * out) / TRUE_Z.stack ** 2;
-function rawZ([x, y, z]) {
-  const out = Math.hypot(x, y) - TRUE_Z.level_reach;
+const furtherOut = (height) => TRUE_XY.reach_at_desk
+  - TRUE_XY.reach_less_per_mm * Math.min(Math.max(height, 0), TRUE_XY.reach_top);
+const furtherRound = (bearing) => (Math.PI / 180)
+  * (TRUE_XY.wave_sin * Math.sin(2 * bearing) + TRUE_XY.wave_cos * (Math.cos(2 * bearing) - 1));
+// x and y from reach and bearing: 0 straight out (-y), positive toward +x.
+const fromPolar = (reach, bearing) => [reach * Math.sin(bearing), -reach * Math.cos(bearing)];
+function rawPoint([x, y, z]) {
   const height = Math.max(z - TRUE_Z.desk_z, 0);
-  return z - TRUE_Z.per_mm_of_reach * out + tooTallPerMm2(out) * height ** 2;
+  const reach = Math.hypot(x, y);
+  const bearing = Math.atan2(x, -y);
+  let rawBearing = bearing;
+  for (let round = 0; round < TRUE_XY.bearing_rounds; round += 1) rawBearing = bearing - furtherRound(rawBearing);
+  const [rawX, rawY] = reach === 0 ? [x, y] : fromPolar(Math.max(reach - furtherOut(height), 0), rawBearing);
+  const out = Math.hypot(rawX, rawY) - TRUE_Z.level_reach;
+  return [rawX, rawY, z - TRUE_Z.per_mm_of_reach * out + tooTallPerMm2(out) * height ** 2];
 }
+// The true z of a raw z typed in, with the true x and y held: raw z is tried and corrected until it is the one typed.
 function trueZ(x, y, z) {
-  const out = Math.hypot(x, y) - TRUE_Z.level_reach;
-  const byReach = z + TRUE_Z.per_mm_of_reach * out - TRUE_Z.desk_z;
-  if (byReach <= 0) return TRUE_Z.desk_z + byReach;
-  return TRUE_Z.desk_z + (2 * byReach) / (1 + Math.sqrt(1 + 4 * tooTallPerMm2(out) * byReach));
+  let height = z - TRUE_Z.desk_z;
+  for (let round = 0; round < 6; round += 1) height += z - rawPoint([x, y, TRUE_Z.desk_z + height])[2];
+  return TRUE_Z.desk_z + height;
 }
-// Arm z as shown and typed in: true, or under RAW the firmware's own.
-const shownZ = (point) => (ui.isRaw ? rawZ(point) : point[2]);
+// Arm positions as shown, and heights as typed in: true, or under RAW the firmware's own.
+const shownPoint = (point) => (ui.isRaw ? rawPoint(point) : point);
+const shownZ = (point) => shownPoint(point)[2];
 const typedZ = (x, y, z) => (ui.isRaw ? trueZ(x, y, z) : z);
 // What the arm says is out of date: a command is on its way, or the servos are still to be read after one.
 const isReading = () => inFlight > 0 || !state || state.is_reading;
@@ -198,7 +211,7 @@ function renderControls() {
 }
 
 function renderReadout() {
-  const shown = (point) => [point[0], point[1], shownZ(point)];
+  const shown = shownPoint;
   const aim = shown(target());
   const says = state && state.measured ? state.measured : null;
   ['x', 'y', 'z'].forEach((axis, index) => {
@@ -209,6 +222,7 @@ function renderReadout() {
     cell.className = `num says ${off >= 2 ? 'far' : off >= 1 ? 'off' : ''}`;
   });
   $('readout').classList.toggle('stale', isReading());
+  for (const axis of ['x', 'y']) $(`${axis}-head`).textContent = ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase();
   $('z-head').textContent = ui.isRaw ? 'Z raw' : 'Z';
   const desk = state ? state.desk : null;
   const parts = [];
@@ -263,14 +277,15 @@ function renderPoints(points, from) {
   pointsShown = shown;
   const [warn, bad] = limits.desk.deviation;
   const rank = (value) => (value === null ? '' : Math.abs(value) <= warn ? 'ok' : Math.abs(value) <= bad ? 'warn' : 'bad');
-  $('points-z').textContent = ui.isRaw ? 'Z raw' : 'Z';
+  for (const axis of ['x', 'y', 'z']) {
+    $(`points-${axis}`).textContent = ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase();
+  }
   $('off-head').textContent = `off ${from}`;
   $('off-head').title = `How far above ${OFFSETS[from]} each point is`;
   $('points').tBodies[0].innerHTML = points.length ? points.map((point) => `
     <tr>
       <td><span class="badge ${rank(point.off[from])}">${point.id}</span></td>
-      <td class="num">${fmt(point.x)}</td><td class="num">${fmt(point.y)}</td>
-      <td class="num">${fmt(shownZ([point.x, point.y, point.z]))}</td>
+      ${shownPoint([point.x, point.y, point.z]).map((value) => `<td class="num">${fmt(value)}</td>`).join('')}
       <td class="num faint">${point.sent ? fmt(shownZ(point.sent)) : '—'}</td>
       <td class="num dev ${rank(point.off[from])}">${fmt(point.off[from], 2, true)}</td>
       <td class="actions">
@@ -338,16 +353,23 @@ for (const button of $('heights').children) {
   });
 }
 const { per_mm_of_reach: perMm, level_reach: level, desk_z: deskZ, stack, tall_at_stack: tall } = TRUE_Z;
-$('heights-tip').innerHTML = `<b>True z</b> is where the cup really is. <b>Raw z</b> is the arm firmware's own
-  number, which is off in two ways. On the desk it depends on the distance from the base: 100 mm out the firmware
+const { reach_at_desk: outAtDesk, reach_less_per_mm: outLess, reach_top: outTop, wave_sin: waveSin, wave_cos: waveCos }
+  = TRUE_XY;
+$('heights-tip').innerHTML = `<b>True</b> is where the cup really is. <b>Raw</b> is the arm firmware's own
+  numbers, which are off. Heights: on the desk the firmware's depends on the distance from the base: 100 mm out it
   says ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm
   ${fmt(perMm * (limits.reach - level))} mm lower. Above the desk it reads too tall, the more the higher and the
-  further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. The library corrects every height it sends and
-  reads:
+  further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. Across: the cup is ${fmt(outAtDesk)} mm further
+  out than the firmware says on the desk, less higher up, and the base points up to about
+  ${fmt(Math.abs(waveSin) + Math.abs(waveCos))}° off, by an amount that changes over its turn. The library corrects
+  every position it sends and reads:
   <code>true z = raw z + ${perMm} × (reach − ${level}) − (h / ${stack})² × (${tall} + ${TRUE_Z.tall_per_mm_of_reach}
   × (reach − ${level}))</code>
-  h is the height above the desk, true z − ${deskZ}. RAW only changes the numbers shown: the arm moves the same, and
-  touch points, offsets and SAVE always use true z.`;
+  <code>true reach = reach + ${outAtDesk} − ${outLess} × min(h, ${outTop})</code>
+  <code>true bearing = bearing ${waveSin < 0 ? '−' : '+'} ${Math.abs(waveSin)} × sin 2b + ${waveCos} × (cos 2b − 1)</code>
+  h is the height above the desk, true z − ${deskZ}; reach and bearing b are the firmware's, b in degrees from
+  straight out. RAW only changes the numbers shown: the arm moves the same, and touch points, offsets and SAVE always
+  use true positions.`;
 
 $('cup').min = -limits.cup;
 $('cup').max = limits.cup;

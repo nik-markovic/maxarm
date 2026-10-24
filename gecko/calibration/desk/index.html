@@ -62,7 +62,7 @@
     <div class="card-head">
       <h2>Arm</h2>
       <div class="tools">
-        <span class="hint">arm z</span>
+        <span class="hint">arm numbers</span>
         <div class="seg" id="heights">
           <button data-mode="true" title="Where the cup really is">TRUE</button>
           <button data-mode="raw" title="The firmware's own numbers">RAW</button>
@@ -72,7 +72,7 @@
     </div>
 
     <div class="readout" id="readout">
-      <span></span><span>X</span><span>Y</span><span id="z-head">Z</span>
+      <span></span><span id="x-head">X</span><span id="y-head">Y</span><span id="z-head">Z</span>
       <span class="label">Target</span>
       <b class="num" id="target-x"></b><b class="num" id="target-y"></b><b class="num" id="target-z"></b>
       <span class="label says">Arm says<i class="spinner" title="Reading the servos"></i></span>
@@ -123,7 +123,7 @@
     <div class="table-wrap">
       <table class="list" id="points">
         <thead><tr>
-          <th>#</th><th>X</th><th>Y</th><th id="points-z">Z</th>
+          <th>#</th><th id="points-x">X</th><th id="points-y">Y</th><th id="points-z">Z</th>
           <th title="The Z it had been sent to; X, Y and Z are where its servos said it was">sent</th>
           <th id="off-head"></th><th></th>
         </tr></thead>

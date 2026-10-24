@@ -85,7 +85,7 @@ globalThis.window = { devicePixelRatio: 1, confirm: () => true };
 globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.ResizeObserver = class {
   constructor(callback) { this.callback = callback; }
-  observe() { this.callback(); }
+  observe() { queueMicrotask(() => this.callback()); }          // after the constructor, as a browser does
   disconnect() {}
 };
 globalThis.setTimeout = () => 0;

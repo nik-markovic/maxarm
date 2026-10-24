@@ -30,9 +30,9 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
    **saved**, the saved `desk.json`; **default**, the default desk, arm z 44 and level. Green within 1 mm, yellow
    within 2, red beyond. Touch a red one again, or delete it (×).
 3. **SAVE CALIBRATION.** The plane goes to `config/desk.json`, and the file it replaces to `desk-previous.json`.
-   Points are true z, as the library reports them, so a level desk is a level plane. A `desk.json` saved before the
+   Points are true, as the library reports them, so a level desk is a level plane. A `desk.json` saved before the
    library corrected heights is not used: SAVE again. `config/desk-points.json` keeps the points as the servos read
-   them, in raw z, so a refined formula for true z never changes a recorded touch; the page shows them in true z.
+   them, raw, so a refined formula never changes a recorded touch; the page shows them true.
    The plane goes through every point in the list: delete touches on anything but the desk before saving.
 4. **Try it.** *desk* in the table sends the cup over that point in desk space, at the point test height: 4 mm,
    down to 0. The first comes down from above, like `grab()`; the next ones glide, slowly and level, so the gap
@@ -63,10 +63,10 @@ of small moves, so the arm is read and sent on until it is within a pulse, about
 each move the servos are read and shown as *arm says*; until then it is greyed with a spinner, and RECORD and SAVE
 wait. Near the desk a precise move may press a cup that is already on it up to 3 mm, then stops.
 
-**True and raw.** Everything the page sends and the server works with is true z: touch points, offsets, SAVE, the
-hover height. RAW only changes the arm z shown and typed in (target, *arm says*, the height column, the table's Z
-and sent) to the firmware's own, converted with the library's constants; heights above the desk are the same either
-way. The arm moves the same in both.
+**True and raw.** Everything the page sends and the server works with is true: touch points, offsets, SAVE, the
+hover height. RAW only changes the arm numbers shown and typed in (target, *arm says*, the height column, the
+table's X, Y, Z and sent) to the firmware's own, converted with the library's constants; heights above the desk are
+the same either way. The arm moves the same in both.
 
 **Which space.** Everything but the desk test is arm space with no calibration at all, so no older calibration can
 keep the cup off the desk being measured. The desk test is desk space through the saved `desk.json`, or the default

@@ -21,7 +21,7 @@ Desk space is millimetres on the desk with z the height above its surface, 0 bei
 
 ## desk.json
 
-Written by the desk page's SAVE. Arm space is the library's: x and y the firmware's, z true z (`maxarm/raw.py`).
+Written by the desk page's SAVE. Arm space is the library's: true x, y and z (`maxarm/raw.py`).
 There the desk is a plane: arm x and y are desk x and y, and the surface is at arm z = `tilt_x` x + `tilt_y` y +
 `offset`. So
 

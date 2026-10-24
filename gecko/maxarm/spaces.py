@@ -12,8 +12,8 @@ the cup snug on its surface.
 | `CUSTOM` | your own x, y, z     | `custom_to_desk`, a 4x4                   | `custom.json` |
 | `CAMERA` | px, py, height       | `desk_to_pixel`, a 3x4, solved per height | `camera.json` |
 
-Arm z is true z (`raw.py`): the library corrects the firmware's heights on
-the way to and from the board, so a level desk is a level plane in arm space,
+Arm space is true (`raw.py`): the library corrects the firmware's positions
+on the way to and from the board, so a level desk is a level plane in arm space,
 and under a MaxArm standing on it that plane is arm z = 44. That is the
 **default desk**, used whenever there is no `desk.json`: desk space is then arm
 space with 44 taken off z. `desk.json` is the desk calibration, for a desk that

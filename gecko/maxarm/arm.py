@@ -13,7 +13,7 @@ Every motion -- `move()`, `grab()`, `drop()`, `home()` -- goes through
 is sent, so a refusal means nothing moved. Each leg is one command, given the
 time its speed implies, and waited out. Nothing is read back on the way.
 
-Heights in and out are true z, where the cup really is; the firmware's own
+Positions in and out are true, where the cup really is; the firmware's own
 are corrected at the board (`raw.py`).
 """
 

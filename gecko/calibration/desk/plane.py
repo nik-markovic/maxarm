@@ -1,9 +1,9 @@
 """The desk, from the points where the cup touched it: a plane.
 
 At each point the cup was lowered onto the desk by hand, and a point is where
-the servos then said it was, in true z: the library corrects the firmware's
-heights, which made a flat desk read 8 mm higher near the base than at full
-reach. The desk is the plane z = tilt_x * x + tilt_y * y + offset through
+the servos then said it was, true: the library corrects the firmware's
+positions, whose heights made a flat desk read 8 mm higher near the base than
+at full reach. The desk is the plane z = tilt_x * x + tilt_y * y + offset through
 them: exactly, through three; the least-squares fit through more, and then how
 far each point sits off it says how far it can be trusted.
 

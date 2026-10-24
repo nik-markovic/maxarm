@@ -32,6 +32,7 @@ RADIUS_MM = (9.0, 13.0)
 ON_RING_MM = 0.45
 TRIES = 4000
 MIN_RING = 18                       # of 36 parts of the ring, for a circle to count as found
+SEARCH_MM = 24.0                    # how far from where the arm says a circle is looked for: less than to the next
 
 
 def main(argv) -> int:
@@ -80,14 +81,23 @@ def main(argv) -> int:
     for name, (x, y) in marks.items():
         seen = desk_to_pixel @ [x, y, 0.0, 1.0]
         centre_px = cv2.perspectiveTransform(np.float32([[seen[:2] / seen[2]]]), moved)[0, 0]
-        left, top = int(centre_px[0]) - 160, int(centre_px[1]) - 120
-        window, on_tape = dark[top:top + 240, left:left + 320].astype(float), inside[top:top + 240, left:left + 320] > 0
+        reach_px = np.ptp(to_pixels(to_mm(centre_px[None])[0] + SEARCH_MM * np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])),
+                          axis=0)
+        half_w, half_h = int(max(reach_px[0], 60)), int(max(reach_px[1], 45))
+        left, top = max(int(centre_px[0]) - half_w, 0), max(int(centre_px[1]) - half_h, 0)
+        window = dark[top:top + 2 * half_h, left:left + 2 * half_w].astype(float)
+        on_tape = inside[top:top + 2 * half_h, left:left + 2 * half_w] > 0
         if on_tape.sum() < 50:
             print(f"{name}: no tape near ({x:g}, {y:g})")
             continue
         rows, columns = np.nonzero((window > np.percentile(window[on_tape], 88)) & on_tape)
         pixels = np.column_stack((columns + left, rows + top)).astype(float)
         mm = to_mm(pixels)
+        near = np.linalg.norm(mm - to_mm(centre_px[None])[0], axis=1) < SEARCH_MM
+        pixels, mm = pixels[near], mm[near]
+        if len(mm) < 10:
+            print(f"{name}: nothing dark on the tape near ({x:g}, {y:g})")
+            continue
         best = None
         for _ in range(TRIES):
             a, b, c = mm[generator.choice(len(mm), 3, replace=False)]
@@ -116,12 +126,13 @@ def main(argv) -> int:
         circles[name] = centre
         print(f"{name}: centre ({centre[0]:.2f}, {centre[1]:.2f}) mm in the cubes' camera, radius {radius:.2f}, "
               f"{cover}/36 of the ring found")
-        big = cv2.resize(new[top:top + 240, left:left + 320], None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        big = cv2.resize(new[top:top + 2 * half_h, left:left + 2 * half_w], (640, 480), interpolation=cv2.INTER_CUBIC)
+        zoom = np.array([640 / (2 * half_w), 480 / (2 * half_h)])
         outline = to_pixels(centre + radius * np.column_stack((np.cos(np.linspace(0, 2 * math.pi, 90)),
                                                                 np.sin(np.linspace(0, 2 * math.pi, 90)))))
-        cv2.polylines(big, [((outline - [left, top]) * 2).astype(np.int32)], True, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.polylines(big, [((outline - [left, top]) * zoom).astype(np.int32)], True, (0, 0, 255), 2, cv2.LINE_AA)
         middle = to_pixels(centre[None])[0]
-        cv2.drawMarker(big, tuple(((middle - [left, top]) * 2).astype(int)), (0, 0, 255), cv2.MARKER_CROSS, 16, 2)
+        cv2.drawMarker(big, tuple(((middle - [left, top]) * zoom).astype(int)), (0, 0, 255), cv2.MARKER_CROSS, 16, 2)
         cv2.putText(big, f"{name}  r {radius:.1f} mm, ring {cover}/36", (8, 34), cv2.FONT_HERSHEY_SIMPLEX, 1.0,
                     (0, 0, 255), 2)
         tiles.append(big)

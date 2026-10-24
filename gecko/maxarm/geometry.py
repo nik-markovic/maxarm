@@ -9,8 +9,8 @@ returns True while servo 2 sits silently clamped and the arm goes elsewhere.
 branch: do not tidy them.
 
 Angles are the board's servo-frame "angle1..3", not textbook joint angles.
-Positions are the firmware's own, raw z; the rest of the library works in
-true z and converts at the board (`raw.py`).
+Positions are the firmware's own, raw; the rest of the library works in
+true positions and converts at the board (`raw.py`).
 """
 
 import math

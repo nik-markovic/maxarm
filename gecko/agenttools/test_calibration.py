@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path[:0] = [str(ROOT), str(ROOT / "calibration"), str(HERE)]
 
-from maxarm import MaxArm, Space, Spaces                     # noqa: E402
+from maxarm import MaxArm, Space, Spaces, raw                # noqa: E402
 from maxarm.arm import MOVE_FAST_MM_S, MOVE_SLOW_MM_S        # noqa: E402
 from maxarm.geometry import HOME                             # noqa: E402
 from common import arm_api                                   # noqa: E402
@@ -284,8 +284,8 @@ def test_input_and_reset() -> bool:
 
 
 def firmware_z(x: float, y: float, true_z: float) -> float:
-    """The raw z the board should get for a true z: the PILOT's formula, written out here and not taken
-    from the library, so that this checks it."""
+    """The raw z the board should get for a true z at the firmware's own x and y (the raw ones sent): the PILOT's
+    formula, written out here and not taken from the library, so that this checks it."""
     out = math.hypot(x, y) - 207.0
     height = max(true_z - 44.0, 0.0)
     return true_z - 0.05 * out + (height / 120.0) ** 2 * (3.4 + 0.0126 * out)
@@ -308,7 +308,8 @@ def test_true_heights() -> bool:
             post("jump", x=x, y=y)
             jumps.append(legs(board))
             post("move", x=x, y=y, z=desk_z)
-            misses.append(legs(board)[-1][0][2] - firmware_z(x, y, desk_z))
+            sent_x, sent_y, sent_z = legs(board)[-1][0]
+            misses.append(sent_z - firmware_z(sent_x, sent_y, desk_z))
         post("desk/test-point", id=1, height=4.0)
         legs(board)
         post("desk/test-point", id=2, height=4.0)
@@ -358,8 +359,9 @@ def test_files_from_before() -> bool:
         check("a file in true z by reach alone: a desk touch reads as it did",
               abs(first_day[0].z - 44.5) <= 0.01, f"{first_day[0]}"),
         check("and a stack touch is the same raw reading, through the formula as it is now",
-              abs(firmware_z(*first_day[1].target) - by_reach_alone) < 0.006
-              and abs(firmware_z(*first_day[1].sent) - by_reach_alone) < 0.006,
+              abs(firmware_z(*stack[:2], first_day[1].z) - by_reach_alone) < 0.006
+              and abs(firmware_z(*stack[:2], first_day[1].sent[2]) - by_reach_alone) < 0.006
+              and math.dist(raw.raw_position(first_day[1].target)[:2], stack[:2]) < 1e-6,
               f"{first_day[1].z} true, raw {by_reach_alone:.2f}"),
         check("a desk.json fitted with the elbow offset is not used: the default desk is",
               not spaces.is_desk_saved and "SAVE" in refusal and abs(default[2]) < 1e-12, refusal),

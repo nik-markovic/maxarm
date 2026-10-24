@@ -475,10 +475,12 @@ def _cross(first: np.ndarray, second: np.ndarray) -> float:
 
 
 def test_on_the_owners_frame() -> bool:
-    """The red cube in the owner's own calibration frame, at the live view's size. Skipped without one."""
-    print("the owner's frame at the live view's size: the red cube where the calibration has it:")
+    """The red cube in the owner's own calibration frame, at the live view's size, through the three cubes' own
+    camera: a refined one moves the cubes by design. Skipped without one."""
+    print("the owner's frame at the live view's size: the red cube where the three cubes' calibration has it:")
     config = ROOT / "config"
-    fit = camera_store.load_camera(config) if (config / camera_store.CAMERA_FILE).exists() else None
+    saved = camera_store.load_camera(config) if (config / camera_store.CAMERA_FILE).exists() else None
+    fit = saved.cube_fit() if saved else None
     frame = cv2.imread(str(config / camera_store.FRAME_FILE))
     if fit is None or frame is None:
         print("  SKIP  no config/camera.json and camera-frame.png")

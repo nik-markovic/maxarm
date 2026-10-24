@@ -14,9 +14,9 @@ stderr. `run()` is the only way anything reaches the board, so the trace is
 complete: a command that is not in it was not sent, and a gap in the
 timestamps is proof that nothing was sent then.
 
-**Positions here are true z** (`raw.py`): `set_position()` sends the raw z,
-and the reads give back true z. Only the commands themselves carry raw z, so
-the trace notes each move and read with both.
+**Positions here are true** (`raw.py`): `set_position()` sends the raw
+position, and the reads give back true ones. Only the commands themselves
+carry raw positions, so the trace notes each move and read with both.
 """
 
 import ast
@@ -272,7 +272,7 @@ class ReplProtocol:
         return tuple(reply)
 
     def read_position(self) -> Optional[Position]:
-        """Where the servos say the tip is, true z. None if the bus dropped a read.
+        """Where the servos say the tip is, true. None if the bus dropped a read.
 
         The servos' pulses through the firmware's own kinematics, on the host. The
         board's `arm.read_position()` does the same and rounds with `int(v + 0.5)`,
@@ -282,7 +282,7 @@ class ReplProtocol:
         return _true_position(self.read_pulses())
 
     def read_settled_position(self) -> Optional[Position]:
-        """Let the arm stop creeping, then the tip, true z, from the median of several reads, servo by servo."""
+        """Let the arm stop creeping, then the tip, true, from the median of several reads, servo by servo."""
         return _true_position(self.read_settled_pulses())
 
     def read_settled_pulses(self) -> Optional[Tuple[float, float, float]]:
