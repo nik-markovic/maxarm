@@ -10,7 +10,10 @@ bare face's about 0 (STATUS-hyena); a face whose strongest is under
 `MIN_INK_CONTRAST` holds no letter.
 
 The dot is a small, round, separate blob of ink in a corner of the letter --
-off its middle both ways -- and that corner is the letter's bottom right.
+off its middle both ways -- and that corner is the letter's bottom right. A
+faint stroke breaks into pieces at half the strongest ink, and a piece can look
+like a dot: so the dot must be no longer than twice its width, and still apart
+from the letter in the faint ink too.
 """
 
 from __future__ import annotations
@@ -35,7 +38,10 @@ MIDDLE_MM = 17.0
 DOT_AREA_MM2 = (0.3, 9.0)
 DOT_SIZE_MM = 3.5
 DOT_MIN_FILL = 0.45
+DOT_MAX_ELONGATION = 2.0
 DOT_OFF_MIDDLE = 0.2
+# Faint ink, a quarter of the face's strongest: what joins a piece of a stroke back to its letter.
+FAINT_SHARE = 0.25
 
 
 @dataclass(frozen=True)
@@ -61,10 +67,10 @@ def measure(grey: np.ndarray) -> Ink:
     margin = round((WINDOW_MM - MIDDLE_MM) / 2 * PX_PER_MM)
     if strongest < MIN_INK_CONTRAST or not ink[margin:size - margin, margin:size - margin].any():
         return Ink(True, strongest, None)
-    return Ink(False, strongest, _dot(ink))
+    return Ink(False, strongest, _dot(ink, contrast >= FAINT_SHARE * strongest))
 
 
-def _dot(ink: np.ndarray) -> Optional[Tuple[float, float]]:
+def _dot(ink: np.ndarray, faint: np.ndarray) -> Optional[Tuple[float, float]]:
     count, labels, stats, centres = cv2.connectedComponentsWithStats(ink.astype(np.uint8), connectivity=8)
     mm2 = PX_PER_MM ** 2
     size = ink.shape[0]
@@ -74,12 +80,17 @@ def _dot(ink: np.ndarray) -> Optional[Tuple[float, float]]:
         touches_edge = left == 0 or top == 0 or left + width == size or top + height == size
         is_small = DOT_AREA_MM2[0] * mm2 <= area <= DOT_AREA_MM2[1] * mm2 \
             and max(width, height) <= DOT_SIZE_MM * PX_PER_MM
-        if not touches_edge and is_small and area >= DOT_MIN_FILL * width * height:
+        is_round = area >= DOT_MIN_FILL * width * height \
+            and max(width, height) <= DOT_MAX_ELONGATION * min(width, height)
+        if not touches_edge and is_small and is_round:
             dots.append(index)
     if len(dots) != 1:
         return None
     letter = (labels > 0) & (labels != dots[0])
     if not letter.any():
+        return None
+    _, faint_labels = cv2.connectedComponents(faint.astype(np.uint8), connectivity=8)
+    if (letter & (faint_labels == faint_labels[labels == dots[0]][0])).any():
         return None
     rows, columns = np.nonzero(letter)
     middle = np.array([(columns.min() + columns.max()) / 2, (rows.min() + rows.max()) / 2])

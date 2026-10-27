@@ -9,7 +9,8 @@ the tiles' top faces, 2 mm up (`topdown`), where every tile is the same square:
 
 1. `votes` -- every colour edge votes for the centre of a 25 mm square it could
    be a side of; the places most voted for are where tiles may be.
-2. `pose`  -- a square fitted to the edges round each of those places.
+2. `pose`  -- a square fitted to the edges round each of those places, its size
+   a little free (`FACE_MM`).
 3. Checks. Each side of a tile stands out from what lies just beyond it,
    measured the same way; its whole outline is in view; and tiles cannot
    overlap, so of two fits that do, the one that stands out more is kept.
@@ -37,6 +38,9 @@ from .edges import EdgeField
 
 TILE_MM = 25.0
 TILE_HEIGHT_MM = 2.0
+# The top face as the camera sees it: larger than the tile, the more so the closer to the camera (STATUS-hyena
+# §10.2). The outline given (`Tile.corners`) stays the tile's own 25 mm.
+FACE_MM = (TILE_MM, TILE_MM + 2.5)
 # Where to look: round the arm, a little beyond its reach and its turn, so that tiles just out of reach are found
 # as well. Behind the arm there is its base, its cables and often the desk's edge.
 SEARCH_MM = REACH_MAX_MM + 60.0
@@ -81,7 +85,7 @@ def find_tiles(frame: np.ndarray, camera: Camera) -> List[Tile]:
         rough = pose.rough_fit(field, place, TILE_MM)
         if not rough.is_seen:
             continue
-        fit = pose.close_fit(field, rough, TILE_MM)
+        fit = pose.close_fit(field, rough, FACE_MM)
         if fit.is_seen and fit.contrast >= MIN_CONTRAST:
             fits.append(fit)
     tiles = [_tile(fit, camera) for fit in _without_overlaps(fits)]

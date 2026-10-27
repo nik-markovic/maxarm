@@ -51,7 +51,8 @@ for step in word.plan_word("TEAM", tiles, letters, places, arm.can_reach):   # r
   library's checks read moved from `training/tiles/baseline/` to `agenttools/baseline/`.
 - **The tile finder** (`applib/tiles/`): the frame resampled onto the plane of the tiles' top faces, 2 mm up; every
   colour edge votes for the centre of a 25 mm square it could be a side of; a square fitted to the edges round each
-  place most voted for; kept if each of its sides stands out from what lies just beyond it. No colour or brightness
+  place most voted for, 25 to 27.5 mm (a face looks larger close to the camera); kept if each of its sides stands
+  out from what lies just beyond it. No colour or brightness
   is assumed of the tiles or the desk, and tiles may touch.
 - **The letters** (`applib/letters/`): each face resampled square-on; blank if it has no ink; the owner's dot, a
   small round blob off a corner of the letter, puts the letter's bottom right there; a 0.3 MB int8 network reads the

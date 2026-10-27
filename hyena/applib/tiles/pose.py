@@ -1,6 +1,8 @@
 """Where a tile's top face is and how it is turned, fitted to the edges round it, and whether it is a tile at all.
 
-The top face is a known square, so only its centre and turn are unknown. In the
+The top face is a square, so only its centre, turn and size are unknown; the
+size only within a narrow range: the camera sees the face larger close to it
+than far from it (STATUS-hyena §10.2). In the
 view at the top faces' height it is exact, and each of its four sides is an edge:
 against the desk on the sides that face away from the camera, against the tile's
 own darker side face on the sides that face it. The camera sees those side faces
@@ -19,10 +21,12 @@ with a bar on each.
 
 A fit is a tile when each of its sides stands out from what lies just beyond it,
 measured the same way: the gradient across lines parallel to the side, a few
-millimetres out. A side of a tile is where one material meets another; the desk's
-grain has as much beside it as on it, and a side a fit made up has nothing there
-at all. Weak sides are fine as long as they stand out: a pale face on white paper
-shows its far sides faintly, but on smooth paper.
+millimetres out, the quietest of them. A side of a tile is where one material
+meets another; the desk's grain has as much beside it as on it, and a side a fit
+made up has nothing there at all. The quietest, as a grain line running along
+the side, or a neighbour's corner, can fill one line but seldom all of them.
+Weak sides are fine as long as they stand out: a pale face on white paper shows
+its far sides faintly, but on smooth paper.
 """
 
 from __future__ import annotations
@@ -48,6 +52,8 @@ COARSE_TURN_DEG = 5.0
 # The close fit searches round the rough one by what that can be off: half its step, and half its turn's.
 FINE_REACH_MM = 1.0
 FINE_STEP_MM = 0.25
+# The sizes tried for the face before the last steps refine it, mm.
+SIZE_STEP_MM = 0.25
 FINE_TURN_REACH_DEG = 3.0
 FINE_TURN_DEG = 1.0
 # The side faces' bottom edges count for this much of a top face's side: next to another tile there is no band.
@@ -61,8 +67,9 @@ BEYOND_MM = (6.0, 7.5, 9.0)
 class Fit:
     centre: Tuple[float, float]     # desk mm
     turn_deg: float                 # -45 to 45: the sides' direction from desk +x
-    sides: Tuple[float, ...]        # each side's median gradient across it, colour units a mm
-    beyond: Tuple[float, ...]       # the same a few millimetres outside each side
+    size_mm: float                  # the face as the camera sees it
+    sides: Tuple[float, ...]        # each side's gradient across it, colour units a mm
+    beyond: Tuple[float, ...]       # the same a few millimetres outside each side, the quietest line
     is_seen: bool                   # every side is in the frame
 
     @property
@@ -115,24 +122,28 @@ def rough_fit(field: EdgeField, near: Tuple[float, float], size_mm: float) -> Fi
     return measure(field, centre, turn, size_mm)
 
 
-def close_fit(field: EdgeField, rough: Fit, size_mm: float) -> Fit:
-    """`rough` fitted closely: to a few hundredths of a millimetre and a tenth of a degree."""
+def close_fit(field: EdgeField, rough: Fit, sizes_mm: Tuple[float, float]) -> Fit:
+    """`rough` fitted closely: to a few hundredths of a millimetre and a tenth of a degree, its size within
+    `sizes_mm`."""
     centre, turn = np.array(rough.centre), np.radians(rough.turn_deg)
     turns = turn + np.radians(np.arange(-FINE_TURN_REACH_DEG, FINE_TURN_REACH_DEG + 1e-9, FINE_TURN_DEG))
-    centre, turn = _search(field, centre, turns, FINE_REACH_MM, FINE_STEP_MM, SAMPLE_MM, size_mm, is_exact=True)
-    centre, turn = _polish(field, centre, turn, size_mm)
-    return measure(field, centre, turn, size_mm)
+    centre, turn = _search(field, centre, turns, FINE_REACH_MM, FINE_STEP_MM, SAMPLE_MM, rough.size_mm,
+                           is_exact=True)
+    size = max(np.arange(sizes_mm[0], sizes_mm[1] + 1e-9, SIZE_STEP_MM),
+               key=lambda trial: _pose_score(field, centre, turn, float(trial)))
+    centre, turn, size = _polish(field, centre, turn, float(size), sizes_mm)
+    return measure(field, centre, turn, size)
 
 
 def measure(field: EdgeField, centre, turn_rad: float, size_mm: float) -> Fit:
     """How a square there lies on the view: each side, and the same just beyond it."""
     points, normals = outline(centre, turn_rad, size_mm, SAMPLE_MM)
     sides = _side(field.across(points, normals))
-    out = np.concatenate([points + normals * distance for distance in BEYOND_MM], axis=1)
-    beyond = np.median(field.across(out, np.concatenate([normals] * len(BEYOND_MM), axis=1)), axis=1)
+    beyond = np.min([np.median(field.across(points + normals * distance, normals), axis=1)
+                     for distance in BEYOND_MM], axis=0)
     seen = field.is_seen(points.reshape(-1, 2))
-    return Fit((float(centre[0]), float(centre[1])), _turn_deg(turn_rad), tuple(float(side) for side in sides),
-               tuple(float(value) for value in beyond), bool(seen.all()))
+    return Fit((float(centre[0]), float(centre[1])), _turn_deg(turn_rad), float(size_mm),
+               tuple(float(side) for side in sides), tuple(float(value) for value in beyond), bool(seen.all()))
 
 
 def _search(field: EdgeField, centre: np.ndarray, turns: np.ndarray, reach_mm: float, step_mm: float,
@@ -151,22 +162,28 @@ def _search(field: EdgeField, centre: np.ndarray, turns: np.ndarray, reach_mm: f
     return grid[grid_index], float(turns[turn_index])
 
 
-def _polish(field: EdgeField, centre: np.ndarray, turn: float, size_mm: float):
-    """Coordinate steps, halved each time none helps, down to a fiftieth of a millimetre."""
-    params = np.array([centre[0], centre[1], turn])
-    steps = np.array([FINE_STEP_MM / 2, FINE_STEP_MM / 2, np.radians(FINE_TURN_DEG / 2)])
+def _pose_score(field: EdgeField, centre, turn: float, size_mm: float) -> float:
+    points, normals, weights = _edges(field, centre, turn, size_mm, SAMPLE_MM)
+    return float(_score(_side(field.across(points + np.asarray(centre), normals)), weights))
+
+
+def _polish(field: EdgeField, centre: np.ndarray, turn: float, size_mm: float, sizes_mm: Tuple[float, float]):
+    """Coordinate steps on centre, turn and size, halved each time none helps, down to a fiftieth of a millimetre."""
+    params = np.array([centre[0], centre[1], turn, size_mm])
+    steps = np.array([FINE_STEP_MM / 2, FINE_STEP_MM / 2, np.radians(FINE_TURN_DEG / 2), SIZE_STEP_MM / 2])
 
     def score(trial: np.ndarray) -> float:
-        points, normals, weights = _edges(field, trial[:2], trial[2], size_mm, SAMPLE_MM)
-        return float(_score(_side(field.across(points + trial[:2], normals)), weights))
+        return _pose_score(field, trial[:2], trial[2], trial[3])
 
     value = score(params)
     for _ in range(60):
         is_better = False
-        for axis in range(3):
+        for axis in range(4):
             for sign in (1.0, -1.0):
                 trial = params.copy()
                 trial[axis] += sign * steps[axis]
+                if not sizes_mm[0] <= trial[3] <= sizes_mm[1]:
+                    continue
                 trial_value = score(trial)
                 if trial_value > value:
                     params, value, is_better = trial, trial_value, True
@@ -174,7 +191,7 @@ def _polish(field: EdgeField, centre: np.ndarray, turn: float, size_mm: float):
             steps /= 2
             if steps[0] < 0.02:
                 break
-    return params[:2], float(params[2])
+    return params[:2], float(params[2]), float(params[3])
 
 
 def _side(strength: np.ndarray) -> np.ndarray:

@@ -272,8 +272,9 @@ them and the arm's centre line. Right the camera, LOCATE TILES in its heading. A
 2 mm up, where every tile is the same 25 mm square, perspective gone. Every colour edge votes for the centre of a
 square it could be a side of, either side of it: a tile's four sides all vote for its centre, and the seam between
 two touching tiles for both of theirs. A square is fitted to the edges round each place most voted for -- its
-centre to a few hundredths of a millimetre, its turn to a tenth of a degree -- and kept as a tile if each of its
-sides stands out from what lies just beyond it. Nothing is assumed of the tiles' or the desk's colour or
+centre to a few hundredths of a millimetre, its turn to a tenth of a degree, its size from 25 to 27.5 mm, as a face
+looks larger close to the camera -- and kept as a tile if each of its sides stands out from what lies just beyond
+it. Nothing is assumed of the tiles' or the desk's colour or
 brightness. A tile cut by the picture's edge, or behind the arm, is not looked for.
 
 **How a letter is read** (`applib/letters/`). The tile's face is resampled square-on from the snapshot, along its
