@@ -1,0 +1,66 @@
+/* The Tiles page's layout: the view from above with the work areas on the left; the camera on the right, LOCATE
+   TILES in its heading, where it stays in sight; the tiles' table across the bottom. */
+
+main.tiles {
+  display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
+  grid-template-columns: minmax(420px, 1fr) minmax(560px, 1.45fr);
+  grid-template-areas: "view live" "list list";
+}
+.view { grid-area: view; }
+.live { grid-area: live; }
+.list { grid-area: list; }
+
+@media (max-width: 1180px) {
+  main.tiles { grid-template-columns: 1fr; grid-template-areas: "live" "view" "list"; }
+}
+
+/* Without a camera calibration there is nothing to find tiles with: the page says so, and nothing else. */
+main.tiles.is-blocked { grid-template-columns: 1fr; grid-template-areas: "blocked"; }
+main.tiles.is-blocked .view, main.tiles.is-blocked .live, main.tiles.is-blocked .list { display: none; }
+.card.blocked { grid-area: blocked; justify-self: center; display: grid; justify-items: center; gap: 10px;
+  max-width: 640px; padding: 44px 32px; text-align: center; }
+.card.blocked[hidden] { display: none; }
+.card.blocked h2 { font-size: 18px; letter-spacing: 0.3px; text-transform: none; color: var(--text); }
+.card.blocked h2::before { display: none; }
+.card.blocked p { margin: 0 0 8px; color: var(--muted); }
+.blocked-icon { width: 64px; height: 64px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round;
+  stroke-linejoin: round; filter: drop-shadow(0 0 10px rgba(240, 82, 74, 0.25)); }
+.blocked-icon path:last-child { stroke: var(--red); }
+.card.blocked .btn { text-decoration: none; }
+
+/* --- the view from above ------------------------------------------------ */
+
+.view #grid { cursor: pointer; }
+.areas-line { margin: 8px 2px 0; line-height: 1.5; }
+.swatch.pickup { border: 1.5px solid var(--green); background: rgba(65, 195, 99, 0.18); }
+.swatch.dropoff { border: 1.5px solid var(--cube-blue); background: rgba(76, 141, 255, 0.18); }
+.swatch.tile { border-radius: 2px; border: 2px solid var(--ink);
+  background: color-mix(in srgb, var(--ink) 30%, transparent); }
+.swatch.tile.ready, tr.ready { --ink: #41c363; }
+.swatch.tile.too-close, tr.too-close { --ink: #ffd23f; }
+.swatch.tile.elsewhere, tr.elsewhere { --ink: #9db0c8; }
+.swatch.tile.out-of-reach, tr.out-of-reach { --ink: #f0524a; }
+
+/* --- the camera ---------------------------------------------------------- */
+
+.live .card-head .tools { flex-wrap: wrap; justify-content: flex-end; }
+.live .card-head .tools .switch { font-size: 12.5px; color: var(--muted); }
+.live .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+#locate { padding: 8px 16px; letter-spacing: 1.2px; }
+.feed-box img { object-fit: fill; }
+.feed-box img[hidden] { display: none; }
+.locate-line { margin: 10px 2px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.locate-line b { font-family: var(--mono); font-weight: 650; color: var(--text); }
+.locate-line .note { color: var(--faint); }
+
+/* --- the tiles ----------------------------------------------------------- */
+
+.list .card-head .counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.tile-chip { color: var(--ink); border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+  background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.list .table-wrap { max-height: 460px; overflow: auto; }
+.list td .badge { color: #0b0f14; }
+.list td.status { text-align: left; }
+.list td.status small { display: block; color: var(--faint); font-size: 11.5px; }
+.list th:nth-last-child(2) { text-align: left; }
+.list td .faint { color: var(--faint); }

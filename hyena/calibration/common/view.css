@@ -1,0 +1,135 @@
+/* What every page that moves the arm shows: the view from above, the height column beside it as tall as it,
+   and the readout of where the arm was sent and where its servos say it is. For the pages with things on the desk
+   (camera, tests, tiles): the notch over a cube's top, the cubes' icons, the camera's live view with marks drawn
+   over it, and the picture full size. */
+
+:root { --cube-blue: #4c8dff; --cube-green: #2fd47a; --cube-red: #ff4d5e; }
+
+/* --- the view ---------------------------------------------------------- */
+
+.btn.rotate { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.55);
+  letter-spacing: 0.3px; }
+.btn.rotate:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+
+.view-body { display: grid; grid-template-columns: 1fr 92px; gap: 12px; }
+#grid { display: block; align-self: start; width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: crosshair;
+  background: radial-gradient(circle at 50% 60%, #0d1218, #070a0d); border: 1px solid var(--line); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; }
+.swatch.reach { border: 2px solid var(--red); background: var(--green-wash); }
+.swatch.reach-min { border: 2px solid var(--orange); }
+.swatch.base { border: 1px solid #3a4553; background: repeating-linear-gradient(45deg, #2a333f 0 2px, #10151b 2px 5px); }
+.swatch.target { border: 2px solid var(--green); border-radius: 50%; }
+.swatch.says { width: 8px; height: 8px; margin: 0 8px 0 2px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 6px #fff; vertical-align: 0; }
+.swatch.caution { width: 6px; background: linear-gradient(var(--yellow) 0 50%, var(--red) 50%); }
+
+/* --- the height, beside the view: as tall as it ------------------------ */
+
+.zcol { display: flex; flex-direction: column; gap: 6px; padding: 10px 8px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.zlabel { color: var(--faint); font-size: 10px; letter-spacing: 1.4px; text-align: center; }
+.zlabel em { font-style: normal; color: var(--muted); }
+#z-out { font-size: 16px; font-weight: 600; text-align: center; }
+.zcol .btn { padding: 6px 0; font-size: 12px; }
+.btn.safe { display: grid; line-height: 1.15; font-size: 15px; }
+.btn.safe small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
+.btn.safe.on { background: var(--green); border-color: var(--green); color: #06210f;
+  box-shadow: 0 0 16px var(--green-glow); }
+.btn.safe.on small { color: #0b3a1b; }
+.btn.higher { font-size: 11px; color: var(--green-bright); background: var(--green-wash);
+  border-color: rgba(65, 195, 99, 0.45); }
+.btn.lower { font-size: 11px; color: #ffb2ab; background: var(--red-wash); border-color: rgba(240, 82, 74, 0.5); }
+
+/* The slider's thumb travels half its size short of either end; the scale beside it is inset to match. */
+.zbar { position: relative; flex: 1; min-height: 160px; }
+input.vertical { position: absolute; top: 0; left: 8px; width: 24px; height: 100%; margin: 0;
+  writing-mode: vertical-lr; direction: rtl; accent-color: var(--green); cursor: pointer; }
+.zscale { position: absolute; top: 8px; bottom: 8px; left: 38px; width: 5px; border-radius: 3px; }
+.zend { position: absolute; left: 48px; color: var(--faint); font: 10px var(--mono); }
+.zend.top { top: 8px; transform: translateY(-50%); }
+.zend.bottom { bottom: 8px; transform: translateY(50%); }
+
+/* --- the arm ----------------------------------------------------------- */
+
+.readout { display: grid; grid-template-columns: 82px repeat(3, 1fr); gap: 2px 10px; align-items: baseline;
+  padding: 10px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.readout > span:nth-child(-n+4) { color: var(--faint); font-size: 10.5px; letter-spacing: 1.2px; text-align: right; }
+.readout .label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.readout .num { text-align: right; }
+.readout b { font-size: 21px; font-weight: 600; }
+.readout span.num { color: var(--muted); transition: color 0.2s; }
+.readout span.num.off { color: var(--yellow); }
+.readout span.num.far { color: var(--red); }
+.readout.stale .says, .readout.stale span.num.says { color: var(--faint); }
+.spinner { display: none; width: 9px; height: 9px; margin-left: 6px; vertical-align: -1px; border-radius: 50%;
+  border: 2px solid var(--green-wash); border-top-color: var(--green); animation: spin 0.8s linear infinite; }
+.readout.stale .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- the notch over a cube, and the cubes' icons ------------------------ */
+
+.btn.notch { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 0; }
+.btn.notch .cube-icon { width: 17px; height: 17px; }
+.btn.notch span { display: grid; line-height: 1.1; font-size: 15px; }
+.btn.notch small { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); }
+.btn.notch.on { background: #e9eef4; border-color: #ffffff; color: #0b0f14;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.35); }
+.btn.notch.on small { color: #3a4553; }
+#z-out.at-notch { color: #ffffff; text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+
+/* A tick across the slider and its scale where the notch is; the slider snaps to it. */
+.znotch { position: absolute; left: 3px; width: 42px; height: 0; border-top: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); transform: translateY(-1px); pointer-events: none; }
+.znotch b { position: absolute; left: 45px; top: -8px; color: #ffffff; font: 600 10px var(--mono); }
+
+.cube-icon { width: 30px; height: 30px; flex: none; }
+.cube-icon path { stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.6; stroke-linejoin: round; }
+.cube-icon .top { fill: color-mix(in srgb, var(--c) 68%, white); }
+.cube-icon .left { fill: var(--c); }
+.cube-icon .right { fill: color-mix(in srgb, var(--c) 60%, black); }
+.cube-icon.blue { --c: var(--cube-blue); }
+.cube-icon.green { --c: var(--cube-green); }
+.cube-icon.red { --c: var(--cube-red); }
+.cube-icon.notch { --c: #aab6c4; }
+
+/* --- the camera's live view --------------------------------------------- */
+
+.feed-box { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px;
+  background: radial-gradient(circle at 50% 45%, #0d1218, #05070a); border: 1px solid var(--line); }
+.feed-box img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.feed-badge { position: absolute; top: 10px; left: 10px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(10, 13, 17, 0.78); border: 1px solid var(--line-strong); font-size: 11px; font-weight: 650;
+  letter-spacing: 1.3px; }
+.feed-badge:empty { display: none; }
+.feed-badge.live { color: #ff6b62; }
+.feed-badge.snapshot { color: var(--yellow); }
+.feed-badge.failed { color: var(--red); }
+.feed-note { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center;
+  color: var(--muted); background: rgba(5, 7, 10, 0.55); pointer-events: none; }
+.feed-note:empty { display: none; }
+.feed-box canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* --- the camera's picture full size, to look closely and click on --------- */
+
+.fullview { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: auto 1fr;
+  background: radial-gradient(circle at 50% 40%, #0d1218, #030405); animation: fade 0.15s ease-out; }
+.fullview-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+  background: rgba(10, 13, 17, 0.92); border-bottom: 1px solid var(--line); }
+.fullview-title { display: grid; gap: 2px; min-width: 0; }
+.fullview-title b { color: var(--green-bright); letter-spacing: 1.4px; }
+.fullview-title span { color: var(--muted); font-size: 12.5px; }
+.fullview-point { margin-left: auto; display: grid; justify-items: end; line-height: 1.2; }
+.fullview-point span { color: var(--faint); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; }
+.fullview-point b { color: var(--green-bright); font-size: 20px; font-weight: 600; white-space: nowrap; }
+.fullview-point .landed { color: var(--green-bright); font-size: 11.5px; white-space: nowrap; }
+.fullview-point .landed.off { color: #ffd23f; }
+.fullview-doing { max-width: 280px; overflow: hidden; color: var(--muted); font-size: 12px; white-space: nowrap;
+  text-overflow: ellipsis; }
+.fullview-bar .close { font-size: 18px; line-height: 1; }
+.fullview-stage { display: grid; place-items: center; min-height: 0; overflow: hidden; }
+.fullview-frame { position: relative; }
+.fullview-frame img { display: block; width: 100%; height: 100%; object-fit: fill; border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.fullview-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }

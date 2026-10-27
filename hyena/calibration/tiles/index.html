@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tiles · MaxArm</title>
+  <link rel="stylesheet" href="/common/page.css">
+  <link rel="stylesheet" href="/common/view.css">
+  <link rel="stylesheet" href="tiles.css">
+  <script type="module" src="tiles.js"></script>
+</head>
+<body>
+<header class="top"></header>
+
+<main class="tiles">
+
+  <section class="card blocked" id="blocked" hidden>
+    <svg class="blocked-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="12" width="36" height="26" rx="5"/>
+      <circle cx="24" cy="25" r="7.5"/><path d="M17 12l3-5h8l3 5"/><path d="M8 42 40 8"/></svg>
+    <h2>The camera is not calibrated yet</h2>
+    <p id="blocked-why"></p>
+    <a class="btn primary" href="/camera/">Go to the camera page</a>
+  </section>
+
+  <section class="card view">
+    <div class="card-head">
+      <h2>Desk space, from above</h2>
+      <div class="tools">
+        <span class="hint">grid, mm</span>
+        <div class="seg" id="steps"></div>
+        <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
+          ⟳ Rotate view</button>
+        <span class="hint" id="facing"></span>
+      </div>
+    </div>
+    <canvas id="grid" title="Click a tile to bring the cup over its centre"></canvas>
+    <div class="legend">
+      <span><i class="swatch reach"></i>reach: 95 to 270 mm, ±120°</span>
+      <span><i class="swatch pickup"></i>pickup area</span>
+      <span><i class="swatch dropoff"></i>dropoff area</span>
+      <span><i class="swatch tile ready"></i>ready to pick up</span>
+      <span><i class="swatch tile too-close"></i>too close to another</span>
+      <span><i class="swatch tile elsewhere"></i>outside the pickup area</span>
+      <span><i class="swatch tile out-of-reach"></i>out of reach</span>
+    </div>
+    <p class="hint areas-line" id="areas-line"></p>
+  </section>
+
+  <section class="card live">
+    <div class="card-head">
+      <h2>Camera</h2>
+      <span class="hint" id="feed-device"></span>
+      <div class="tools">
+        <div class="seg" id="source" title="The live view, or the snapshot the tiles were found in">
+          <button data-source="live">LIVE</button><button data-source="snapshot">SNAPSHOT</button></div>
+        <label class="switch" title="The work areas and the reach, drawn on the desk">
+          <input type="checkbox" id="guides" checked><span class="track"></span>Areas</label>
+        <button class="btn" id="expand" title="The picture as large as the window allows">⛶ FULL SIZE</button>
+        <button class="btn primary" id="locate"
+          title="Park the arm, take the snapshot at full size, and find the tiles in it">◎ LOCATE TILES</button>
+      </div>
+    </div>
+    <div class="feed-box" id="feed-box">
+      <img id="feed" alt="">
+      <img id="snapshot" alt="" hidden>
+      <canvas id="marks"></canvas>
+      <span class="feed-badge" id="feed-badge"></span>
+      <span class="feed-note" id="feed-note"></span>
+    </div>
+    <p class="locate-line" id="locate-line"></p>
+  </section>
+
+  <section class="card list">
+    <div class="card-head">
+      <h2>Tiles</h2>
+      <span class="counts" id="counts"></span>
+      <div class="tools">
+        <span class="hint" id="visit-hint"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="list" id="tiles">
+        <thead><tr>
+          <th>#</th><th>X</th><th>Y</th>
+          <th title="How the tile's sides lie, degrees from desk +x; a square looks the same a quarter turn on"
+            >turn</th>
+          <th title="Its centre from the arm's base axis">reach</th>
+          <th>area</th>
+          <th title="The nearest other tile, edge to edge">nearest</th>
+          <th>status</th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+<div id="toasts"></div>
+</body>
+</html>
