@@ -43,7 +43,8 @@ INK_BGR = (40, 38, 36)
 CAMERA_AT = (-266.0, -287.0, 206.0)            # true mm: the board's mirror makes desk x = -true x
 LOOKING_AT = (110.0, -150.0, 0.0)
 FOCAL_SHARE = 0.78
-# Strokes of a few capitals, in a tile's own mm: x along its bottom edge, y up it, centre (0, 0).
+# Strokes of a few capitals, in a tile's own mm: x along its bottom edge, y up it, centre (0, 0). On the desk, whose x
+# the board's mirror negates, the letter's up is 90 degrees clockwise of its x as desk angles go, as on real tiles.
 LETTERS = {
     "E": [[(5, 7), (-5, 7), (-5, -7), (5, -7)], [(-5, 0), (3, 0)]],
     "T": [[(-6, 7), (6, 7)], [(0, 7), (0, -7)]],
@@ -51,7 +52,11 @@ LETTERS = {
     "L": [[(-5, 7), (-5, -7), (5, -7)]],
     "V": [[(-6, 7), (0, -7), (6, 7)]],
     "Z": [[(-5, 7), (5, 7), (-5, -7), (5, -7)]],
+    "W": [[(-7, 7), (-3.5, -7), (0, 3), (3.5, -7), (7, 7)]],
+    "M": [[(-7, -7), (-6, 7), (0, -2), (6, 7), (7, -7)]],
 }
+# The owner's dot at the letter's bottom right, on the letters that are others turned.
+DOTS = {"W": (8.0, -6.5), "M": (8.5, -6.5)}
 
 
 @dataclass
@@ -64,7 +69,7 @@ class Scene:
 
 def render(tiles: Sequence[Tuple[float, float, float]], desk: str = "wood", stretch=((1.0, 0.0), (0.0, 1.0)),
            camera_at=CAMERA_AT, looking_at=LOOKING_AT, letters: Optional[str] = "ETNLVZ", seed: int = 3) -> Scene:
-    """`tiles` as (desk x, y, turn degrees), each drawn with the next of `letters` on it, or none."""
+    """`tiles` as (desk x, y, turn degrees), each drawn with the next of `letters` on it, or none; ' ' is none."""
     width, height = SIZE
     desk_to_true = np.array(stretch, float) @ HANDEDNESS
     true_to_pixel = _camera(np.array(camera_at, float), np.array(looking_at, float), FOCAL_SHARE * width)
@@ -126,11 +131,15 @@ def _tile(frame, true_to_pixel, desk_to_true, centre, turn: float, letter: Optio
     _fill(frame, top, RIM_BGR)
     flat = rounded_square(centre, turn, TILE_MM - 2 * RIM_MM, CORNER_MM - RIM_MM) @ desk_to_true.T
     _fill(frame, _project(true_to_pixel, np.column_stack((flat, np.full(len(flat), HEIGHT_MM)))), TOP_BGR)
-    if letter:
+    if letter in LETTERS:
         c, s = math.cos(turn), math.sin(turn)
         for stroke in LETTERS[letter]:
             for start, end in zip(stroke[:-1], stroke[1:]):
-                _stroke(frame, true_to_pixel, desk_to_true, centre, np.array([[c, s], [-s, c]]), start, end)
+                _stroke(frame, true_to_pixel, desk_to_true, centre, np.array([[c, s], [s, -c]]), start, end)
+        if letter in DOTS:
+            x, y = DOTS[letter]
+            _stroke(frame, true_to_pixel, desk_to_true, centre, np.array([[c, s], [s, -c]]), (x - 0.2, y),
+                    (x + 0.2, y), width_mm=1.6)
 
 
 def _shadow(frame, true_to_pixel, outline: np.ndarray) -> None:
@@ -138,6 +147,8 @@ def _shadow(frame, true_to_pixel, outline: np.ndarray) -> None:
     pixels = _project(true_to_pixel, np.column_stack((outline + (1.5, 1.0), np.zeros(len(outline)))))
     x0, y0 = np.maximum(np.floor(pixels.min(axis=0)).astype(int) - 20, 0)
     x1, y1 = np.minimum(np.ceil(pixels.max(axis=0)).astype(int) + 20, SIZE)
+    if x1 <= x0 or y1 <= y0:                     # out of the picture
+        return
     mask = np.zeros((y1 - y0, x1 - x0), np.float32)
     cv2.fillPoly(mask, [np.round(pixels - (x0, y0)).astype(np.int32)], 1.0)
     mask = cv2.GaussianBlur(mask, (0, 0), 3.0)

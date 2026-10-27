@@ -189,9 +189,19 @@ def test_turn_rides_on_the_move() -> bool:
     ])
 
 
+@contextlib.contextmanager
+def servos_where_sent():
+    """The fake servos get where they are sent before they are read, so a PRECISE landing sends nothing more."""
+    gain, fake_arm_module.TRACKING_GAIN = fake_arm_module.TRACKING_GAIN, 1.0
+    try:
+        yield
+    finally:
+        fake_arm_module.TRACKING_GAIN = gain
+
+
 def test_grab_and_drop() -> bool:
     print("grab and drop, as the PILOT lays them out:")
-    with flat_desk() as config, fake_arm(config) as (arm, board, waits):
+    with flat_desk() as config, fake_arm(config) as (arm, board, waits), servos_where_sent():
         arm.use_coordinates(Space.DESK)
         arm.set_clearance(14.0)
         grabbed = arm.grab(100.0, -200.0, 4.0)
@@ -215,6 +225,47 @@ def test_grab_and_drop() -> bool:
         check("the release is waited for, longer than the grip",
               drop_waits[3] == arm_module.SUCTION_RELEASE_MS > arm_module.SUCTION_GRAB_MS,
               f"{drop_waits}"),
+    ])
+
+
+def test_carry() -> bool:
+    print("carry: grab, then drop; a turn bigger than the cup has, shared out before and after the grip:")
+    here, there = (100.0, -200.0, 4.0), (-100.0, -150.0, 5.0)
+    swing = bearing_degrees(there[0], there[1]) - bearing_degrees(here[0], here[1])
+    with flat_desk() as config, fake_arm(config) as (arm, board, _), servos_where_sent():
+        arm.use_coordinates(Space.DESK)
+        try:
+            arm.carry(here, there, angle=10.0, facing=30.0)
+            is_refused = False
+        except RuntimeError as error:
+            is_refused = "set_clearance" in str(error)
+        arm.set_clearance(14.0)
+        small = arm.carry(here, there, angle=10.0, facing=30.0)
+        small_log = list(board.log)
+        board.log.clear()
+        big = arm.carry(there, here, angle=30.0, facing=200.0)
+        big_log = list(board.log)
+        board.log.clear()
+        far = arm.carry(here, (0.0, -300.0, 5.0), angle=0.0, facing=0.0)
+        far_log = list(board.log)
+    small_turns = [entry[1] for entry in small_log if entry[0] == "turn"]
+    big_turns = [entry[1] for entry in big_log if entry[0] == "turn"]
+    order = [entry[0] for entry in small_log if entry[0] != "move"]
+    big_faces = 30.0 - swing + big_turns[1] - big_turns[0] if len(big_turns) == 2 else None
+    return all([
+        check("without a clearance it raises, naming set_clearance()", is_refused),
+        check("20 degrees, the arm swinging 60 the other way: the cup centred for the grip, 80 at the end",
+              bool(small) and len(small_turns) == 1 and abs(small_turns[0] - (20.0 - swing)) < 0.01
+              and order == ["suction", "turn", "suction"], f"turns {small_turns}, {order}"),
+        check("the piece set down at (-100, -150, 5): the last legs there", small_log[-3][1] == (-100.0, -150.0, 5.0)
+              and small_log[-2] == ("suction", False), f"{small_log[-3:]}"),
+        check("170 degrees, the arm swinging 60 its way: the cup at -55 for the grip, +55 at the end",
+              bool(big) and len(big_turns) == 2 and abs(big_turns[0] + (170.0 + swing) / 2) < 0.01
+              and abs(big_turns[1] - (170.0 + swing) / 2) < 0.01, f"turns {big_turns}, the arm swung {-swing:.2f}"),
+        check("and the piece faces 200 at the end", big_faces is not None and abs(big_faces - 200.0) < 0.01,
+              f"{big_faces}"),
+        check("an end out of reach: refused before anything moves, saying so",
+              far.status is MoveStatus.REFUSED and far_log == [] and "set down there" in far.detail, far.detail),
     ])
 
 
@@ -459,7 +510,8 @@ def test_small_moves_are_sent() -> bool:
 TESTS = [with_raw_heights(test) for test in [
     test_connect_and_ask, test_fast_and_slow, test_precise, test_precise_at_the_reach_limit,
     test_refusals_send_nothing,
-    test_turn_rides_on_the_move, test_grab_and_drop, test_turning_a_piece,
+    test_turn_rides_on_the_move, test_grab_and_drop, test_carry,
+    test_turning_a_piece,
     test_grab_lets_go_first_and_needs_clearance, test_clearance_guard, test_round_the_base,
     test_stop, test_camera_space, test_without_a_desk_calibration, test_switching_calibration,
     test_cup_to_either_end, test_small_moves_are_sent]]

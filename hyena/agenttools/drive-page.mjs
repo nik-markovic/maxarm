@@ -7,7 +7,7 @@
 // state. The DOM is a stub: elements keep what is set on them and remember their listeners; a canvas's context
 // draws nothing. The page's own polling takes any failure for the app not answering, so here it is one that lets
 // the page's errors through. Prints, as JSON, the errors thrown, and for each state what the page wrote into the
-// elements watched: their text, markup, rows (a table's body), whether disabled, and title.
+// elements watched: their text, markup, rows (a table's body), whether disabled, title and value.
 
 import { readFileSync } from 'node:fs';
 import { register } from 'node:module';
@@ -103,7 +103,7 @@ const steps = [];
 const look = () => steps.push(Object.fromEntries((replies.watch || []).map((id) => {
   const element = document.getElementById(id);
   return [id, { text: element.textContent, html: element.innerHTML, rows: element.tBodies[0].innerHTML,
-    disabled: element.disabled, title: element.title }];
+    disabled: element.disabled, title: element.title, value: element.value }];
 })));
 try {
   await import(pathToFileURL(path.resolve(pagePath)).href);

@@ -11,6 +11,7 @@ finding the desk with it:
 - **approach**: a jump, then down onto the point, the way `grab()` comes down
   onto a piece. Straight down when the point is underneath.
 - **glide**: slowly and level, in short legs, to watch the cup's height.
+- **carry**: a piece picked up and set down, as the library's `carry()` does it.
 
 `precise` ends a move with the library's correction (`MoveType.PRECISE`): the
 servos stop a pulse or several short of where they are sent, and are sent on
@@ -159,6 +160,23 @@ class Motion:
         """Pump on or off, waited out: the release takes longer, so nothing lifts with the cup."""
         result = self.arm.set_suction(is_on)
         self.is_suction_on = is_on
+        return result
+
+    def carry(self, start: Position, end: Position, angle: Optional[float], facing: Optional[float],
+              clearance: float) -> MoveResult:
+        """A piece picked up and set down, in desk space (`MaxArm.carry()`), with `clearance` kept on the way.
+
+        The clearance holds for this call only: the pages' other moves come down
+        to the desk. Until the piece is set down, RESET takes the pump to be on.
+        """
+        self.use(Space.DESK)
+        self.arm.set_clearance(clearance)
+        self.is_suction_on = True
+        try:
+            result = self._track(self.arm.carry(start, end, angle=angle, facing=facing))
+        finally:
+            self.arm.set_clearance(0.0)
+        self.is_suction_on = not result
         return result
 
     def reset(self) -> MoveResult:

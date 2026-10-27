@@ -7,9 +7,11 @@
 Both areas are bands of the arm's reach, in desk mm round its base axis (the
 owner's, PILOT-hyena, until the final app settles them):
 
-- **pickup**: the outer two thirds of the reach, left of the arm's centre line
-  (x < 0: the arm's left as it reaches out);
-- **dropoff**: the inner third, on both sides.
+- **pickup**: the outer two thirds of the reach, on both sides;
+- **dropoff**: the inner third, on both sides. A word is set down there along
+  an arc, `word_slots()`, centred on the arm's centre line, its letters facing
+  away from the arm (`IS_FACING_AWAY`) and read from the arm's left to its right
+  -- or facing the arm, and read from its right to its left.
 
 A tile's centre is kept `REACH_MARGIN_MM` inside both of the arm's reach arcs,
 so that the cup is never sent to the very edge of what the arm can do, and the
@@ -29,14 +31,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from maxarm.geometry import BASE_FAN_DEG, bearing_degrees
 from maxarm.path import REACH_MAX_MM, REACH_MIN_MM
 
-from .tiles import TILE_HEIGHT_MM, Tile
+from .tiles import TILE_HEIGHT_MM, TILE_MM, Tile
+from .tiles.pose import square_corners
 
 # A tile's centre stays this far inside both reach arcs: at the arcs themselves the arm is at its limit.
 REACH_MARGIN_MM = 5.0
@@ -45,11 +48,19 @@ TILE_REACH_MM = (REACH_MIN_MM + REACH_MARGIN_MM, REACH_MAX_MM - REACH_MARGIN_MM)
 DROPOFF_SHARE = 1.0 / 3.0
 DIVIDE_MM = TILE_REACH_MM[0] + (TILE_REACH_MM[1] - TILE_REACH_MM[0]) * DROPOFF_SHARE
 # Which side of the arm's centre line the pickup area is: -1 for x < 0, the arm's left; 0 for both sides.
-PICKUP_SIDE = -1
+PICKUP_SIDE = 0
 # Tiles in the pickup area are at least this far apart, edge to edge.
 MIN_GAP_MM = 2.0
 # The arm must reach the tile's top and this far over it, desk mm: it comes down onto the tile from there.
 OVER_TILE_MM = 14.0
+# A word's tiles are set down along this arc, 25 mm in from the dropoff area's outer edge, this far apart along it:
+# 5 mm apart at their corners nearest the arm, as the tiles fan out.
+WORD_ARC_MM = DIVIDE_MM - 25.0
+WORD_GAP_MM = 8.0
+WORD_STEP_DEG = math.degrees((TILE_MM + WORD_GAP_MM) / WORD_ARC_MM)
+WORD_MAX_LETTERS = int(2 * BASE_FAN_DEG / WORD_STEP_DEG) + 1
+# Which way the letters' tops point once set down: away from the arm, or towards it.
+IS_FACING_AWAY = True
 
 
 class Status(Enum):
@@ -96,6 +107,36 @@ class Place:
                 "gap": None if self.gap_mm is None else round(self.gap_mm, 1)}
 
 
+@dataclass(frozen=True)
+class Slot:
+    """Where a letter of a word is set down: its tile's centre, desk mm, and which way the letter's top points."""
+
+    x: float
+    y: float
+    facing: float                               # desk degrees, from desk +x, as a letter's `upright` is
+    corners: Tuple[Tuple[float, float], ...]    # the tile's face there, as if its corners were sharp
+
+    def to_json(self) -> dict:
+        return {"x": round(self.x, 2), "y": round(self.y, 2), "facing": round(self.facing, 1),
+                "corners": [[round(x, 2), round(y, 2)] for x, y in self.corners]}
+
+
+def word_slots(count: int) -> List[Slot]:
+    """Where each of `count` letters goes, the word's first letter first; none if they do not fit."""
+    if not 1 <= count <= WORD_MAX_LETTERS:
+        return []
+    reading = 1.0 if IS_FACING_AWAY else -1.0          # bearings grow towards the arm's right
+    slots = []
+    for index in range(count):
+        bearing = math.radians(reading * (index - (count - 1) / 2) * WORD_STEP_DEG)
+        x, y = WORD_ARC_MM * math.sin(bearing), -WORD_ARC_MM * math.cos(bearing)
+        facing = math.degrees(math.atan2(y, x)) + (0.0 if IS_FACING_AWAY else 180.0)
+        facing = (facing + 180.0) % 360.0 - 180.0
+        corners = square_corners((x, y), math.radians(facing), TILE_MM)
+        slots.append(Slot(x, y, facing, tuple((float(cx), float(cy)) for cx, cy in corners)))
+    return slots
+
+
 def place_tiles(tiles: Sequence[Tile], can_reach: Callable[[float, float, float], bool]) -> List[Place]:
     """Each tile's status, in the order given. `can_reach(x, y, z)` takes desk mm: the library's, in DESK space."""
     places = []
@@ -103,7 +144,7 @@ def place_tiles(tiles: Sequence[Tile], can_reach: Callable[[float, float, float]
         nearest, gap = _nearest(tiles, index)
         area = next((area.name for area in (PICKUP, DROPOFF) if area.contains(tile.x, tile.y)), "")
         reach = math.hypot(tile.x, tile.y)
-        problem = _reach_problem(tile, can_reach)
+        problem = reach_problem(tile.x, tile.y, can_reach)
         if problem:
             status, detail = Status.OUT_OF_REACH, problem
         elif area != PICKUP.name:
@@ -116,13 +157,14 @@ def place_tiles(tiles: Sequence[Tile], can_reach: Callable[[float, float, float]
     return places
 
 
-def _reach_problem(tile: Tile, can_reach: Callable[[float, float, float], bool]) -> str:
-    reach = math.hypot(tile.x, tile.y)
+def reach_problem(x: float, y: float, can_reach: Callable[[float, float, float], bool]) -> str:
+    """Why the arm cannot take a tile from, or set one down at, a tile centre (x, y), desk mm; "" if it can."""
+    reach = math.hypot(x, y)
     if reach < TILE_REACH_MM[0] or reach > TILE_REACH_MM[1]:
         return (f"{reach:.0f} mm from the base axis; tiles go {TILE_REACH_MM[0]:.0f} to {TILE_REACH_MM[1]:.0f}")
-    if abs(bearing_degrees(tile.x, tile.y)) > BASE_FAN_DEG:
+    if abs(bearing_degrees(x, y)) > BASE_FAN_DEG:
         return "behind the arm, where it cannot turn"
-    if not all(can_reach(tile.x, tile.y, z) for z in (TILE_HEIGHT_MM, TILE_HEIGHT_MM + OVER_TILE_MM)):
+    if not all(can_reach(x, y, z) for z in (TILE_HEIGHT_MM, TILE_HEIGHT_MM + OVER_TILE_MM)):
         return "a pose the arm cannot hold"
     return ""
 
@@ -138,7 +180,7 @@ def _nearest(tiles: Sequence[Tile], index: int):
     return best
 
 
-def gap_mm(a: Tile, b: Tile) -> float:
+def gap_mm(a: Union[Tile, Slot], b: Union[Tile, Slot]) -> float:
     """How far apart two tiles' faces are, edge to edge, their corners taken as sharp; 0 if they meet."""
     first, second = np.array(a.corners), np.array(b.corners)
     if _overlaps(first, second):

@@ -3,3 +3,6 @@ config/*.json
 config/*.partial
 config/*.png
 config/*.jpg
+
+# A training run's best epoch, removed when it finishes (training/letters/train.py).
+training/letters/letters.keras

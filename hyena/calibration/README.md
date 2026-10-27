@@ -4,7 +4,8 @@ Specs: [`work/PILOT-falcon.md`](../../work/PILOT-falcon.md), the desk page;
 [`work/PILOT-gecko.md`](../../work/PILOT-gecko.md), the camera and Fine Tune pages;
 [`work/PILOT-hyena.md`](../../work/PILOT-hyena.md), the Tiles page.
 One web app with a page per calibration: the desk first, then the camera; then Fine Tune, which tries the camera's
-calibration and refines it; then Tiles, which finds the 25 mm letter tiles and says which the arm can pick up.
+calibration and refines it; then Tiles, which finds the 25 mm letter tiles, reads their letters, says which the
+arm can pick up, and sets a word of them down.
 
 ```
 ../.venv/bin/python calibration/calibration.py                  # then open http://localhost:8080
@@ -13,7 +14,7 @@ calibration and refines it; then Tiles, which finds the 25 mm letter tiles and s
 ../.venv/bin/python agenttools/serve-fake.py                    # the same pages on a fake arm and camera
 ```
 
-It needs `numpy`, `pyserial` and OpenCV (`requirements.txt`); the web server is Python's own.
+It needs `numpy`, `pyserial`, OpenCV and a TFLite interpreter (`requirements.txt`); the web server is Python's own.
 Connecting resets the board, which homes the arm: 4 s, sometimes 15.
 This process is the only thing that talks to the arm, and the only one using the camera.
 Ctrl-C holds the arm where it is and closes the port.
@@ -214,14 +215,17 @@ the horizon, or out of the arm's reach, is refused before anything moves.
 
 ## The Tiles page
 
-`tiles/`. Where the 25 mm tiles are, and which of them the arm can pick up. The page is there once the camera page
+`tiles/`. Where the 25 mm tiles are, their letters and which way up, which of them the arm can pick up, and a word of
+them set down in the dropoff area.
+The page is there once the camera page
 has written `config/camera.json`; until then its tab is greyed and the page says so.
 
-Left the view from above, with the work areas: **pickup**, green, the outer two thirds of the reach on the arm's
-left (x < 0, its left as it reaches out); **dropoff**, blue, the inner third. The dashed lines are the line between
+Left the view from above, with the work areas: **pickup**, green, the outer two thirds of the reach, both sides;
+**dropoff**, blue, the inner third. The dashed lines are the line between
 them and the arm's centre line. Right the camera, LOCATE TILES in its heading. Across the bottom the tiles' table.
 
-1. **Set the tiles down**, letters up, where the camera sees them.
+1. **Set the tiles down**, letters up, where the camera sees them. A letter is a capital printed in black marker;
+   on a letter that is another turned -- M and W -- a dot at its bottom right says which it is.
 2. **LOCATE TILES.** The arm parks the way CALIBRATE parks it, out of the picture; the camera takes its snapshot at
    full size -- about 11 s on the document camera -- and the tiles are found in it, about 2 s more. The picture
    shows the snapshot, the tiles outlined on it; LIVE goes back to the live view, with the same marks. Each tile is
@@ -232,13 +236,32 @@ them and the arm's centre line. Right the camera, LOCATE TILES in its heading. A
    - **outside the pickup area**, grey: in reach, but in the dropoff area or right of the centre line;
    - **out of reach**, red: the cup cannot be sent to its centre, kept 5 mm inside the arm's 95 and 270 mm arcs, or
      the arm cannot come down onto it there.
+
+   Each tile's letter is read in the same snapshot, a second or so more. It is shown on a badge at the face's
+   corner at the letter's bottom right, so the badge says which way up the letter lies; **?**, ringed in white, is a
+   letter not read -- the reader under 60% sure of it -- and **–**, ringed, a blank tile. The table has the letter,
+   how sure the reader is, its next best capital, *dot* when the dot was found, and *up*: where the letter's top
+   points, degrees from desk +x, starred when it reads the same turned (N, S, Z upside down; O, X any way). The
+   letters, left to right, are said under the picture.
 3. **Try a tile's centre.** A tile clicked, on the grid, over the picture full size, or its row's *go*: the cup
    comes over its centre at 14 mm over the desk, then slowly down to 6, 4 mm over the tile's top. It should be
    centred on it. A tile out of reach is refused, nothing moved.
+4. **Set a word down.** LOCATE TILES puts five letters at random from the tiles ready to pick up in the box beside
+   PLACE; type any others, as many as there are ready tiles for. PLACE checks them -- letters on ready tiles, read,
+   each tile once, nothing found lying where they go -- and refuses, saying why, before the arm moves. Then each
+   tile in turn: the cup over it, slowly down to the height in the grip box beside PLACE -- 1 mm to start, under the
+   tile's top -- corrected there, grip, up; across to its place at 15 mm, turning it on the way, slowly down to 5
+   mm, 3 mm over its top, corrected, let go, up. The places are along the dotted arc 130 mm from the base axis, 25
+   mm in from the dropoff area's outer edge, 5 mm apart at their corners nearest the arm, centred on the arm's
+   centre line: the word reads from the arm's left to its right, each letter's top away from the arm. A turn the cup
+   cannot make after the grip, past 90 degrees, it makes half before. Each place is drawn, dashed, and filled once
+   its tile is there; the arm parks at the end. The tiles carried are no longer where the snapshot has them: LOCATE
+   TILES again before the next PLACE. RESET lets go of a tile held, wherever the arm is.
 
 | control             | does                                                                                 |
 | ------------------- | ------------------------------------------------------------------------------------ |
-| LOCATE TILES        | park the arm, take the snapshot at full size, find the tiles in it and place them    |
+| LOCATE TILES        | park the arm, take the snapshot at full size, find the tiles, read and place them    |
+| PLACE               | the tiles with the letters typed to the dropoff arc, gripped at the grip box's z     |
 | LIVE, SNAPSHOT      | the live view, or the snapshot the tiles were found in; the marks the same on both   |
 | Areas               | the work areas and the arm's reach drawn on the desk, or not                         |
 | FULL SIZE           | the picture as large as the window allows; the tile under the pointer is said        |
@@ -251,10 +274,22 @@ square it could be a side of, either side of it: a tile's four sides all vote fo
 two touching tiles for both of theirs. A square is fitted to the edges round each place most voted for -- its
 centre to a few hundredths of a millimetre, its turn to a tenth of a degree -- and kept as a tile if each of its
 sides stands out from what lies just beyond it. Nothing is assumed of the tiles' or the desk's colour or
-brightness. A tile cut by the picture's edge, or behind the arm, is not looked for. The letters are not read yet.
+brightness. A tile cut by the picture's edge, or behind the arm, is not looked for.
+
+**How a letter is read** (`applib/letters/`). The tile's face is resampled square-on from the snapshot, along its
+sides. Ink is what is darker than the face round it; a face with none is blank, and a small round blob of ink off a
+corner of the letter is the dot, which puts the letter's bottom right there. A small network (`files/letters.tflite`,
+int8, trained on drawn hand-printed capitals by `training/letters/train.py`) looks at the face at each of its four
+quarter turns and says which capital it is if that turn is upright, or that it is not; the best wins, at the dot's
+turn if there is one.
 
 **How a tile is placed** (`applib/areas.py`). By its centre, in desk mm round the arm's base axis; the areas and the
 2 mm are the app's own, for now, and the reach the library's: `can_reach()` at the tile's top and over it.
+
+**How a word is set down** (`applib/word.py`, the library's `carry()`). Of several ready tiles with a letter, the
+one whose letter needs the least turning goes; an N, an S or an O is turned to whichever of its ways up is nearest.
+The library's `carry()` picks the tile up and sets it down, and knowing both ends, shares out a turn the cup cannot
+make from centre.
 
 | directory | holds                                                                                             |
 | --------- | ------------------------------------------------------------------------------------------------- |
@@ -271,4 +306,4 @@ brightness. A tile cut by the picture's edge, or behind the arm, is not looked f
 | `tests/`  | Fine Tune (`index.html`, `tests.js`, `grid.js`, `view.js`, `refine.js`) and its requests          |
 |           | (`api.py`, `refine.py`)                                                                           |
 | `tiles/`  | Tiles (`index.html`, `tiles.js`, `grid.js`, `view.js`) and its requests (`api.py`); the tiles     |
-|           | found and placed by `applib/`, outside the app                                                    |
+|           | found, read and placed by `applib/`, outside the app                                              |

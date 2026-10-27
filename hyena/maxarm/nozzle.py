@@ -36,6 +36,16 @@ def offset_of(point: Position, facing: float, servo: float) -> float:
     return facing - bearing_degrees(point[0], point[1]) - servo
 
 
+def grip_servo(start: Position, start_facing: float, end: Position, end_facing: float) -> float:
+    """The servo angle to pick a piece up at, so that it can be set down at `end` facing `end_facing`.
+
+    Centred, if the turn left for `end` is within the range from there; else
+    half that turn, taken the other way before the grip, leaving the end half.
+    """
+    turn = servo_for(end, end_facing, offset_of(start, start_facing, 0.0))
+    return 0.0 if abs(turn) <= NOZZLE_RANGE_DEG else -turn / 2.0
+
+
 def turn_ms(start: float, end: float) -> int:
     """How long the servo is given to turn from one angle to another; 0 for no turn."""
     if abs(end - start) < 0.5:

@@ -7,8 +7,9 @@
     arm.set_clearance(14.0)               # once: grab() and drop() need it
     arm.grab(812.0, 640.0, 4.0, angle=12.0)
     arm.drop(1020.0, 700.0, 5.0, angle=0.0)
+    arm.carry((812.0, 640.0, 4.0), (1020.0, 700.0, 5.0), angle=12.0, facing=180.0)   # both: any turn
 
-Every motion -- `move()`, `grab()`, `drop()`, `home()` -- goes through
+Every motion -- `move()`, `grab()`, `drop()`, `carry()`, `home()` -- goes through
 `_move()`, which plans and checks the whole path (`path.py`) before anything
 is sent, so a refusal means nothing moved. Each leg is one command, given the
 time its speed implies, and waited out. Nothing is read back on the way.
@@ -214,29 +215,15 @@ class MaxArm:
 
         Lets go of anything held, then: slowly up to the travel height if below
         it, fast across with the cup centring itself, slowly down onto the
-        piece, suction on and waited for, slowly back up. The travel height is
-        `clearance + height + 5 mm`, so the piece hangs 5 mm above the clearance.
+        piece and corrected there as PRECISE is, suction on and waited for,
+        slowly back up. The travel height is `clearance + height + 5 mm`, so
+        the piece hangs 5 mm above the clearance.
 
         `angle` says which way the piece faces; `drop()` turns it from there.
         """
         self._begin()
         self._require_clearance("grab")
-        if self._is_suction_on:
-            stopped = self._switch_suction(False)
-            if stopped is not None:
-                return stopped
-        self._held = None
-        point = (float(x), float(y), float(height))
-        target = self._space.to_desk(point)
-        travel = self._travel_height(target)
-        result = self._visit(target, travel, servo=0.0)
-        if not result:
-            return result
-        stopped = self._switch_suction(True)
-        if stopped is not None:
-            return stopped
-        self._held = _Held(target[2], self._piece_offset(point, angle))
-        return self._move((target[0], target[1], travel), MoveType.SLOW)
+        return self._grab((float(x), float(y), float(height)), angle, 0.0)
 
     def drop(self, x: float, y: float, height: float, *,
              angle: Optional[float] = None) -> MoveResult:
@@ -250,18 +237,31 @@ class MaxArm:
         """
         self._begin()
         self._require_clearance("drop")
-        point = (float(x), float(y), float(height))
-        target = self._space.to_desk(point)
-        servo = self._servo_for(point, angle) if angle is not None else None
-        travel = self._travel_height(target)
-        result = self._visit(target, travel, servo)
+        return self._drop((float(x), float(y), float(height)), angle)
+
+    def carry(self, start: Position, end: Position, *, angle: Optional[float] = None,
+              facing: Optional[float] = None) -> MoveResult:
+        """Pick up the piece whose top face is at `start`, and set it down with its top face at `end`.
+
+        `grab()`, then `drop()`: `start` and `end` are (x, y, height), and the
+        drop is checked before the grip, so a refusal means nothing moved.
+        `angle` says which way the piece faces at the start, `facing` which way
+        it is to face at the end. A turn bigger than the cup's 90 degrees from
+        centre is shared: the cup turns half of it the other way on its way over
+        the piece, and the other half after the lift.
+        """
+        self._begin()
+        self._require_clearance("carry")
+        start, end = _point(start), _point(end)
+        servo, end_servo = self._carry_servos(start, angle, end, facing)
+        start_desk, end_desk = self._space.to_desk(start), self._space.to_desk(end)
+        problem = self._visit_problem(end_desk, self._travel_height(end_desk, start_desk[2]), end_servo)
+        if problem:
+            return self._result(MoveStatus.REFUSED, f"it could not be set down there: {problem}")
+        result = self._grab(start, angle, servo)
         if not result:
             return result
-        stopped = self._switch_suction(False)
-        if stopped is not None:
-            return stopped
-        self._held = None
-        return self._move((target[0], target[1], travel), MoveType.SLOW)
+        return self._drop(end, facing)
 
     def home(self) -> MoveResult:
         """Back to the reset pose, by way of a move: from low down, it climbs first."""
@@ -387,15 +387,44 @@ class MaxArm:
             return self._halt()
         return None
 
+    def _grab(self, point: Position, angle: Optional[float], servo: float) -> MoveResult:
+        """grab(), the cup turned to `servo` for the grip."""
+        if self._is_suction_on:
+            stopped = self._switch_suction(False)
+            if stopped is not None:
+                return stopped
+        self._held = None
+        target = self._space.to_desk(point)
+        travel = self._travel_height(target, target[2])
+        result = self._visit(target, travel, servo)
+        if not result:
+            return result
+        stopped = self._switch_suction(True)
+        if stopped is not None:
+            return stopped
+        self._held = _Held(target[2], self._piece_offset(point, angle))
+        return self._move((target[0], target[1], travel), MoveType.SLOW)
+
+    def _drop(self, point: Position, angle: Optional[float]) -> MoveResult:
+        target = self._space.to_desk(point)
+        servo = self._servo_for(point, angle) if angle is not None else None
+        travel = self._travel_height(target, self._held.height if self._held else target[2])
+        result = self._visit(target, travel, servo)
+        if not result:
+            return result
+        stopped = self._switch_suction(False)
+        if stopped is not None:
+            return stopped
+        self._held = None
+        return self._move((target[0], target[1], travel), MoveType.SLOW)
+
     def _visit(self, target: Position, travel: float, servo: Optional[float]) -> MoveResult:
-        """Slowly up to `travel` if below it, fast across, slowly down onto `target`."""
-        above = (target[0], target[1], travel)
-        problem = (self._planner.problem_with(above) or self._planner.problem_with(target)
-                   or nozzle.problem_with(servo))
+        """Slowly up to `travel` if below it, fast across, slowly down onto `target` and corrected there."""
+        problem = self._visit_problem(target, travel, servo)
         if problem:
             return self._result(MoveStatus.REFUSED, problem)
         here = self._desk_position()
-        legs = [(above, MoveType.FAST, servo), (target, MoveType.SLOW, None)]
+        legs = [((target[0], target[1], travel), MoveType.FAST, servo), (target, MoveType.PRECISE, None)]
         if here[2] < travel:
             legs.insert(0, ((here[0], here[1], travel), MoveType.SLOW, None))
         for point, move_type, leg_servo in legs:
@@ -403,6 +432,10 @@ class MaxArm:
             if not result:
                 return result
         return result
+
+    def _visit_problem(self, target: Position, travel: float, servo: Optional[float]) -> Optional[str]:
+        return (self._planner.problem_with((target[0], target[1], travel)) or self._planner.problem_with(target)
+                or nozzle.problem_with(servo))
 
     def _halt(self) -> MoveResult:
         """stop() landed during a leg: send the arm to where it has got to, which holds it."""
@@ -427,10 +460,9 @@ class MaxArm:
 
     # --- heights and angles -----------------------------------------------
 
-    def _travel_height(self, target: Position) -> float:
+    def _travel_height(self, target: Position, carried: float) -> float:
         """Where grab() and drop() cross the desk: clearance, plus the target's
-        height or the held piece's, whichever is higher, plus 5 mm."""
-        carried = self._held.height if self._held else target[2]
+        height or the carried piece's, whichever is higher, plus 5 mm."""
         return self._clearance_mm + max(target[2], carried) + CLEARANCE_MARGIN_MM
 
     def _crossing_height(self) -> Optional[float]:
@@ -448,6 +480,18 @@ class MaxArm:
     def _piece_offset(self, point: Position, angle: Optional[float]) -> float:
         """How the piece just picked up sits under the cup; 0 when its facing is not given."""
         return 0.0 if angle is None else nozzle.offset_of(*self._to_arm(point, angle), self._servo_deg)
+
+    def _carry_servos(self, start: Position, angle: Optional[float], end: Position,
+                      facing: Optional[float]) -> Tuple[float, Optional[float]]:
+        """The cup's angle for the grip, and at the end -- None there to leave it alone."""
+        if facing is None:
+            return 0.0, None
+        if angle is None:
+            return 0.0, nozzle.servo_for(*self._to_arm(end, facing))
+        start_arm, start_facing = self._to_arm(start, angle)
+        end_arm, end_facing = self._to_arm(end, facing)
+        servo = nozzle.grip_servo(start_arm, start_facing, end_arm, end_facing)
+        return servo, nozzle.servo_for(end_arm, end_facing, nozzle.offset_of(start_arm, start_facing, servo))
 
     def _to_arm(self, point: Position, angle: float) -> Tuple[Position, float]:
         """A point and a direction in the caller's space, as the arm has them."""
@@ -487,6 +531,10 @@ class MaxArm:
 def home_position() -> Position:
     """The reset pose, where every connect leaves the arm, in arm space."""
     return raw.true_position(geometry.HOME)
+
+
+def _point(point: Position) -> Position:
+    return (float(point[0]), float(point[1]), float(point[2]))
 
 
 def _move_ms(distance_mm: float, speed_mm_s: float) -> int:

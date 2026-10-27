@@ -1,13 +1,15 @@
-# hyena — the 25 mm tiles, found and placed, on gecko's library and calibration
+# hyena — the 25 mm tiles, found, read and placed, on gecko's library and calibration
 
 Spec: [`work/PILOT-hyena.md`](../work/PILOT-hyena.md).
 State of play: [`work/STATUS-hyena.md`](../work/STATUS-hyena.md).
 
 The pilot adds the calibration web app's Tiles page. LOCATE TILES parks the arm, takes the camera's full-size
-snapshot and finds the new 25 x 25 x 2 mm letter tiles in it; each is placed in the work areas -- ready to pick up,
-too close to another, outside the pickup area, or out of reach -- and shown so over the camera's picture, on the view
-from above and in a table. A click on a tile brings the cup over its centre. What finds the tiles and places them is
-the final app's own library, `applib/`, which knows nothing of the web app.
+snapshot and finds the new 25 x 25 x 2 mm letter tiles in it; each tile's hand-printed letter is read, and which way
+up it lies; each is placed in the work areas -- ready to pick up, too close to another, outside the pickup area, or
+out of reach -- and shown so over the camera's picture, on the view from above and in a table. A click on a tile
+brings the cup over its centre. PLACE carries the tiles with the letters typed, one by one, to an arc in the dropoff
+area, each set down facing away from the arm. What finds the tiles, reads, places and carries them is the final
+app's own library, `applib/`, which knows nothing of the web app.
 
 ```
 ../.venv/bin/python calibration/calibration.py     # the calibration app: open http://localhost:8080, the Tiles tab
@@ -18,14 +20,25 @@ camera = Camera.load(Path("config/camera.json"))
 arm.use_coordinates(Space.DESK)
 
 tiles = find_tiles(frame, camera)                       # the camera's full-size frame, as the camera page took it
-for tile, place in zip(tiles, place_tiles(tiles, arm.can_reach)):
-    print(tile.x, tile.y, tile.turn, place.status)      # READY, TOO_CLOSE, ELSEWHERE or OUT_OF_REACH
+letters = read_letters(frame, camera, tiles)
+places = place_tiles(tiles, arm.can_reach)
+for tile, letter, place in zip(tiles, letters, places):
+    print(tile.x, tile.y, place.status,                 # READY, TOO_CLOSE, ELSEWHERE or OUT_OF_REACH
+          letter.letter if letter.is_read else "?",     # "" for a blank tile
+          letter.upright)                               # where the letter's top points, desk degrees
+
+arm.set_clearance(word.CLEARANCE_MM)
+for step in word.plan_word("TEAM", tiles, letters, places, arm.can_reach):   # raises WordRefused, saying why
+    arm.carry(step.start, step.end, angle=step.upright, facing=step.facing)
 ```
 
 | directory      | holds                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------------- |
 | `maxarm/`      | The arm's library                                                                           |
-| `applib/`      | The final app's own libraries: `tiles/` finds the tiles in a frame, `areas.py` places them  |
+| `applib/`      | The final app's own libraries: `tiles/` finds the tiles in a frame, `letters/` reads them,  |
+|                | `areas.py` places them, `word.py` plans a word of them                                      |
+| `files/`       | The letter reader, `letters.tflite`, and what it was built from, `letters.json`             |
+| `training/`    | `letters/`: the reader's recipe, drawn hand-printed tiles and the training; nothing fetched |
 | `calibration/` | The calibration web app: the desk, camera, Fine Tune and Tiles pages; guide in `README.md`  |
 | `config/`      | The calibration files and the camera page's frames; per rig, so not in git                  |
 | `agenttools/`  | Offline tests, the fake board and camera, drawn scenes, the owner's stills. Removed at release |
@@ -39,18 +52,34 @@ for tile, place in zip(tiles, place_tiles(tiles, arm.can_reach)):
 - **The tile finder** (`applib/tiles/`): the frame resampled onto the plane of the tiles' top faces, 2 mm up; every
   colour edge votes for the centre of a 25 mm square it could be a side of; a square fitted to the edges round each
   place most voted for; kept if each of its sides stands out from what lies just beyond it. No colour or brightness
-  is assumed of the tiles or the desk, and tiles may touch. The letters are not read yet.
-- **The work areas** (`applib/areas.py`): pickup the outer two thirds of the reach, left of the arm's centre line
-  (x < 0); dropoff the inner third; tile centres 5 mm inside the arm's reach arcs. Each tile ready, too close (under
+  is assumed of the tiles or the desk, and tiles may touch.
+- **The letters** (`applib/letters/`): each face resampled square-on; blank if it has no ink; the owner's dot, a
+  small round blob off a corner of the letter, puts the letter's bottom right there; a 0.3 MB int8 network reads the
+  face at its four quarter turns, "this capital, if this turn is upright", or not. Each tile gets its letter, how sure
+  the reader is, its next best, and where the letter's top points on the desk -- every such way, for an N or an O.
+  Trained on drawn capitals only (`training/letters/`), about 20 minutes; the owner's fifteen real tiles are the check.
+- **The work areas** (`applib/areas.py`): pickup the outer two thirds of the reach, both sides of the arm's centre
+  line; dropoff the inner third; tile centres 5 mm inside the arm's reach arcs. Each tile ready, too close (under
   2 mm from another), outside the pickup area, or out of reach, by the library's `can_reach()`.
 - **The Tiles page** (`calibration/tiles/`, guide in `calibration/README.md`), there once `camera.json` is: LOCATE
   TILES in the camera's heading, where it stays in sight; the live view or the snapshot, the areas and the tiles
-  drawn over it, full size on a click; the view from above; the table. A tile clicked anywhere: the cup over its
-  centre at 14 mm, down to 6, 4 mm over its top.
+  drawn over it, full size on a click; the view from above; the table. Each tile's letter on a badge at the letter's
+  bottom right corner, which shows its way up; '?' for a letter not read, '–' for a blank tile. A tile clicked
+  anywhere: the cup over its centre at 14 mm, down to 6, 4 mm over its top.
 - **Shared by the pages with a camera**: desk space to the picture and back (`common/shares.js`, from `tests/`), the
   marks' drawing (`common/marks.js`) and the picture full size (`common/fullview.js`). Fine Tune's own marks are
   built on them; it works as before.
-- **The library is unchanged.**
+- **A word set down** (`applib/word.py`, PLACE on the Tiles page): each LOCATE TILES offers five letters at random
+  from the tiles ready to pick up; the letters typed are checked against those tiles, and the tiles carried in turn
+  to an arc 130 mm from the base axis -- 25 mm in from the dropoff area's outer edge -- 5 mm apart at their corners
+  nearest the arm, centred on the arm's centre line, each letter facing away from the arm and the word read from the
+  arm's left to its right (`areas.IS_FACING_AWAY` turns them to face the arm). The cup grips each tile at the desk
+  height in the grip box beside PLACE, 1 mm to start, and lets it go at 5, 1 mm under a visit's 6. Of two tiles with
+  a letter, the one that needs the least turning goes.
+- **The library: `carry()`, and grab and drop land as PRECISE does.** `carry()` is `grab()` then `drop()` in one
+  call, the drop checked before the grip; a turn bigger than the cup's 90 degrees from centre is shared, half before
+  the grip and half after. `grab()` and `drop()` come down onto the piece and are corrected there, as a visit to a
+  tile is, before the grip or the release.
 
 ## The calls
 
@@ -68,6 +97,7 @@ arm.move(x, y, z, MoveType.PRECISE)    # slow, then corrected until it lands: ~0
 arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
 arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
+arm.carry(start, end, angle=None, facing=None)   # both, (x, y, height) each: any turn, checked first
 arm.home()                             # the reset pose, by way of a move
 arm.set_suction(True)                  # by hand, for a job grab() and drop() do not fit
 
@@ -79,7 +109,7 @@ arm.stop_on_ctrl_c()                   # Ctrl-C holds the arm for the rest of th
 
 Every motion returns a `MoveResult`: `DONE`, `REFUSED` (nothing moved; `detail` says why) or `STOPPED`.
 It is falsy unless it is `DONE`.
-`move()`, `grab()`, `drop()` and `home()` all go through one internal move, which plans the whole path
+`move()`, `grab()`, `drop()`, `carry()` and `home()` all go through one internal move, which plans the whole path
 and checks every limit before anything is sent.
 
 ## Coordinate spaces
@@ -123,13 +153,18 @@ swings 180 degrees in 1.2 s. The cup turns 90 degrees either way from centre; a 
 anything moves.
 
 **grab()** lets go of anything held, then: slowly up to the travel height if below it, fast across while the cup
-centres itself, slowly down onto the piece, suction on and waited for (1.5 s), slowly back up. The travel height is
-`clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its `angle` says which way the piece faces.
+centres itself, slowly down onto the piece and corrected there as PRECISE is, suction on and waited for (1.5 s),
+slowly back up. The travel height is `clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its
+`angle` says which way the piece faces.
 
 **drop()** is the same in reverse: the piece is turned to `angle` on the way across, and the release is waited out
 (3 s, longer than a grip: the board vents the cup for a second and then shuts the valve) before the slow lift. The
 travel height allows for the piece hanging under the cup. `angle=None` leaves the cup alone, so the piece turns with
-the arm.
+the arm. The cup turns 90 degrees either way from where `grab()` centred it; more is refused, the piece still held.
+
+**carry()** is the two together, and checks the drop before the grip, so a refusal means nothing moved. Knowing
+both ends, it can turn a piece any way: a turn bigger than the cup has from centre is shared, the cup turning half
+of it the other way on its way over the piece, the other half after the lift.
 
 ## Limits
 
@@ -171,7 +206,8 @@ Everything else is a constant in the module that uses it, with where it came fro
 ../.venv/bin/python agenttools/serve-fake.py --real-camera   # a fake arm, the real camera
 ../.venv/bin/python agenttools/serve-fake.py --frame agenttools/tile-shots/still-1.png \
     --camera-json agenttools/tile-shots/still-camera.json  # a fake arm, the Tiles page on the owner's tiles
-../.venv/bin/python agenttools/try-tiles.py FRAME.png        # the tile finder on a frame, drawn
+../.venv/bin/python agenttools/try-tiles.py FRAME.png        # the tile finder and the letters on a frame, drawn
+../.venv/bin/python training/letters/train.py      # the letter reader afresh, into files/; about 20 minutes
 ../.venv/bin/python agenttools/refit-frame.py      # camera.json fitted afresh to the frame CALIBRATE kept
 ../.venv/bin/python agenttools/run-tests.py        # every offline check, about 50 s, no board
 ```

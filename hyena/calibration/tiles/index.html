@@ -42,6 +42,9 @@
       <span><i class="swatch tile too-close"></i>too close to another</span>
       <span><i class="swatch tile elsewhere"></i>outside the pickup area</span>
       <span><i class="swatch tile out-of-reach"></i>out of reach</span>
+      <span><i class="swatch word-slot"></i>where PLACE sets a word down; filled once a tile is there</span>
+      <span><b class="letter-key">A</b> at the letter's bottom right corner; <b class="letter-key marked">?</b> not
+        read, <b class="letter-key marked">–</b> blank</span>
     </div>
     <p class="hint areas-line" id="areas-line"></p>
   </section>
@@ -58,6 +61,15 @@
         <button class="btn" id="expand" title="The picture as large as the window allows">⛶ FULL SIZE</button>
         <button class="btn primary" id="locate"
           title="Park the arm, take the snapshot at full size, and find the tiles in it">◎ LOCATE TILES</button>
+        <div class="word-tools">
+          <input id="word" type="text" spellcheck="false" autocomplete="off" placeholder="letters"
+            title="The letters to set down, in order, from the tiles ready to pick up">
+          <label class="grip" title="The desk height the cup comes down to and grips each tile at, mm: the tiles are 2 mm
+            tall">grip <input id="grip" type="number" step="0.5"> mm</label>
+          <button class="btn primary" id="place"
+            title="Carry the tiles with these letters, one by one, to the dropoff arc, each the right way up"
+            >▶ PLACE</button>
+        </div>
       </div>
     </div>
     <div class="feed-box" id="feed-box">
@@ -68,6 +80,7 @@
       <span class="feed-note" id="feed-note"></span>
     </div>
     <p class="locate-line" id="locate-line"></p>
+    <p class="word-line" id="word-line"></p>
   </section>
 
   <section class="card list">
@@ -81,7 +94,12 @@
     <div class="table-wrap">
       <table class="list" id="tiles">
         <thead><tr>
-          <th>#</th><th>X</th><th>Y</th>
+          <th>#</th>
+          <th title="The letter as read; '?' not read, '–' a blank tile">letter</th>
+          <th title="How sure the reader is of it; the next best capital at any quarter turn; a dot at the letter's
+            bottom right, which settles its way up">read</th>
+          <th title="Where the letter's top points, degrees from desk +x; * it reads the same turned">up</th>
+          <th>X</th><th>Y</th>
           <th title="How the tile's sides lie, degrees from desk +x; a square looks the same a quarter turn on"
             >turn</th>
           <th title="Its centre from the arm's base axis">reach</th>

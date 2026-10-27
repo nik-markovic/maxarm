@@ -40,6 +40,7 @@ main.tiles.is-blocked .view, main.tiles.is-blocked .live, main.tiles.is-blocked 
 .swatch.tile.too-close, tr.too-close { --ink: #ffd23f; }
 .swatch.tile.elsewhere, tr.elsewhere { --ink: #9db0c8; }
 .swatch.tile.out-of-reach, tr.out-of-reach { --ink: #f0524a; }
+.swatch.word-slot { border-radius: 2px; border: 1.5px dashed #ffffff; }
 
 /* --- the camera ---------------------------------------------------------- */
 
@@ -53,6 +54,24 @@ main.tiles.is-blocked .view, main.tiles.is-blocked .live, main.tiles.is-blocked 
 .locate-line b { font-family: var(--mono); font-weight: 650; color: var(--text); }
 .locate-line .note { color: var(--faint); }
 
+/* PLACE: the letters to set down, beside LOCATE TILES; how it is going, under the picture. */
+.word-tools { display: inline-flex; gap: 6px; }
+#word { width: 9.5em; font: 600 14px var(--mono); letter-spacing: 2px; text-transform: uppercase; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 9px; }
+#word:focus { border-color: var(--green); }
+#word:disabled { opacity: 0.4; }
+#place { padding: 8px 14px; letter-spacing: 1.2px; }
+.word-tools label.grip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px;
+  color: var(--muted); }
+#grip { width: 3.6em; padding: 6px 5px; }
+#grip:disabled { opacity: 0.4; }
+.word-line { margin: 4px 2px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.word-line:empty { display: none; }
+.word-line b { font-family: var(--mono); font-weight: 650; color: var(--text); }
+.word-line b.letters { letter-spacing: 1.5px; }
+.word-line .note { color: var(--faint); }
+.list td.status small.word-note { color: var(--cube-blue); }
+
 /* --- the tiles ----------------------------------------------------------- */
 
 .list .card-head .counts { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -64,3 +83,10 @@ main.tiles.is-blocked .view, main.tiles.is-blocked .live, main.tiles.is-blocked 
 .list td.status small { display: block; color: var(--faint); font-size: 11.5px; }
 .list th:nth-last-child(2) { text-align: left; }
 .list td .faint { color: var(--faint); }
+.list td.letter { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--text); }
+.list td.read { text-align: left; }
+.list td.read small { display: block; color: var(--faint); font-size: 11.5px; }
+.letter-key { display: inline-block; min-width: 18px; padding: 0 3px; border-radius: 50%; text-align: center;
+  font-family: var(--mono); background: var(--muted); color: #0b0f14; }
+.letter-key.marked { box-shadow: 0 0 0 1.5px #ffffff; }
+.locate-line b.letters { letter-spacing: 1.5px; }

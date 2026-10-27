@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every offline check for the library, the tile finder and the calibration app. No arm, no camera, no motion.
+"""Every offline check: the library, the tile finder, the letters and the calibration app. No arm, no camera, no motion.
 
     ../.venv/bin/python agenttools/run-tests.py            # everything
     ../.venv/bin/python agenttools/run-tests.py path       # one suite
@@ -16,6 +16,7 @@ import test_arm
 import test_calibration
 import test_camera
 import test_fit
+import test_letters
 import test_path
 import test_spaces
 import test_tests_page
@@ -33,6 +34,7 @@ SUITES = {
     "camera": test_camera.TESTS,
     "tests-page": test_tests_page.TESTS,
     "tiles": test_tiles.TESTS,
+    "letters": test_letters.TESTS,
 }
 
 
