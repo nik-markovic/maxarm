@@ -1,0 +1,8 @@
+# Calibration results: each rig's own, written by calibration/ (work/PILOT-gecko.md).
+config/*.json
+config/*.partial
+config/*.png
+config/*.jpg
+
+# A training run's best epoch, removed when it finishes (training/letters/train.py).
+training/letters/letters.keras

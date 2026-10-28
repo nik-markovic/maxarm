@@ -1,0 +1,85 @@
+/* The camera page's layout: the view with the height beside it, the cubes, and the camera with its check image. */
+
+main.camera {
+  display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
+  grid-template-columns: minmax(520px, 1.3fr) minmax(390px, 0.95fr) minmax(400px, 1fr);
+  grid-template-areas: "view cubes shots";
+}
+.view { grid-area: view; }
+.cubes { grid-area: cubes; }
+.shots { grid-area: shots; }
+
+@media (max-width: 1560px) {
+  main.camera { grid-template-columns: minmax(500px, 1.15fr) minmax(390px, 1fr);
+    grid-template-rows: auto 1fr; grid-template-areas: "view cubes" "view shots"; }
+}
+@media (max-width: 960px) {
+  main.camera { grid-template-columns: 1fr; grid-template-areas: "view" "cubes" "shots"; }
+}
+
+/* --- the view's marks --------------------------------------------------- */
+
+.swatch.suggested { border: 1.5px dashed var(--cube-blue); background: rgba(76, 141, 255, 0.12); }
+.swatch.cube { background: var(--cube-green); box-shadow: 0 0 8px var(--cube-green); }
+
+
+/* --- the cubes --------------------------------------------------------- */
+
+.btn.guide { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.45);
+  letter-spacing: 0.6px; }
+.btn.guide:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+.hint.space { margin: 8px 2px 0; }
+
+.cube-rows { display: grid; gap: 8px; margin: 14px 0 12px; }
+.cube-row { --c: var(--faint); display: grid; grid-template-columns: 34px 1fr auto; align-items: center;
+  grid-template-areas: "icon name actions" "icon at actions"; gap: 2px 12px; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; transition: border-color 0.2s; }
+.cube-row[data-colour="blue"] { --c: var(--cube-blue); }
+.cube-row[data-colour="green"] { --c: var(--cube-green); }
+.cube-row[data-colour="red"] { --c: var(--cube-red); }
+.cube-row .cube-icon { grid-area: icon; opacity: 0.4; filter: grayscale(0.5); transition: opacity 0.2s; }
+.cube-row.recorded { border-color: color-mix(in srgb, var(--c) 45%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+.cube-row.recorded .cube-icon { opacity: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 70%, transparent)); }
+.cube-name { grid-area: name; display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+.cube-name b { font-size: 14px; text-transform: capitalize; }
+.cube-name small { color: var(--faint); font-size: 11.5px; }
+.cube-at { grid-area: at; color: var(--faint); font-size: 12px; }
+.cube-row.recorded .cube-at { color: var(--muted); }
+.cube-at b { color: var(--text); font-weight: 600; margin-right: 6px; }
+.cube-actions { grid-area: actions; display: flex; align-items: center; gap: 5px; }
+.btn.record { font-size: 12px; letter-spacing: 0.6px; padding: 6px 11px; }
+.btn.record:hover:not(:disabled) { border-color: var(--c);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c) 45%, transparent); }
+
+/* --- the check image ---------------------------------------------------- */
+
+.calibrate-row { display: flex; gap: 10px; margin: 14px 0 6px; }
+.calibrate-row #calibrate { flex: 1; padding: 10px 14px; font-size: 14px; letter-spacing: 1.2px; }
+.calibrate-row #validate { letter-spacing: 0.6px; }
+
+.check-row { display: grid; grid-template-columns: 176px 1fr; gap: 14px; align-items: center; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--line); }
+.check-box { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; padding: 0; overflow: hidden;
+  border-radius: 8px; background: #05070a; border: 1px solid var(--line-strong); cursor: zoom-in; }
+.check-box img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.check-box:hover:not(.empty) { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+.check-box.empty { cursor: default; background: repeating-linear-gradient(45deg, #0d1218 0 6px, #0a0d11 6px 12px); }
+.check-box.empty img { display: none; }
+.check-info { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.check-info b { color: var(--text); }
+
+/* --- the dialogs: the guide, and the check image full size ------------- */
+
+.modal.guide { width: 680px; }
+.modal.guide h2 { margin: 0 34px 6px 0; font-size: 18px; }
+.modal.guide p { margin: 12px 0 4px; }
+.modal.guide ul { margin: 4px 0 10px; padding-left: 20px; }
+.modal.guide li { margin: 7px 0; color: #c9d3dd; line-height: 1.5; }
+.modal.guide li::marker { color: var(--green); }
+.modal.guide b { color: var(--green-bright); }
+
+.modal.viewer { max-width: calc(100vw - 48px); padding: 14px; }
+.modal.viewer img { display: block; max-width: calc(100vw - 80px); max-height: calc(100vh - 80px); cursor: zoom-in;
+  border-radius: 6px; }
+.modal.viewer img.actual { max-width: none; max-height: none; cursor: zoom-out; }

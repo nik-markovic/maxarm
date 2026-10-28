@@ -1,0 +1,5 @@
+# The calibration web app serves itself with Python's own http.server.
+numpy                    # the library, and the desk's plane
+pyserial                 # the library: the arm's serial port
+opencv-python-headless   # the camera page: the live view and the snapshot
+ai-edge-litert           # the Tiles page: the letter reader (tflite_runtime on the IMX95, or TensorFlow, do too)

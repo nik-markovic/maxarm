@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fine Tune · MaxArm</title>
+  <link rel="stylesheet" href="/common/page.css">
+  <link rel="stylesheet" href="/common/view.css">
+  <link rel="stylesheet" href="tests.css">
+  <script type="module" src="tests.js"></script>
+</head>
+<body>
+<header class="top"></header>
+
+<main class="tests">
+
+  <section class="card blocked" id="blocked" hidden>
+    <svg class="blocked-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="12" width="36" height="26" rx="5"/>
+      <circle cx="24" cy="25" r="7.5"/><path d="M17 12l3-5h8l3 5"/><path d="M8 42 40 8"/></svg>
+    <h2>The camera is not calibrated yet</h2>
+    <p id="blocked-why"></p>
+    <a class="btn primary" href="/camera/">Go to the camera page</a>
+  </section>
+
+  <section class="card view">
+    <div class="card-head">
+      <h2>Desk space, from above</h2>
+      <div class="tools">
+        <span class="hint">grid, mm</span>
+        <div class="seg" id="steps"></div>
+        <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
+          ⟳ Rotate view</button>
+        <span class="hint" id="facing"></span>
+      </div>
+    </div>
+    <div class="view-body">
+      <canvas id="grid" title="Click to send the arm over that grid point, clear of the cubes, and down to the notch"
+        ></canvas>
+      <div class="zcol">
+        <span class="zlabel">HEIGHT <em>desk</em></span>
+        <output class="num" id="z-out" title="The height over the desk the arm is sent to"></output>
+        <button class="btn higher" id="z-higher"
+          title="Let the slider go 20 mm higher, as often as wanted. Only the arm's limits stop it">▲ 20 mm</button>
+        <button class="btn safe" id="z-safe" title="Up to a height well clear of the cubes"></button>
+        <button class="btn notch" id="z-notch" title="Down to 2 mm over a cube's top"></button>
+        <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
+        <div class="zbar">
+          <input type="range" class="vertical" id="z-slider" step="1">
+          <span class="zscale" id="z-scale"></span>
+          <span class="znotch" id="z-notch-mark"><b></b></span>
+          <span class="zend top" id="z-top"></span>
+          <span class="zend bottom" id="z-bottom"></span>
+        </div>
+        <button class="btn zstep" id="z-down" title="1 mm down">Z−</button>
+        <button class="btn lower" id="z-lower"
+          title="Let the slider go 2 mm lower, as often as wanted. Below the desk the cup presses into it"
+          >▼ 2 mm</button>
+      </div>
+    </div>
+
+    <div class="arm-row">
+      <div class="readout" id="readout">
+        <span></span><span>X</span><span>Y</span><span>Z</span>
+        <span class="label">Target</span>
+        <b class="num" id="target-x"></b><b class="num" id="target-y"></b><b class="num" id="target-z"></b>
+        <span class="label says">Arm says<i class="spinner" title="Reading the servos"></i></span>
+        <span class="num says" id="says-x"></span><span class="num says" id="says-y"></span>
+        <span class="num says" id="says-z"></span>
+      </div>
+      <div class="pad" title="1 mm the way the view shows, in desk space">
+        <button class="btn" data-dir="up"></button>
+        <button class="btn" data-dir="left"></button>
+        <span class="hub">1 mm</span>
+        <button class="btn" data-dir="right"></button>
+        <button class="btn" data-dir="down"></button>
+      </div>
+      <button class="btn primary record" id="record">● RECORD<br>POINT</button>
+    </div>
+    <p class="hint space">Desk space, mm: z is the height over the desk. A grid click comes over the point 60 mm up,
+      clear of the cubes, and down to the notch, 2 mm over a cube's top; the arrows move the cup 1 mm the way the view
+      shows. The cube centred under the cup, <b>RECORD POINT</b>: a point to refine the calibration with, below.</p>
+
+    <div class="legend">
+      <span><i class="swatch reach"></i>reach: 270 mm, ±120°</span>
+      <span><i class="swatch reach-min"></i>nearest target: 95 mm</span>
+      <span><i class="swatch target"></i>target</span>
+      <span><i class="swatch says"></i>arm says</span>
+      <span><i class="swatch found"></i>red cube, as the camera found it</span>
+      <span><i class="swatch touch"></i>desk point clicked</span>
+      <span><i class="swatch point"></i>red cube point</span>
+      <span><i class="swatch next"></i>a place for the next point</span>
+    </div>
+  </section>
+
+  <section class="card live">
+    <div class="card-head">
+      <h2>Camera</h2>
+      <span class="hint" id="feed-device"></span>
+      <div class="tools">
+        <label class="switch" title="The reach on the desk, and where the arm is, drawn over the live view">
+          <input type="checkbox" id="guides" checked><span class="track"></span>Guides</label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="touch">⛶ CLICK THE DESK</button>
+      <span class="trial-result" id="touch-result"></span>
+      <span class="helper"><span class="helper-label">helper</span>
+        <button class="btn" id="find"><span id="find-icon"></span>FIND RED CUBE</button></span>
+    </div>
+    <div class="feed-box" id="feed-box">
+      <img id="feed" alt="">
+      <canvas id="marks"></canvas>
+      <span class="feed-badge" id="feed-badge"></span>
+      <span class="feed-note" id="feed-note"></span>
+    </div>
+
+    <div class="trials">
+      <div class="trial touch">
+        <div class="trial-head">
+          <svg class="touch-icon" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="18" rx="11" ry="6.5"/>
+            <path d="M16 3v10M16 23v6M2 18h8M22 18h8"/><circle cx="16" cy="18" r="1.8"/></svg>
+          <b>Arm to the desk</b></div>
+        <p><b>CLICK THE DESK</b>, then a point of the desk in the live view, full size: the arm comes over it at 14 mm
+          and down to 2 mm over <b>the desk</b> -- not over the top of whatever stands there. Anything in its way is
+          knocked aside.</p>
+      </div>
+      <div class="trial find">
+        <div class="trial-head">
+          <span id="find-head-icon"></span><b>Find the red cube</b><span class="chip">helper</span></div>
+        <p>Set the red cube down anywhere in view, a corner towards the camera. <b>FIND RED CUBE</b>: the arm moves out
+          of the picture, the camera finds the cube, and the arm comes over it at 54 mm and down to 42, 2 mm over its
+          top. A start; the grid and the arrows bring the cup over the cube's centre.</p>
+        <span class="trial-result" id="find-result"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card refine">
+    <div class="card-head">
+      <h2>Refine the calibration</h2>
+      <span id="refine-count"></span>
+      <div class="tools">
+        <button class="btn ghost" id="clear" title="Forget every red cube point">CLEAR</button>
+      </div>
+    </div>
+    <div class="refine-body">
+      <div class="refine-how">
+        <p>The three cubes put the camera in place; points all over the desk tell it better where the arm goes.
+          Take the three cubes away. Then, again and again, in a new place each time:</p>
+        <ol>
+          <li>Set the red cube down, <b>a corner towards the camera</b>: its top and two sides in view.</li>
+          <li>Click the grid where the cube stands: the cup comes down 2 mm over its top. Or <b>FIND RED CUBE</b>.</li>
+          <li>Centre the cube under the cup with the arrows, watching the cube, not the screen.</li>
+          <li><b>RECORD POINT</b>: where the arm says the cup is, then the arm moves away and the camera's snapshot
+            sees where the cube stands.</li>
+        </ol>
+        <p id="refine-ask"></p>
+      </div>
+      <div class="refine-save">
+        <button class="btn primary" id="save">SAVE CALIBRATION</button>
+        <p class="refine-fit" id="refine-fit"></p>
+        <p class="hint" id="refine-saved"></p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="list" id="points">
+        <thead><tr>
+          <th>#</th><th>X</th><th>Y</th>
+          <th title="Where the saved calibration sees the cube, desk mm">seen X</th><th>seen Y</th>
+          <th title="How far the saved calibration puts the cube from where the arm says the cup was">off now</th>
+          <th title="How far the calibration SAVE would write puts the cube from where the arm says the cup was"
+            >after SAVE</th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+<div id="toasts"></div>
+</body>
+</html>

@@ -1,0 +1,159 @@
+{
+  "about": "config/camera.json as it was when still-1.png and still-2.png were taken, 2026-10-26, and still-3.png, 2026-10-27: the camera page's CALIBRATE of 2026-10-23, refined by 16 red cube points. Kept here for the offline checks; config/ is per rig. Desk space to camera pixels: pixel ~ desk_to_pixel @ [x, y, z, 1], desk mm, z the height above the desk. It holds for frames of frame_size only, from a camera that has not moved. Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, standing where camera-points.json says: true_to_pixel is the camera alone, in true mm; desk_to_true is how the arm's x and y lie in true mm -- a turn, the board's mirror and the arm's x/y error; desk_to_pixel is the two together. `refined`, if there, says the arm's error was fitted again to the cubes and the red cube's points in camera-refine-points.json, and `cubes_alone` keeps the two matrices as the cubes alone gave them.",
+  "desk_to_pixel": [
+    [
+      -1808.357412648483,
+      -1013.5794482642591,
+      -1233.9168726986359,
+      435726.95320109086
+    ],
+    [
+      666.6682759005192,
+      120.82316617536469,
+      -2149.085118352199,
+      312869.6049943116
+    ],
+    [
+      -0.5929864379321772,
+      0.511338146648974,
+      -0.6220131704474596,
+      441.27120660134534
+    ]
+  ],
+  "true_to_pixel": [
+    [
+      1806.607801264686,
+      -1009.0566749781877,
+      -1228.1289241935735,
+      433683.0836153869
+    ],
+    [
+      -666.6832013061497,
+      119.10661927424444,
+      -2139.0043793062905,
+      311402.0238285351
+    ],
+    [
+      0.5946148437741456,
+      0.5129853476556768,
+      -0.6190954858937613,
+      439.20133052047976
+    ]
+  ],
+  "desk_to_true": [
+    [
+      -0.9948232067721825,
+      -0.0025960512653425945
+    ],
+    [
+      0.0025960512653425485,
+      0.9951224916893203
+    ]
+  ],
+  "cubes": {
+    "blue": {
+      "x": -140.51,
+      "y": -220.14,
+      "turn_deg": 58.07,
+      "pixel": [
+        2218.24,
+        466.478
+      ]
+    },
+    "green": {
+      "x": 139.57,
+      "y": -220.11,
+      "turn_deg": 69.8,
+      "pixel": [
+        1655.858,
+        1559.817
+      ]
+    },
+    "red": {
+      "x": 140.86,
+      "y": 0.23,
+      "turn_deg": 19.07,
+      "pixel": [
+        512.614,
+        1131.091
+      ]
+    }
+  },
+  "frame_size": [
+    2592,
+    1944
+  ],
+  "edge_px": [
+    0.8014991445141106,
+    2.804456590524998
+  ],
+  "edges_used": 616,
+  "refined": {
+    "points": 16,
+    "off_mm": [
+      1.61,
+      3.99
+    ]
+  },
+  "cubes_alone": {
+    "true_to_pixel": [
+      [
+        1813.2198909787335,
+        -997.1262446989992,
+        -1228.1289241935735,
+        438592.6573695086
+      ],
+      [
+        -667.4538255175702,
+        114.70949594831625,
+        -2139.0043793062905,
+        309517.5893107408
+      ],
+      [
+        0.5912205109218809,
+        0.516893690047806,
+        -0.6190954858937613,
+        441.059758402444
+      ]
+    ],
+    "desk_to_true": [
+      [
+        -1.003994913471551,
+        0.007640135481372955
+      ],
+      [
+        -0.007640135481372955,
+        1.0004828332426143
+      ]
+    ],
+    "cubes": {
+      "blue": {
+        "x": -140.51,
+        "y": -220.14,
+        "turn_deg": 58.45,
+        "pixel": [
+          2218.24,
+          466.478
+        ]
+      },
+      "green": {
+        "x": 139.57,
+        "y": -220.11,
+        "turn_deg": 70.18,
+        "pixel": [
+          1655.858,
+          1559.817
+        ]
+      },
+      "red": {
+        "x": 140.86,
+        "y": 0.23,
+        "turn_deg": 19.45,
+        "pixel": [
+          512.614,
+          1131.091
+        ]
+      }
+    }
+  }
+}

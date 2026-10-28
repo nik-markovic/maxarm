@@ -1,0 +1,107 @@
+/* The tests page's layout: the view with the height beside it and the arm's readout, the arrows and RECORD POINT
+   under it; the camera, large, its buttons over it, its marks on it and what the two tests do under it; the red
+   cube's points across the bottom. The live view full size is common/view.css's. */
+
+main.tests {
+  display: grid; gap: 16px; padding: 16px 20px 28px; align-items: start;
+  grid-template-columns: minmax(500px, 1fr) minmax(560px, 1.3fr);
+  grid-template-areas: "view live" "refine refine";
+}
+.blocked { grid-area: blocked; }
+.view { grid-area: view; }
+.live { grid-area: live; }
+.refine { grid-area: refine; }
+
+@media (max-width: 1180px) {
+  main.tests { grid-template-columns: 1fr; grid-template-areas: "view" "live" "refine"; }
+}
+
+/* Without a camera calibration there is nothing to test: the page says so, and nothing else. */
+main.tests.is-blocked { grid-template-columns: 1fr; grid-template-areas: "blocked"; }
+main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked .refine { display: none; }
+.card.blocked { justify-self: center; display: grid; justify-items: center; gap: 10px; max-width: 640px;
+  padding: 44px 32px; text-align: center; }
+.card.blocked[hidden] { display: none; }
+.card.blocked h2 { font-size: 18px; letter-spacing: 0.3px; text-transform: none; color: var(--text); }
+.card.blocked h2::before { display: none; }
+.card.blocked p { margin: 0 0 8px; color: var(--muted); }
+.blocked-icon { width: 64px; height: 64px; fill: none; stroke: var(--muted); stroke-width: 2.2; stroke-linecap: round;
+  stroke-linejoin: round; filter: drop-shadow(0 0 10px rgba(240, 82, 74, 0.25)); }
+.blocked-icon path:last-child { stroke: var(--red); }
+.card.blocked .btn { text-decoration: none; }
+
+/* --- the view, and the arm under it ------------------------------------ */
+
+.arm-row { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; margin-top: 12px; }
+.btn.record { align-self: stretch; padding: 8px 14px; line-height: 1.35; letter-spacing: 1px; }
+.pad { display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 30px); gap: 4px; }
+.pad .btn { padding: 0; font-size: 11.5px; }
+.pad [data-dir="up"] { grid-area: 1 / 2; }
+.pad [data-dir="left"] { grid-area: 2 / 1; }
+.pad .hub { grid-area: 2 / 2; display: grid; place-items: center; color: var(--faint); font-size: 10px; }
+.pad [data-dir="right"] { grid-area: 2 / 3; }
+.pad [data-dir="down"] { grid-area: 3 / 2; }
+.hint.space { margin: 10px 2px 0; }
+
+.swatch.found { border: 2px solid var(--cube-red); background: rgba(255, 77, 94, 0.2); }
+.swatch.touch { border: 2px solid var(--green); border-radius: 50%; }
+.swatch.point { border-radius: 50%; background: var(--green); }
+.swatch.next { border: 1.5px dashed var(--cube-red); border-radius: 50%; background: rgba(255, 77, 94, 0.08); }
+
+/* --- the camera, and its marks ------------------------------------------ */
+
+.live .card-head .tools .switch { font-size: 12.5px; color: var(--muted); }
+.feed-box { cursor: zoom-in; }
+.feed-box img { object-fit: fill; }
+
+/* --- the two tests: the buttons over the camera, what they do under it --- */
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.actions .btn { letter-spacing: 0.8px; }
+.actions .helper { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 12px;
+  border-left: 1px solid var(--line); }
+.helper-label { color: var(--faint); font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; }
+#find { display: inline-flex; align-items: center; gap: 6px; }
+#find .cube-icon { width: 18px; height: 18px; }
+.trial-head .chip { margin-left: auto; }
+
+.trials { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+@media (max-width: 760px) { .trials { grid-template-columns: 1fr; } }
+.trial { display: grid; gap: 9px; align-content: start; padding: 12px 14px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; }
+.trial.find { box-shadow: inset 3px 0 0 var(--cube-red); }
+.trial.touch { box-shadow: inset 3px 0 0 var(--green); }
+.trial-head { display: flex; align-items: center; gap: 10px; }
+.trial-head b { font-size: 14px; }
+.trial p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.trial p b { color: var(--text); font-weight: 600; }
+.trial-result { color: var(--muted); font-size: 12.5px; }
+.trial-result b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+.trial-result .note { color: var(--faint); }
+.trial-result .off { color: #ffd23f; }
+.trial-result .on { color: var(--green-bright); }
+.touch-icon { width: 30px; height: 30px; flex: none; fill: none; stroke: var(--green); stroke-width: 1.8;
+  stroke-linecap: round; filter: drop-shadow(0 0 6px var(--green-glow)); }
+.touch-icon circle { fill: var(--green); stroke: none; }
+
+/* --- the red cube's points ---------------------------------------------- */
+
+.refine .card-head .chip { font-variant-numeric: tabular-nums; }
+.refine-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px 22px; margin-bottom: 12px; }
+@media (max-width: 960px) { .refine-body { grid-template-columns: 1fr; } }
+.refine-how { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.refine-how p { margin: 0 0 6px; }
+.refine-how ol { margin: 0 0 8px; padding-left: 20px; }
+.refine-how li { margin: 3px 0; color: #c9d3dd; }
+.refine-how li::marker { color: var(--green); font-weight: 650; }
+.refine-how b { color: var(--text); font-weight: 600; }
+.refine-save { display: grid; gap: 8px; align-content: start; padding: 12px 14px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; }
+.refine-save #save { justify-self: start; padding: 9px 16px; letter-spacing: 1.2px; }
+.refine-fit { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.refine-fit b { font-family: var(--mono); font-weight: 600; color: var(--text); }
+.refine-fit .note { color: var(--faint); }
+.refine-save .hint { margin: 0; }
+.refine .table-wrap { max-height: 420px; overflow: auto; }
+.refine td .cube-icon { width: 22px; height: 22px; vertical-align: middle; }
+.refine tr.cube td { color: var(--muted); }
