@@ -56,16 +56,17 @@ pixel ~ desk_to_pixel @ [x, y, z, 1]        # divide the first two by the third
 ```
 
 z the height above the desk, so a pixel and a height name a point: the top of a 4 mm tile is that tile's pixel at
-z 4. It maps desk space as the desk page defines it -- x and y the arm's own -- so it takes in the arm's x/y error:
-a pixel names the desk point the arm must be sent to.
+z 4. It maps desk space as the desk page defines it -- x and y the arm's own, which the library corrects to true
+millimetres -- with the arm placed on the desk where its points put it: a pixel names the desk point the arm must be
+sent to.
 
 The rest is the fit behind it, which the camera page reads back to draw and to check by:
 
 | key             | what it is                                                                                 |
 | --------------- | ------------------------------------------------------------------------------------------ |
 | `frame_size`    | width, height: the only frame size `desk_to_pixel` holds for                               |
-| `true_to_pixel` | 3x4: the camera alone, in true mm (x, y, z up), square pixels                              |
-| `desk_to_true`  | 2x2: the arm's x, y to true mm -- a turn, the board's mirror, and the arm's x/y error      |
+| `true_to_pixel` | 3x4: the camera alone, in true mm (x, y, z up), square pixels, laid along the arm's x, y   |
+| `desk_to_true`  | 2x2: the arm's x, y to true mm -- the board's mirror (a turn and stretch in older files)   |
 | `cubes`         | each cube's desk x, y, its turn on the desk, degrees, and the pixel under its centre       |
 | `edge_px`       | how far the frame's edges sat from the fitted cubes': median and 90%, pixels               |
 | `refined`       | if refined: how many red cube points, and how far off they all are, median and worst, mm   |
@@ -74,9 +75,9 @@ The rest is the fit behind it, which the camera page reads back to draw and to c
 `desk_to_pixel` is `true_to_pixel` with `desk_to_true` applied to x and y, scaled. The library's `Camera` refuses a
 frame of another size (`check_frame()`).
 
-A refinement fits the arm's x/y error again, to the three cubes and every red cube point at once, and keeps the
-camera: `true_to_pixel` is the same camera, its true millimetres turned and shifted on the desk so that
-`desk_to_true` stays a turn, the mirror and a stretch.
+CALIBRATE places the arm on the three cubes by a turn and a shift, the best for the three; a refinement places it
+again, on the three cubes and every red cube point at once, and keeps the camera: `true_to_pixel` is the same
+camera, its true millimetres turned and shifted onto the arm's, so that `desk_to_true` is the mirror alone.
 
 The calibration holds only while the camera and the arm stay where they were. VALIDATE CALIBRATION says whether the
 camera has moved.

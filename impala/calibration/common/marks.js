@@ -1,7 +1,7 @@
 // Marks drawn over the camera's picture through the calibration (shares.js): a canvas laid over the live view or a
 // snapshot, sized with it, and what every page's marks draw with -- the reach on the desk, the arm, lines, areas,
 // labels. A page's own marks extend ViewMarks and draw in drawMarks(), from `this.marks`, which update() fills:
-// `matrix` (desk to shares of the view), `deskToTrue` (the arm's x/y error), `limits` (/api/limits), and their own.
+// `matrix` (desk to shares of the view), `deskToTrue` (desk mm to true mm), `limits` (/api/limits), and their own.
 
 import { circle, toView } from './shares.js';
 
@@ -146,11 +146,11 @@ export class ViewMarks {
     ctx.globalAlpha = 1;
   }
 
-  dot([x, y], ink) {
+  dot([x, y], ink, radius = 3) {
     const { ctx } = this;
     ctx.fillStyle = ink;
     ctx.beginPath();
-    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
     ctx.fill();
   }
 

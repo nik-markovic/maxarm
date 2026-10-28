@@ -5,12 +5,19 @@ Every decision is measured in the frame itself; nothing is tuned on a camera.
 1. **The desk's colour** is the frame's most common chroma (Lab a*, b*): the desk
    fills most of any frame worth calibrating on.
 2. **Colourful** is chroma far from the desk's. Where to cut is read off this
-   frame's own histogram (Otsu).
+   frame's own histogram (Otsu). It must be colour of its own, too, as far from
+   grey as that: on a coloured desk, black, grey and white things -- a mouse mat,
+   a keyboard, a cable -- are far from the desk's chroma but have none.
 3. **Blobs.** A cube's shaded side keeps the cube's hue but has less colour, and
    can fall below the cut: each blob takes in the pixels round it of its own hue
    above part of the cut -- if that leaves it more convex, as a cube's missing side
-   does and a glossy desk's tint or dark plastic beside it does not. Blobs of one
-   hue that nearly touch are joined.
+   does and a glossy desk's tint or dark plastic beside it does not. A face facing
+   a bright light can lose its colour altogether, washed out to near white: each
+   blob also takes in what joins it far lighter than the desk round it, if that
+   leaves it more convex, the face is the size of a face, and a blob clear of the
+   frame's edges stays clear of them.
+   Standing on a white sheet, nothing round a cube is lighter than the sheet, so
+   nothing is taken. Blobs of one hue that nearly touch are joined.
 4. **Cube-shaped.** What hangs off a blob by a thin neck -- a cable, a shadow's
    fringe -- is cut off at the blob's own scale. A cube's silhouette is convex and
    must be whole, so blobs far from convex, or that run off the frame, are dropped.
@@ -51,6 +58,12 @@ TRIM = 0.15
 GROW_HUE_DEG = 30.0
 GROW_CUT = 0.6
 GROW_MARGIN = 0.3
+# A face washed out by a light: lighter than the desk round the blob by this share of the way from it to white, and
+# taking in at least this share of the blob's own coloured area -- a face, not a light speck of desk at its foot --
+# and no more than this many times it.
+WASHED_SHARE = 0.5
+WASHED_MIN_SHARE = 0.1
+WASHED_MAX_SHARE = 2.0
 
 
 class CubesNotFound(Exception):
@@ -77,10 +90,13 @@ def find_blobs(frame: np.ndarray, is_warm_only: bool = False) -> List[Blob]:
     `is_warm_only`: of the warm pixels only, the red cube's hue -- so that a red
     cube standing against a green or a blue one in the picture is a blob of its own.
     """
-    chroma = chroma_from_desk(frame, desk_chroma(frame))
+    desk = desk_chroma(frame)
+    chroma = chroma_from_desk(frame, desk)
     distance = np.hypot(chroma[..., 0], chroma[..., 1])
     scaled = np.clip(distance * 4.0, 0, 255).astype(np.uint8)     # chroma runs about 0-64
     cut, mask = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    own = np.clip(np.hypot(chroma[..., 0] + desk[0], chroma[..., 1] + desk[1]) * 4.0, 0, 255).astype(np.uint8)
+    mask[own <= cut] = 0
     if is_warm_only:
         hue = np.degrees(np.arctan2(chroma[..., 1], chroma[..., 0]))
         mask[np.abs(hue) > RED_WITHIN_DEG] = 0
@@ -88,9 +104,11 @@ def find_blobs(frame: np.ndarray, is_warm_only: bool = False) -> List[Blob]:
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((speck, speck), np.uint8))
     min_area = frame.shape[0] * frame.shape[1] * 5e-4
     height, width = frame.shape[:2]
-    smooth = cv2.GaussianBlur(scaled, (0, 0), min(frame.shape[:2]) / 400)      # a face is even; speckle is not
-    faint = smooth > GROW_CUT * cut
-    blobs = [_grow(blob, chroma, faint) for blob in _blobs(mask, chroma, min_area)]
+    blur = min(frame.shape[:2]) / 400                               # a face is even; speckle is not
+    faint = ((cv2.GaussianBlur(scaled, (0, 0), blur) > GROW_CUT * cut)
+             & (cv2.GaussianBlur(own, (0, 0), blur) > GROW_CUT * cut))
+    lightness = cv2.GaussianBlur(cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)[..., 0].astype(np.float32), (0, 0), blur)
+    blobs = [_grow_washed(_grow(blob, chroma, faint), chroma, lightness) for blob in _blobs(mask, chroma, min_area)]
     blobs = _join_faces(blobs, chroma)
     whole = [blob for blob in blobs if not _touches_edge(blob.contour, width, height)]
     trimmed = [blob for blob in (_trim(blob, chroma, min_area) for blob in whole) if blob]
@@ -228,6 +246,41 @@ def _grow(blob: Blob, chroma: np.ndarray, faint: np.ndarray) -> Blob:
     mask = blob.mask.copy()
     mask[y0:y1, x0:x1] = np.where(keep, 255, 0).astype(np.uint8)
     grown = _blob(mask, chroma)
+    return grown if grown.solidity >= blob.solidity else blob
+
+
+def _grow_washed(blob: Blob, chroma: np.ndarray, lightness: np.ndarray) -> Blob:
+    """The blob with a face of it that a light has washed out: what joins it, across the blurred seam, lighter
+    than the desk round it by WASHED_SHARE of the way to white.
+
+    Kept only if the blob comes out more convex, the face is between WASHED_MIN_SHARE and WASHED_MAX_SHARE of what
+    kept its colour, and a blob clear of the frame's edges stays clear: a cube's lit top completes its silhouette,
+    where white beside it, or a light speck of desk at its foot, would not.
+    """
+    x, y, w, h = cv2.boundingRect(blob.contour)
+    margin = int(GROW_MARGIN * max(w, h))
+    y0, y1 = max(0, y - margin), min(blob.mask.shape[0], y + h + margin)
+    x0, x1 = max(0, x - margin), min(blob.mask.shape[1], x + w + margin)
+    near = lightness[y0:y1, x0:x1]
+    inside = blob.mask[y0:y1, x0:x1] > 0
+    if inside.all():
+        return blob
+    around = float(np.median(near[~inside]))
+    washed = near > around + WASHED_SHARE * (255.0 - around)
+    seam = np.ones((_odd(JOIN_GAP * blob.size),) * 2, np.uint8)
+    reach = cv2.dilate(inside.astype(np.uint8), seam) > 0
+    count, labels = cv2.connectedComponents((washed | reach).astype(np.uint8), connectivity=8)
+    face = np.isin(labels, np.unique(labels[inside])) & washed & ~inside
+    added = int(np.count_nonzero(face))
+    if not WASHED_MIN_SHARE * blob.area <= added <= WASHED_MAX_SHARE * blob.area:
+        return blob
+    region = cv2.morphologyEx(np.where(face | inside, 255, 0).astype(np.uint8), cv2.MORPH_CLOSE, seam)
+    mask = blob.mask.copy()
+    mask[y0:y1, x0:x1] = region
+    grown = _blob(mask, chroma)
+    height, width = mask.shape
+    if _touches_edge(grown.contour, width, height) and not _touches_edge(blob.contour, width, height):
+        return blob
     return grown if grown.solidity >= blob.solidity else blob
 
 

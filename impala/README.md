@@ -69,6 +69,16 @@ for step in word.plan_word("TEAM", tiles, letters, places, arm.can_reach):   # r
   and read again, where the tiles carried were drawn grey (STATUS §4).
 - **Every page**: the cubes' wireframes are thinner and fainter; the height slider's range takes in the arm's height
   when it is above or below it, as after RESET.
+- **The camera calibration places the arm by a turn and a shift** (`calibration/camera/fit.py`, `refine.py`): the
+  camera is still fitted to the cubes' shapes; the arm's points are then laid on the cubes as seen, with no stretch,
+  at CALIBRATE and at SAVE CALIBRATION. A stretch through three cubes fitted each cube's own error and carried it
+  across the desk: the first calibration was up to 10 mm off on the left, and the reach arcs' centre about 4 mm off
+  (STATUS §6). The camera page's line says how far each cube stands from its arm point.
+- **FIND RED CUBE** on Fine Tune: once the arm is down over the cube, its servos are read; a dot on the cube's top
+  where it was sent, the cup's rim, yellow, where the servos say it is, and the miss, X and Y, by the cube's x, y.
+- **DESK GRID** on Fine Tune: desk space every 10 mm drawn on the desk over the live view, off unless turned on, the
+  lines through the arm's turning axis stronger: grid paper laid along it shows whether the camera's millimetres
+  match the paper's all over it.
 
 ## The calls
 

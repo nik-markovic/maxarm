@@ -17,8 +17,8 @@ export function toDesk(matrix, [u, v], height = 0) {
 }
 
 // A circle round a desk point on the plane `height` over the desk, as shares of the view: a ring drawn in perspective.
-// `deskToTrue` (2x2, the calibration's) makes it a circle of true mm, the size of a real thing: desk mm carry the
-// arm's x/y error.
+// `deskToTrue` (2x2, the calibration's) makes it a circle of true mm, the size of a real thing, whatever desk mm the
+// calibration holds.
 export function circle(matrix, [x, y], radius, height = 0, deskToTrue = null, count = 48) {
   const [[a, b], [c, d]] = deskToTrue ? inverse(deskToTrue) : [[1, 0], [0, 1]];
   return Array.from({ length: count + 1 }, (_, index) => {

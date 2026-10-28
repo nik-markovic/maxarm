@@ -69,7 +69,9 @@ class TestsSession:
         self.worker = worker
         self.feed = feed
         self.config_dir = Path(config_dir)
-        self.found: Optional[dict] = None          # the red cube, as FIND RED CUBE or RECORD POINT last found it
+        # The red cube, as FIND RED CUBE or RECORD POINT last found it; after FIND RED CUBE, where the arm was sent over
+        # it and where its servos then said it was, desk space.
+        self.found: Optional[dict] = None
         self.lock = threading.Lock()
         self.points = store.load_refine_points(self.config_dir)   # read again with each new camera.json
         self._version = 0                           # counts the points' changes
@@ -98,12 +100,21 @@ class TestsSession:
         if not parked:
             return parked
         found, _ = self._look(fit, self._still())
-        result = motion.approach(Space.DESK, (found.x, found.y, NOTCH_MM), precise=True, hover=FIND_OVER_MM)
+        sent = (found.x, found.y, NOTCH_MM)
+        result = motion.approach(Space.DESK, sent, precise=True, hover=FIND_OVER_MM)
         if not result:
             return result
+        motion.read()                               # where it landed, as its servos say: the page draws the cup there
+        landed = (motion.spaces.convert(motion.measured, Space.ARM, Space.DESK)
+                  if motion.measured is not None else None)
+        missed = ""
+        if landed is not None and self.found is not None:
+            self.found = {**self.found, "sent": [_tidy(value) for value in sent],
+                          "landed": [_tidy(value) for value in landed]}
+            missed = f"; the arm landed X {landed[0] - sent[0]:+.1f}, Y {landed[1] - sent[1]:+.1f} mm from there"
         return MoveResult(result.status, result.position,
                           f"the red cube stands at desk ({found.x:.1f}, {found.y:.1f}); the cup is "
-                          f"{NOTCH_MM - CUBE_MM:.0f} mm over its top")
+                          f"{NOTCH_MM - CUBE_MM:.0f} mm over its top{missed}")
 
     def touch(self, body: dict) -> dict:
         u, v = number(body, "u", 0.0, 1.0), number(body, "v", 0.0, 1.0)
@@ -226,8 +237,10 @@ class TestsSession:
         if frame is not None and check.frame_size_problem(frame, refined) is None:
             store.save_check(self.config_dir, check.draw(frame, refined, [
                 f"camera.json, {what}, on the calibration's own frame", store.describe_fit(refined)]))
+        offs = (f"; the points and cubes {refined.refined['off_mm'][0]:.1f} mm from the arm's points typically, "
+                f"{refined.refined['off_mm'][1]:.1f} at worst" if refined.refined else "")
         return (f"config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the saved one did, "
-                f"{worst:.1f} at worst; {store.describe_arm(refined)}")
+                f"{worst:.1f} at worst{offs}")
 
     def _keep(self, points: List[RefinePoint]) -> None:
         """The points, now and on file. Hold the lock."""

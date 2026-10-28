@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The camera fit against scenes drawn through a known camera (`cube_scene.py`): no camera, no arm.
 
-What is checked is whether the fit finds the camera that drew the scene, takes in
-the arm's stretch, keeps the arm's green body out of it, and refuses what it
-cannot fit, saying why. The drawn scenes say nothing about how close a real
+What is checked is whether the fit finds the camera that drew the scene, places
+the arm on it, keeps the arm's green body out of it, and refuses what it cannot
+fit, saying why. The drawn scenes say nothing about how close a real
 camera gets: that is in work/STATUS-gecko.md.
 """
 
@@ -28,9 +28,6 @@ from camera.fit import CameraFit, CameraNotFound, fit_camera   # noqa: E402
 import cube_scene                                              # noqa: E402
 from harness import check                                      # noqa: E402
 
-STRETCH = ((0.965, 0.0), (0.0, 1.02))          # the arm's x short, its y long: as measured on the owner's arm
-
-
 def in_reach(heights=(0.0, 40.0)) -> np.ndarray:
     """Desk points every 20 mm within the arm's reach, at each height."""
     return np.array([(x, y, z) for x in range(-280, 281, 20) for y in range(-280, 281, 20) for z in heights
@@ -53,21 +50,20 @@ def apart_px(fit: CameraFit, scene: cube_scene.Scene) -> np.ndarray:
 
 
 def test_the_camera_that_drew_it() -> bool:
-    print("The fit finds the camera that drew the scene, and the arm's stretch:")
-    scene = cube_scene.render(stretch=STRETCH)
+    print("The fit finds the camera that drew the scene, and where the arm stands on it:")
+    scene = cube_scene.render()
     fit = fit_camera(scene.frame, scene.points)
     apart = apart_px(fit, scene)
-    x_scale, y_scale, skew = fit.arm_scale()
     focal = 0.74 * cube_scene.SIZE[0]
     return all([
-        check("every desk point in reach and view, on the desk and 40 mm up, within 2 px of where it was drawn",
-              apart.max() < 2.0, f"median {np.median(apart):.2f}, worst {apart.max():.2f} px"),
+        check("every desk point in reach and view, on the desk and 40 mm up, within 3 px of where it was drawn: the "
+              "camera's own error, the arm being placed with no stretch",
+              apart.max() < 3.0, f"median {np.median(apart):.2f}, worst {apart.max():.2f} px"),
         check("the cubes' edges on the frame's, half the time within 0.2 px", fit.edge_px[0] < 0.2,
               f"{fit.edge_px[0]:.2f} px, {fit.edges_used} points"),
         check("the focal length within 1%", abs(fit.focal / focal - 1) < 0.01, f"{fit.focal:.1f} for {focal:.1f}"),
-        check("the arm's stretch within 1%: x short, y long",
-              abs(x_scale - 0.965) < 0.01 and abs(y_scale - 1.02) < 0.01 and abs(skew) < 0.5,
-              f"x {x_scale:.4f}, y {y_scale:.4f}, skew {skew:+.2f} deg"),
+        check("each cube within 1 mm of where the arm recorded it", max(map(fit.cube_off_mm, fit.cubes)) < 1.0,
+              ", ".join(f"{colour} {fit.cube_off_mm(colour):.2f}" for colour in fit.cubes)),
         check("the camera where it stood", np.linalg.norm(fit.camera_position - _camera_desk(scene)) < 10.0,
               f"{np.round(fit.camera_position, 1)} for {np.round(_camera_desk(scene), 1)}"),
     ])
@@ -84,11 +80,11 @@ def test_the_arms_green_body() -> bool:
 
 def test_green_and_blue_by_where_they_stand() -> bool:
     print("Green and blue are told apart by where the arm recorded them, if the camera mixes their colours:")
-    scene = cube_scene.render(stretch=STRETCH)
+    scene = cube_scene.render()
     swapped = dict(scene.points, green=scene.points["blue"], blue=scene.points["green"])
     fit = fit_camera(scene.frame, swapped)
     return check("each recorded point gets the cube standing there: the same camera",
-                 apart_px(fit, scene).max() < 2.0, f"worst {apart_px(fit, scene).max():.2f} px")
+                 apart_px(fit, scene).max() < 3.0, f"worst {apart_px(fit, scene).max():.2f} px")
 
 
 def test_refusals() -> bool:
@@ -108,7 +104,7 @@ def test_refusals() -> bool:
 
 def test_camera_json() -> bool:
     print("camera.json: what the library reads, and what the page reads back:")
-    scene = cube_scene.render(stretch=STRETCH)
+    scene = cube_scene.render()
     fit = fit_camera(scene.frame, scene.points)
     with tempfile.TemporaryDirectory() as scratch:
         config = Path(scratch)
@@ -126,10 +122,10 @@ def test_camera_json() -> bool:
               np.allclose(stored["desk_to_pixel"], fit.desk_to_pixel) and stored["frame_size"] == [1296, 972]),
         check("read back as written", np.allclose(again.desk_to_pixel, fit.desk_to_pixel)
               and again.cubes == fit.cubes),
-        check("the library's camera space: the red cube's top centre is the desk point under the cup",
-              math.dist(seen[:2], red) < 0.5, f"{np.round(seen, 2)} for {red}"),
-        check("the page's line says how well it fits and the arm's error",
-              "cube edges within" in summary and "short" in summary and "long" in summary, summary),
+        check("the library's camera space: the red cube's top centre within 1 mm of the desk point under the cup",
+              math.dist(seen[:2], red) < 1.0, f"{np.round(seen, 2)} for {red}"),
+        check("the page's line says how well it fits and how far each cube is from the arm's point",
+              "cube edges within" in summary and "from the arm's points" in summary, summary),
         check("a frame of another size is refused for it", check_image.frame_size_problem(other_size, fit)
               is not None and check_image.frame_size_problem(scene.frame, fit) is None),
         check("two calibrations of the same scene put the desk in the same place",

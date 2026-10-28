@@ -11,7 +11,8 @@ One thread owns the camera. It opens it when the first page starts watching
 and closes it when the last one goes; every page gets the newest frame and
 skips any it was too slow for. The camera is asked for MJPG at its largest
 size, and its own JPEGs are passed on as they come: a frame is decoded only
-when a still or a snapshot wants it (STATUS-impala §1: why MJPG). A camera
+when a still or a snapshot wants it (STATUS-impala §1: why MJPG). The camera
+keeps itself in focus, if it can (STATUS-impala §7). A camera
 that will not open, or stops giving frames, is tried again every few seconds while a
 page watches; `state()` says why.
 """
@@ -38,7 +39,8 @@ STILL_WAIT_S = 15.0
 
 
 def open_view(device: str):
-    """The camera, asked for MJPG at its largest size, handing over its JPEGs undecoded: a `cv2.VideoCapture`."""
+    """The camera, asked for MJPG at its largest size, focusing itself, handing over its JPEGs undecoded: a
+    `cv2.VideoCapture`."""
     camera = cv2.VideoCapture(device_index(device), cv2.CAP_V4L2)
     if not camera.isOpened():
         raise RuntimeError(f"cannot open {describe(device)}: is another program using it?")
@@ -47,6 +49,7 @@ def open_view(device: str):
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, LARGER_THAN_ANY_SENSOR)
     camera.set(cv2.CAP_PROP_CONVERT_RGB, 0)
     camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)            # the newest frame, not one queued earlier
+    camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)             # the camera's own continuous focus, where it has one
     return camera
 
 

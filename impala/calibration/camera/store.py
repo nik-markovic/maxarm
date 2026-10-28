@@ -114,11 +114,12 @@ def save_camera(config_dir: Path, fit: CameraFit) -> None:
         "about": ("Desk space to camera pixels: pixel ~ desk_to_pixel @ [x, y, z, 1], desk mm, z the height "
                   "above the desk. It holds for frames of frame_size only, from a camera that has not moved. "
                   "Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, "
-                  "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm; "
-                  "desk_to_true is how the arm's x and y lie in true mm -- a turn, the board's mirror and the "
-                  "arm's x/y error; desk_to_pixel is the two together. `refined`, if there, says the arm's error "
-                  "was fitted again to the cubes and the red cube's points in camera-refine-points.json, and "
-                  "`cubes_alone` keeps the two matrices as the cubes alone gave them."),
+                  "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm, laid "
+                  "along the arm's x and y by the turn and shift that put the arm's points best on the cubes; "
+                  "desk_to_true is the board's mirror; desk_to_pixel is the two together. `refined`, if there, "
+                  "says the arm was placed again on the cubes and the red cube's points in "
+                  "camera-refine-points.json, and `cubes_alone` keeps the two matrices as the cubes alone gave "
+                  "them."),
         "desk_to_pixel": fit.desk_to_pixel.tolist(),
         **fit.to_json(),
     }
@@ -172,21 +173,12 @@ def describe_calibration(config_dir: Path) -> dict:
 
 
 def describe_fit(fit: CameraFit) -> str:
-    """The calibration in a line: how well the cubes fit, and the arm's x/y error it takes in."""
+    """The calibration in a line: how well the cubes fit the frame, and how far each stands from its arm's point."""
     refined = (f"; refined by {fit.refined['points']} red cube points, all within {fit.refined['off_mm'][1]:.1f} mm"
                if fit.refined else "")
-    return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; "
-            f"{describe_arm(fit)}{refined}")
-
-
-def describe_arm(fit: CameraFit) -> str:
-    """The arm's x/y error, as the calibration takes it in."""
-    x_scale, y_scale, skew = fit.arm_scale()
-    return f"the arm's x goes {_percent(x_scale)}, y {_percent(y_scale)}, axes {abs(skew):.1f} deg off square"
-
-
-def _percent(scale: float) -> str:
-    return f"{abs(scale - 1) * 100:.1f}% {'short' if scale < 1 else 'long'}"
+    offs = ", ".join(f"{colour} {fit.cube_off_mm(colour):.1f}" for colour in fit.cubes)
+    return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; the cubes from "
+            f"the arm's points: {offs} mm{refined}")
 
 
 def _described(path: Path, width: int, height: int) -> dict:

@@ -11,9 +11,9 @@ from typing import List, Optional
 
 import numpy as np
 
-from camera import check, store
+from camera import check
 from camera.fit import CameraFit
-from camera.refine import RefineRefused, Sighting, cube_sightings, off_mm, refine, seen_desk
+from camera.refine import Sighting, cube_sightings, off_mm, refine, seen_desk
 from camera.store import RefinePoint
 from common.worker import Refused
 
@@ -27,15 +27,12 @@ OFF_MM = (1.0, 2.0)
 def refined(fit: CameraFit, points: List[RefinePoint]) -> CameraFit:
     """The calibration SAVE CALIBRATION writes, or Refused, saying why the points do not make one."""
     if not points and fit.refined:
-        return fit.cube_fit()
+        return refine(fit, [])
     if len(points) < MIN_POINTS:
         missing = MIN_POINTS - len(points)
         raise Refused(f"record {missing} more point{'s' if missing > 1 else ''} first: {MIN_POINTS} at the least, "
                       f"{SUGGESTED_POINTS} or more spread over the desk to be of use")
-    try:
-        return refine(fit, [point.sighting for point in points])
-    except RefineRefused as reason:
-        raise Refused(str(reason)) from None
+    return refine(fit, [point.sighting for point in points])
 
 
 def describe(fit: CameraFit, points: List[RefinePoint]) -> dict:
@@ -64,9 +61,9 @@ def _row(fit: CameraFit, trial: Optional[CameraFit], point: Sighting) -> dict:
 
 def _summary(fit: CameraFit, trial: CameraFit, rows: dict) -> dict:
     """After SAVE: how far off the points are, typically and at worst; how far it moves the desk, in reach and in
-    view; the arm's error; and whether it is the cubes' own calibration put back."""
+    view; and whether it is the cubes' own calibration put back."""
     offs = [row["off"]["after"] for row in rows["points"] + rows["cubes"]]
     typical, worst = check.difference_mm(fit, trial)
     return {"off_mm": [float(np.median(offs)), max(offs)],
             "change_mm": [round(typical, 2), round(worst, 2)] if math.isfinite(worst) else None,
-            "arm": store.describe_arm(trial), "is_cubes_alone": trial.refined is None}
+            "is_cubes_alone": trial.refined is None}

@@ -99,12 +99,14 @@
       <div class="tools">
         <label class="switch" title="The reach on the desk, and where the arm is, drawn over the live view">
           <input type="checkbox" id="guides" checked><span class="track"></span>Guides</label>
+        <label class="switch" title="Desk space every 10 mm on the desk, through the calibration: lay grid paper along it"
+          ><input type="checkbox" id="desk-grid"><span class="track"></span>Desk grid</label>
       </div>
     </div>
     <div class="actions">
       <button class="btn primary" id="touch">⛶ CLICK THE DESK</button>
       <span class="trial-result" id="touch-result"></span>
-      <span class="helper"><span class="helper-label">helper</span>
+      <span class="helper"><span class="helper-label">helpers</span>
         <button class="btn" id="find"><span id="find-icon"></span>FIND RED CUBE</button></span>
     </div>
     <div class="feed-box" id="feed-box">
@@ -129,7 +131,9 @@
           <span id="find-head-icon"></span><b>Find the red cube</b><span class="chip">helper</span></div>
         <p>Set the red cube down anywhere in view, a corner towards the camera. <b>FIND RED CUBE</b>: the arm moves out
           of the picture, the camera finds the cube, and the arm comes over it at 54 mm and down to 42, 2 mm over its
-          top. A start; the grid and the arrows bring the cup over the cube's centre.</p>
+          top. A start; the grid and the arrows bring the cup over the cube's centre. On the cube's top: a dot where the
+          arm was sent, and the cup's rim, yellow, where its servos then said it was; the label says how far off it
+          landed, X and Y.</p>
         <span class="trial-result" id="find-result"></span>
       </div>
     </div>

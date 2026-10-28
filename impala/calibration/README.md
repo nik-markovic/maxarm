@@ -128,8 +128,11 @@ desk's, as measured in the same frame, that are whole and cube-shaped; red is th
 can look as green as the green cube, so which blobs are the cubes, and green from blue, is settled by where the
 arm says each cube stands: only the right ones fit a camera. A camera with square pixels is then fitted to every
 visible edge of the three 40 mm cubes, each turned however it was set down. Where the arm says the cubes stand
-gives the arm's own x/y error, a few percent, which `camera.json` takes in: a pixel names the desk point the arm
-must be sent to. The arm should be out of the picture, as CALIBRATE leaves it; lens distortion is not modelled.
+then places the arm on the desk: a turn and a shift, the best for the three together. The arm's x and y are true
+millimetres, as the camera's are (the library corrects the firmware's), so nothing is stretched: a stretch fitted
+through three points fits each cube's own error exactly and carries it across the desk. Each cube's line on the
+page says how far it stands from its arm's point. A pixel names the desk point the arm must be sent to. The arm
+should be out of the picture, as CALIBRATE leaves it; lens distortion is not modelled.
 
 **The live view** is the camera at its full size -- MJPG, 2592 x 1944 on the document camera, the size every
 calibration is fitted at -- about 4 frames a second, only while a page is open and in sight, or a snapshot wants it.
@@ -157,14 +160,16 @@ up, then slowly down to the page's notch, 42: 2 mm over a cube's top. Right the 
 apart, a helper, FIND RED CUBE; the live view, large, with the calibration drawn over it: the reach on the desk,
 orange and red; the arm's target as the cup's 21 mm rim at its height, faint green, with a dashed line down to the
 desk under it (GUIDES turns these off). Where the servos say the cup is, is on the grid, not over the picture:
-drawn through the camera, it mixes the camera's error with the arm's. Every rim is drawn its true size, through the
-arm's x/y error.
+drawn through the camera, it mixes the camera's error with the arm's. Every rim is drawn its true size.
 
 1. **FIND RED CUBE**, a helper. Set the red cube down anywhere in view. The arm parks the way CALIBRATE parks it,
    out of the picture; the camera finds the red cube in the live view and the arm comes over it at 54 mm over the
    desk, then slowly down to 42: 2 mm over its top. The cup should be centred on it. The live view shows the cube
    as found -- its edges thin pink, fainter where hidden, an X under its centre -- and its desk x and y on its top;
-   the grid shows its footprint. Wherever the camera is way off, the grid and the arrows are the way over a cube.
+   the grid shows its footprint. Once the arm is down its servos are read: on the cube's top a small dot where the
+   arm was sent, and the cup's 21 mm rim, yellow, where the servos say it is, both drawn on the top's plane so that
+   the gap between them is the arm's own miss; the label adds it, X and Y, and so does the line under the camera.
+   Wherever the camera is way off, the grid and the arrows are the way over a cube.
 2. **ARM TO DESK.** CLICK THE DESK, or a click on the live view, shows the live view as large as the window
    allows, the red cube found cleared from it. Click a point of the desk there: a crosshair marks it at once, with
    the cup's 21 mm rim round it on the desk, in perspective, and its desk x and y. The arm comes over the point at
@@ -184,6 +189,10 @@ arm's x/y error.
    circle on the grid, as on the desk page. **SAVE CALIBRATION**, from three points on, writes `camera.json` refined
    by them and redraws the camera page's check image with it, on the calibration's own frame. With no points left, it
    puts back the three cubes' own calibration.
+4. **DESK GRID**, a switch beside GUIDES, off unless turned on: desk space itself drawn on the desk over the live
+   view, a thin pale line every 10 mm out past the reach, every 50 mm a little stronger, and the two lines through
+   the arm's turning axis, x = 0 and y = 0, stronger still. Lay grid paper along it: where the camera is right, the
+   paper's lines run with these all over the sheet.
 
 | control                | does                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------- |
@@ -191,6 +200,7 @@ arm's x/y error.
 | height column          | as on the camera page                                                                 |
 | ▲ ▼ ◀ ▶                | 1 mm the way the view shows, in desk space                                            |
 | GUIDES                 | the reach and the arm drawn over the live view, or not                                |
+| DESK GRID              | desk space every 10 mm drawn on the desk over the live view, or not (off at first)    |
 | FIND RED CUBE          | park the arm, find the red cube in the live view, come over it at 54 and down to 42   |
 | CLICK THE DESK         | the live view full size: a click sends the arm over the desk there, down to 2 mm      |
 | RECORD POINT           | keep where the arm says the cup is, park the arm, see the cube in the snapshot        |
@@ -207,9 +217,9 @@ own size; a smaller one would do, the camera scaled to it, but one of another sh
 
 **How the points refine the calibration** (`camera/refine.py`). The camera stays as CALIBRATE fitted it to the three
 cubes' edges. A point is where the arm said the cup was and the pixel where the camera saw the desk under the cube's
-centre; through the camera that pixel is a place on the desk. How the arm's own x and y lie on the desk -- its x/y
-error, which three cubes fix exactly, each with whatever error it was centred with -- is fitted again to all the
-points and the three cubes at once: any turn, stretch and shift, the best for all of them together. RECORD POINT
+centre; through the camera that pixel is a place on the desk. Where the arm stands on the desk and which way it
+faces is fitted again to all the points and the three cubes at once: a turn and a shift, the best for all of them
+together, as CALIBRATE does for the three cubes. Each point's error stays its own: the table shows it. RECORD POINT
 refuses a cup that is not over a cube's top (40 to 60 mm over the desk) and a cube the camera sees more than half
 a cube from where the arm said the cup was; nothing is recorded then. The points belong to the camera as
 CALIBRATE fitted it: a new CALIBRATE sets them aside, in `camera-refine-points-previous.json`. VALIDATE

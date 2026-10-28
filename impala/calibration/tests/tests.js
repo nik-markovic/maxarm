@@ -3,8 +3,8 @@
 // ARM TO DESK sends the arm to the point of the desk clicked in the live view, shown full size. The grid, the height
 // column and the arrows move the arm by hand, in desk space, with the camera page's moves; a grid click comes down to
 // the notch, 2 mm over a cube's top. FIND RED CUBE, a helper, parks the arm, finds the red cube in the live view, and
-// brings the cup down over it. Over the live view: the reach, the arm, the cube found and the point clicked, drawn
-// through the calibration.
+// brings the cup down over it. Over the live view: the reach, the arm, the cube found and where the arm landed over
+// it, the point clicked, drawn through the calibration; and, if asked, desk space itself every 10 mm.
 //
 // And the red cube's test in reverse: with the cube centred under the cup, RECORD POINT keeps a point that refines
 // the calibration, the cube seen in the snapshot; SAVE CALIBRATION writes it (refine.js).
@@ -33,6 +33,7 @@ const FEED_NOTES = {
 };
 const FEED_BADGES = { live: '● LIVE', failed: 'NO CAMERA' };
 const GUIDES_KEY = 'tests-guides';
+const DESK_GRID_KEY = 'tests-desk-grid';
 
 mountHeader('tests');
 const limits = await api('limits');
@@ -43,6 +44,7 @@ const ui = {
   rotation: remembered.rotation || 0,
   target: { x: limits.home[0], y: limits.home[1], z: SAFE_MM },
   showGuides: localStorage.getItem(GUIDES_KEY) !== 'off',
+  showDeskGrid: localStorage.getItem(DESK_GRID_KEY) === 'on',
   touch: null,                  // the point of desk last clicked: { u, v } in the view, desk [x, y]
   findNote: '',                 // why the last FIND RED CUBE found nothing
   clearedFound: null,           // the stamp of the red cube found that ARM TO DESK has cleared from view
@@ -172,7 +174,7 @@ function render() {
   const view = {
     matrix, deskToTrue: tests() ? tests().desk_to_true : null, limits, found, touch: ui.touch, target: target(),
     isReading: isReading(),
-    showGuides: ui.showGuides, refine, next,
+    showGuides: ui.showGuides, showDeskGrid: ui.showDeskGrid, refine, next,
   };
   marks.update(view);
   if (full && full.isOpen()) full.update(view, state ? state.doing : '', clickedPoint());
@@ -223,7 +225,9 @@ function renderTests() {
   $('touch').title = why || 'The live view full size: click a point of the desk to send the arm there';
   $('find-result').innerHTML = found
     ? `desk <b>${fmt(found.x)}, ${fmt(found.y)}</b> · turned ${fmt(found.turn_deg, 0)}° · edges within
-      ${fmt(found.edge_px, 1)} px · ${found.taken}`
+      ${fmt(found.edge_px, 1)} px · ${found.taken}` + (found.landed && found.sent
+      ? ` · the arm landed X <b>${fmt(found.landed[0] - found.sent[0], 1, true)}</b>, Y
+        <b>${fmt(found.landed[1] - found.sent[1], 1, true)}</b> mm from there, by its servos` : '')
     : `<span class="note">${ui.findNote || viewProblem || 'not looked for yet'}</span>`;
   const landed = landing();
   $('touch-result').innerHTML = ui.touch && ui.touch.desk
@@ -338,6 +342,12 @@ $('guides').checked = ui.showGuides;
 $('guides').addEventListener('change', () => {
   ui.showGuides = $('guides').checked;
   localStorage.setItem(GUIDES_KEY, ui.showGuides ? 'on' : 'off');
+  render();
+});
+$('desk-grid').checked = ui.showDeskGrid;
+$('desk-grid').addEventListener('change', () => {
+  ui.showDeskGrid = $('desk-grid').checked;
+  localStorage.setItem(DESK_GRID_KEY, ui.showDeskGrid ? 'on' : 'off');
   render();
 });
 for (const id of ['find-icon', 'find-head-icon']) $(id).innerHTML = cubeIcon('red');

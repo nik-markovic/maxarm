@@ -49,7 +49,7 @@ export function fitLine(refine) {
     return `No points: SAVE puts back the calibration of the three cubes alone. ${change}`;
   }
   return `After SAVE the points are off by <b>${fmt(fit.off_mm[0])}</b> mm typically, <b>${fmt(fit.off_mm[1])}</b>
-    at worst. ${change} ${fit.arm[0].toUpperCase()}${fit.arm.slice(1)}.`;
+    at worst. ${change}`;
 }
 
 export function savedLine(refine) {

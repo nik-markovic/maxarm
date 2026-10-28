@@ -7,17 +7,17 @@
 A point pairs where the arm says the cup is, over the cube's centre, with where
 the camera sees that centre: the pixel under it, on the desk (`locate.py`). The
 camera is the calibration's, held as it is: through it the pixel is a place on
-the desk in true millimetres. How the arm's x and y lie on the desk -- the arm's
-x/y error -- is then fitted to every point at once, the three cubes the camera
-was fitted to among them: true = A desk + b, any turn, mirror, stretch and
-shift, least squares. The three cubes alone fix it exactly, each with whatever
-error it was recorded with; more points, spread over the desk, share it out.
+the desk in true millimetres. Where the arm stands on the desk, and which way it
+faces, is then fitted to every point at once, the three cubes the camera was
+fitted to among them: a turn and a shift, with the board's mirror, least squares
+(`fit.place_arm()`), as CALIBRATE places it on the three cubes alone. The arm's x
+and y are true millimetres, as the camera's are, so nothing is stretched; each
+point's own error stays its own instead of bending the desk round it.
 
 `camera.json` keeps its form: the camera's true millimetres are turned and
-shifted on the desk so that the arm's error is again a stretch and the board's
-mirror (`fit.HANDEDNESS`), as the cubes gave it. Points are pixels, which no
-refinement changes, so a calibration refined again is refined from the same
-points.
+shifted onto the arm's, so that `desk_to_true` is the board's mirror alone.
+Points are pixels, which no refinement changes, so a calibration refined again
+is refined from the same points.
 """
 
 import dataclasses
@@ -27,7 +27,7 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
-from .fit import HANDEDNESS, MAX_SKEW_DEG, MAX_STRETCH, CameraFit
+from .fit import HANDEDNESS, CameraFit, laid_along_arm, place_arm
 from .model import rescaled
 
 
@@ -37,10 +37,6 @@ class Sighting:
     y: float
     pixel: Tuple[float, float]       # where the camera sees the desk under the cube's centre
     frame_size: Tuple[int, int]      # the frame's: the calibration's, or the same picture smaller
-
-
-class RefineRefused(Exception):
-    """The points do not make a calibration. The message says why."""
 
 
 def cube_sightings(fit: CameraFit) -> List[Sighting]:
@@ -69,40 +65,23 @@ def off_mm(fit: CameraFit, point: Sighting) -> float:
 
 
 def refine(fit: CameraFit, points: Sequence[Sighting]) -> CameraFit:
-    """`fit` with the arm's x/y error fitted to its three cubes and `points`, the camera as it is. Raises if none."""
+    """`fit` with the arm placed again, on its three cubes and `points` together; the camera as it is. With no
+    points, the three cubes' own calibration: the arm placed on them alone, as CALIBRATE places it."""
+    alone = _placed(fit, cube_sightings(fit))
+    if not points:
+        return alone
     every = cube_sightings(fit) + list(points)
-    desk = np.array([(point.x, point.y, 1.0) for point in every])
-    true = np.array([seen_true(fit, point) for point in every])
-    solution = np.linalg.lstsq(desk, true, rcond=None)[0]
-    turn, stretch = _turn_and_stretch(solution[:2].T @ HANDEDNESS)
-    lift = np.eye(4)
-    lift[:2, :2], lift[:2, 3] = turn, solution[2]
-    turned_deg = math.degrees(math.atan2(turn[1, 0], turn[0, 0]))
-    cubes = {colour: {**cube, "turn_deg": round((cube["turn_deg"] - turned_deg) % 90.0, 2)}
-             for colour, cube in fit.cubes.items()}
-    alone = fit.cubes_alone or {"true_to_pixel": fit.true_to_pixel.tolist(), "desk_to_true": fit.desk_to_true.tolist(),
-                                "cubes": fit.cubes}
-    refined = CameraFit(fit.true_to_pixel @ lift, stretch @ HANDEDNESS, cubes, fit.frame_size, fit.edge_px,
-                        fit.edges_used, cubes_alone=alone)
-    _check_stretch(refined, stretch)
+    refined = _placed(fit, every)
     offs = [off_mm(refined, point) for point in every]
     return dataclasses.replace(refined, refined={"points": len(points),
-                                                 "off_mm": [round(float(np.median(offs)), 2), round(max(offs), 2)]})
+                                                 "off_mm": [round(float(np.median(offs)), 2), round(max(offs), 2)]},
+                               cubes_alone={"true_to_pixel": alone.true_to_pixel.tolist(),
+                                            "desk_to_true": alone.desk_to_true.tolist(), "cubes": alone.cubes})
 
 
-def _turn_and_stretch(matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """`matrix` as a turn after a symmetric stretch; raises if it mirrors."""
-    if np.linalg.det(matrix) <= 0:
-        raise RefineRefused("the points lie mirrored to the cubes' calibration: is the camera the same one, "
-                            "unmoved since CALIBRATE?")
-    left, scales, right = np.linalg.svd(matrix)
-    return left @ right, right.T @ np.diag(scales) @ right
-
-
-def _check_stretch(refined: CameraFit, stretch: np.ndarray) -> None:
-    """Refuse a stretch or a skew the arm cannot have, as the cubes' fit does: a point far off, most likely."""
-    scales, skew = np.linalg.eigvalsh(stretch), abs(refined.arm_scale()[2])
-    if scales.min() < 1 / MAX_STRETCH or scales.max() > MAX_STRETCH or skew > MAX_SKEW_DEG:
-        raise RefineRefused(f"the points make the arm's x and y {scales.min():.2f} to {scales.max():.2f} times as "
-                            f"long as the camera sees them, and askew by {skew:.1f} degrees: delete the points "
-                            f"furthest off")
+def _placed(fit: CameraFit, sightings: Sequence[Sighting]) -> CameraFit:
+    """`fit`'s camera with the arm placed on `sightings`: a turn and a shift, the best for all of them."""
+    turn, shift = place_arm(np.array([(point.x, point.y) for point in sightings]),
+                            np.array([seen_true(fit, point) for point in sightings]))
+    true_to_pixel, cubes = laid_along_arm(fit.true_to_pixel, fit.cubes, turn, shift)
+    return CameraFit(true_to_pixel, HANDEDNESS.copy(), cubes, fit.frame_size, fit.edge_px, fit.edges_used)

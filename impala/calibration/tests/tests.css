@@ -50,6 +50,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 
 /* --- the camera, and its marks ------------------------------------------ */
 
+.live .card-head .tools { gap: 18px; }
 .live .card-head .tools .switch { font-size: 12.5px; color: var(--muted); }
 .feed-box { cursor: zoom-in; }
 .feed-box img { object-fit: fill; }
@@ -71,6 +72,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
   border: 1px solid var(--line); border-radius: 10px; }
 .trial.find { box-shadow: inset 3px 0 0 var(--cube-red); }
 .trial.touch { box-shadow: inset 3px 0 0 var(--green); }
+.trial-result a { color: var(--text); }
 .trial-head { display: flex; align-items: center; gap: 10px; }
 .trial-head b { font-size: 14px; }
 .trial p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }

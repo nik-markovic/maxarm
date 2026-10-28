@@ -1,0 +1,159 @@
+{
+  "about": "Desk space to camera pixels: pixel ~ desk_to_pixel @ [x, y, z, 1], desk mm, z the height above the desk. It holds for frames of frame_size only, from a camera that has not moved. Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, standing where camera-points.json says: true_to_pixel is the camera alone, in true mm, laid along the arm's x and y by the turn and shift that put the arm's points best on the cubes; desk_to_true is the board's mirror; desk_to_pixel is the two together. `refined`, if there, says the arm was placed again on the cubes and the red cube's points in camera-refine-points.json, and `cubes_alone` keeps the two matrices as the cubes alone gave them.",
+  "desk_to_pixel": [
+    [
+      -1750.7156126888578,
+      -906.4690619029665,
+      -1204.4726119704894,
+      426494.7849388494
+    ],
+    [
+      625.1433365282295,
+      124.81859356383343,
+      -2056.850607883946,
+      298338.738459665
+    ],
+    [
+      -0.5806608651810925,
+      0.5244137766797259,
+      -0.6227544865158756,
+      426.1514369830257
+    ]
+  ],
+  "true_to_pixel": [
+    [
+      1750.7156126888583,
+      -906.4690619029667,
+      -1204.4726119704897,
+      426494.7849388495
+    ],
+    [
+      -625.1433365282296,
+      124.81859356383346,
+      -2056.8506078839464,
+      298338.73845966504
+    ],
+    [
+      0.5806608651810926,
+      0.524413776679726,
+      -0.6227544865158757,
+      426.1514369830258
+    ]
+  ],
+  "desk_to_true": [
+    [
+      -1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ]
+  ],
+  "cubes": {
+    "blue": {
+      "x": -140.27,
+      "y": -219.77,
+      "turn_deg": 52.31,
+      "pixel": [
+        2223.979,
+        467.797
+      ]
+    },
+    "green": {
+      "x": 140.51,
+      "y": -219.62,
+      "turn_deg": 73.73,
+      "pixel": [
+        1647.629,
+        1551.358
+      ]
+    },
+    "red": {
+      "x": 139.4,
+      "y": 0.23,
+      "turn_deg": 28.48,
+      "pixel": [
+        523.726,
+        1126.474
+      ]
+    }
+  },
+  "frame_size": [
+    2592,
+    1944
+  ],
+  "edge_px": [
+    0.7866172577262631,
+    2.696934088945589
+  ],
+  "edges_used": 610,
+  "refined": {
+    "points": 14,
+    "off_mm": [
+      1.92,
+      4.35
+    ]
+  },
+  "cubes_alone": {
+    "true_to_pixel": [
+      [
+        1747.8724398875906,
+        -911.9392800955394,
+        -1204.4726119704897,
+        425069.03478751867
+      ],
+      [
+        -624.7499606433076,
+        126.7728645297814,
+        -2056.8506078839464,
+        298866.4058286976
+      ],
+      [
+        0.582297916681902,
+        0.5225954321961351,
+        -0.6227544865158757,
+        425.60154419600826
+      ]
+    ],
+    "desk_to_true": [
+      [
+        -1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "cubes": {
+      "blue": {
+        "x": -140.27,
+        "y": -219.77,
+        "turn_deg": 52.13,
+        "pixel": [
+          2223.979,
+          467.797
+        ]
+      },
+      "green": {
+        "x": 140.51,
+        "y": -219.62,
+        "turn_deg": 73.55,
+        "pixel": [
+          1647.629,
+          1551.358
+        ]
+      },
+      "red": {
+        "x": 139.4,
+        "y": 0.23,
+        "turn_deg": 28.3,
+        "pixel": [
+          523.726,
+          1126.474
+        ]
+      }
+    }
+  }
+}

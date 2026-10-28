@@ -357,18 +357,16 @@ def test_refine_refusals() -> bool:
 
 def test_refine_arithmetic() -> bool:
     """camera/refine.py alone: the points are where the drawing's camera puts them, no frames, no arm."""
-    print("the refinement's arithmetic: the arm's error found again, the camera kept, the form of camera.json kept:")
-    error = np.array([[0.97, 0.02], [0.02, 1.03]])            # the arm's x/y error, as the drawing has it
+    print("the refinement's arithmetic: the arm placed again, the camera kept, the form of camera.json kept:")
     scene = cube_scene.render(spots={colour: (x + CENTRED_BY_EYE[colour][0], y + CENTRED_BY_EYE[colour][1])
-                                     for colour, (x, y) in cube_scene.SPOTS.items()}, stretch=error)
+                                     for colour, (x, y) in cube_scene.SPOTS.items()})
     fit = fit_camera(scene.frame, cube_scene.SPOTS)
     spots = [(x, y) for x in range(-200, 201, 50) for y in range(-250, 1, 50) if 110 < math.hypot(x, y) < 260]
     points = [Sighting(float(x), float(y), tuple(view_pixel(scene, x, y)), VIEW_SIZE) for x, y in spots]
     refined = refine(fit, points)
     again = refine(refined, points)
-    truth = CameraFit(scene.true_to_pixel, error @ HANDEDNESS, {}, cube_scene.SIZE, (0.0, 0.0), 0)
+    truth = CameraFit(scene.true_to_pixel, HANDEDNESS, {}, cube_scene.SIZE, (0.0, 0.0), 0)
     before_mm, after_mm = difference_mm(fit, truth), difference_mm(refined, truth)
-    stretch = refined.desk_to_true @ HANDEDNESS
     return all([
         check(f"{len(points)} points spread over the desk outvote the three cubes centred by eye: the drawing's desk "
               f"within 0.3 mm (median), 1.5 at worst", after_mm[0] < 0.3 and after_mm[1] < 1.5,
@@ -376,7 +374,7 @@ def test_refine_arithmetic() -> bool:
               f"{after_mm[1]:.2f}"),
         check("the camera itself is the cubes' fit, turned and shifted on the desk only",
               np.allclose(np.linalg.svd(refined.true_to_pixel[:, :3])[1], np.linalg.svd(fit.true_to_pixel[:, :3])[1])),
-        check("the arm's error still a symmetric stretch and the mirror", np.allclose(stretch, stretch.T)),
+        check("desk_to_true the board's mirror alone", np.allclose(refined.desk_to_true, HANDEDNESS)),
         check("refined again from the same points: the same", np.allclose(again.desk_to_pixel, refined.desk_to_pixel)),
         check("no points: the cubes' own fit", np.allclose(refine(fit, []).desk_to_pixel, fit.desk_to_pixel, atol=1e-6)),
     ])
