@@ -106,7 +106,7 @@ arm.set_clearance(14.0)                # mm above the desk
 
 arm.move(x, y, z)                      # fast: 200 mm/s
 arm.move(x, y, z, MoveType.SLOW)       # 10 mm/s: nothing heavy gets yanked
-arm.move(x, y, z, MoveType.PRECISE)    # slow, then each servo nudged onto its target: ~0.5 mm, a few s more
+arm.move(x, y, z, MoveType.PRECISE)    # slow, then read until steady: where it is, not corrected
 arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
 arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
@@ -155,13 +155,10 @@ until the camera calibration exists, so the Fine Tune and Tiles pages wait for t
 corrected. A leg is usually the whole move; there are more only when the move has to climb over the clearance or go
 round the arm-base limit (see below).
 
-**PRECISE is slow, then nudged.** The servos stop short of a target, and do not move at all for one a few pulses
-away -- by how much depends on the servo and on which way it turns. After the slow legs a precise move waits until
-the servos are steady and takes the mean of their reads; each servo further from the target's pulses than its
-tolerance (the base and servo 2 0.75 pulse, servo 3 1.25) is sent past them, quickly -- the base 3 pulses, servo 2 6
-turning + and 2 turning -, servo 3 2 -- the others held at theirs, and half a second later the target itself, which it
-comes back to (the owner's nudge). At most three rounds and 4 mm per axis from the target, every push checked
-against the limits. The result then says the arm is at the target, and `get_position()` gives the last mean.
+**PRECISE is slow, then read.** After the slow legs a precise move waits until the servos are steady; the result
+then says the arm is at the target, and `get_position()` gives the servos' mean. It does not correct: the servos stop
+1-3 mm short. The owner's nudge, tried in it on 30 Oct and taken out on 1 Nov (it went back and forth too much), is
+kept in `maxarm/arm-nudge.py` (STATUS §19.3-19.4).
 
 **Where the arm is** is the mean of the servos' reads, which flicker by a pulse or more for as long as they are read:
 from 1 s after a move's travel, the mean of the last half second against the half second before it, every servo
@@ -238,7 +235,7 @@ Everything else is a constant in the module that uses it, with where it came fro
 
 1. **Connecting moves the arm.** Opening the port resets the board, which homes the arm and centres the cup:
    about 4 s, sometimes 15.
-2. **Fast and slow moves land 1-3 mm short**: the servos' deadband. PRECISE nudges each servo onto its target,
-   about 0.5 mm (STATUS §19.3).
+2. **Fast and slow moves land 1-3 mm short**: the servos' deadband. PRECISE does not correct
+   them (STATUS §19.4).
 3. **An arm that accepts commands and does not move** was seen once. `connect()` checks the servo supply; a move
    cannot tell, because it reads nothing back. Power-cycle the arm at the barrel jack.

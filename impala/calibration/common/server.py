@@ -94,6 +94,12 @@ class Server:
             httpd.server_close()
 
     def handle(self, request: "_RequestHandler", method: str) -> None:
+        try:
+            self._answer(request, method)
+        except (BrokenPipeError, ConnectionResetError):
+            pass                                    # the page gave up on the request: no one to answer
+
+    def _answer(self, request: "_RequestHandler", method: str) -> None:
         path = urlsplit(request.path).path
         route = self.routes.get((method, path))
         try:
@@ -114,6 +120,8 @@ class Server:
                 self._send_file(request, path)
             else:
                 request.send_json(HTTPStatus.NOT_FOUND, {"status": "error", "detail": f"no {path}"})
+        except (BrokenPipeError, ConnectionResetError):
+            raise
         except BadRequest as error:
             request.send_json(HTTPStatus.BAD_REQUEST, {"status": "error", "detail": str(error)})
         except Exception as error:                  # the page shows it; the console keeps the trace

@@ -62,10 +62,9 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 **How it moves.** Below the hover height -- true z 54 in arm space, 10 mm over the default desk, or 20 mm over the
 desk in desk space -- every move is slow, 10 mm/s; above it, fast. A move across the grid from low goes straight up
 first and stays at the hover height. Sliders, nudges and the moves to a point end *precise*: the servos stop short
-of small moves, so the arm is read and each servo off its target nudged onto it, about 0.5 mm -- some 5 s a move.
-After each move the servos are read and shown as *arm says* -- the mean of their reads once steady; after a precise
-move, the one it ended on. Until then it is greyed with a spinner, and RECORD and SAVE wait. Near the desk a precise
-move may push a cup that is already on it up to 4 mm, three times at most.
+of small moves by 1-3 mm, and a precise move is not corrected; it waits until the servos are steady. After each move
+the servos are read and shown as *arm says* -- the mean of their reads once steady; after a precise move, the one it
+ended on. Until then it is greyed with a spinner, and RECORD and SAVE wait.
 
 **True and raw.** Everything the page sends and the server works with is true: touch points, offsets, SAVE, the
 hover height. RAW only changes the arm numbers shown and typed in (target, *arm says*, the height column, the
