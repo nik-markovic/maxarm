@@ -171,7 +171,7 @@ swings 180 degrees in 1.2 s. The cup turns 90 degrees either way from centre; a 
 anything moves.
 
 **grab()** lets go of anything held, then: slowly up to the travel height if below it, fast across while the cup
-centres itself, slowly down onto the piece and corrected there as PRECISE is, suction on and waited for (1.5 s),
+centres itself, slowly down onto the piece and read there as PRECISE is, suction on and waited for (1.5 s),
 slowly back up. The travel height is `clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its
 `angle` says which way the piece faces.
 
@@ -182,7 +182,10 @@ the arm. The cup turns 90 degrees either way from where `grab()` centred it; mor
 
 **carry()** is the two together, and checks the drop before the grip, so a refusal means nothing moved. Knowing
 both ends, it can turn a piece any way: a turn bigger than the cup has from centre is shared, the cup turning half
-of it the other way on its way over the piece, the other half after the lift.
+of it the other way on its way over the piece, the other half after the lift. And it allows for the grip: the piece hangs
+off the cup by however far the grip missed its centre -- where the cup came down, read before the suction, less
+where it was sent -- and turns with the cup. So the cup comes down that miss, turned as the piece has turned, off
+`end`: the piece's centre lands on it, give or take the drop's own miss. A plain `drop()` goes where it is sent.
 
 ## Limits
 
