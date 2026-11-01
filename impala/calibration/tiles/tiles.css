@@ -41,6 +41,7 @@ main.tiles.is-blocked .view, main.tiles.is-blocked .live, main.tiles.is-blocked 
 .swatch.tile.elsewhere, tr.elsewhere { --ink: #9db0c8; }
 .swatch.tile.out-of-reach, tr.out-of-reach { --ink: #f0524a; }
 .swatch.word-slot { border-radius: 2px; border: 1.5px dashed #ffffff; }
+.swatch.carried { border-radius: 2px; border: 1.5px dotted #9db0c8; }
 
 /* --- the camera ---------------------------------------------------------- */
 

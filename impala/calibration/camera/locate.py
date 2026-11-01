@@ -51,6 +51,10 @@ class FoundCube:
     overlap: float                    # how much of the blob the cube drawn there covers, 0 to 1
     edge_px: float                    # how far its edges sit from the frame's: median, pixels of the frame
     pixel: Tuple[float, float]        # where in the frame the desk under its centre is
+    # For a refine point, not for the page: its turn, true mm, degrees, as its edges' corners are numbered, and the
+    # edges found round it (sighting.py).
+    true_turn_deg: float
+    edges: Tuple[np.ndarray, np.ndarray, np.ndarray]
 
     def to_json(self) -> dict:
         return {"x": round(self.x, 2), "y": round(self.y, 2), "turn_deg": round(self.turn_deg, 1),
@@ -75,11 +79,11 @@ def find_red_cube(frame: np.ndarray, fit: CameraFit) -> FoundCube:
             reasons.append(str(reason))
     if not tries:
         raise CameraNotFound(reasons[0])
-    overlap, params, distances = max(tries, key=lambda tried: tried[0])
+    overlap, params, distances, found = max(tries, key=lambda tried: tried[0])
     if overlap < MIN_OVERLAP:
         raise CameraNotFound(f"what is red in view is not a 40 mm cube standing on the desk (a cube drawn there "
                              f"covers {overlap:.0%} of it): is it on something, on its side, or partly hidden?")
-    return _found(fit, matrix, params, overlap, distances)
+    return _found(fit, matrix, params, overlap, distances, found)
 
 
 def view_camera(fit: CameraFit, frame: np.ndarray) -> np.ndarray:
@@ -94,11 +98,12 @@ def view_camera(fit: CameraFit, frame: np.ndarray) -> np.ndarray:
     return rescaled(fit.true_to_pixel, (width, height), size)
 
 
-def _fit(frame: np.ndarray, matrix: np.ndarray, blob: Blob) -> Tuple[float, np.ndarray, np.ndarray]:
-    """The cube that looks like `blob`: how much of it the cube covers, the parameters, the edges' distances."""
+def _fit(frame: np.ndarray, matrix: np.ndarray, blob: Blob) -> Tuple[float, np.ndarray, np.ndarray, tuple]:
+    """The cube that looks like `blob`: how much of it the cube covers, the parameters, the edges' distances, and
+    the edges found."""
     params = _fit_outline(matrix, blob, _start(matrix, blob))
-    params, distances = _fit_edges(frame, matrix, blob, params)
-    return edges.overlap(_corners(matrix, params), blob.mask > 0), params, distances
+    params, distances, found = _fit_edges(frame, matrix, blob, params)
+    return edges.overlap(_corners(matrix, params), blob.mask > 0), params, distances, found
 
 
 def _start(matrix: np.ndarray, blob: Blob) -> np.ndarray:
@@ -130,8 +135,9 @@ def _fit_outline(matrix: np.ndarray, blob: Blob, params: np.ndarray) -> np.ndarr
 
 
 def _fit_edges(frame: np.ndarray, matrix: np.ndarray, blob: Blob,
-               params: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Each edge the cube shows onto the frame's edges, round after round as the search narrows."""
+               params: np.ndarray) -> Tuple[np.ndarray, np.ndarray, tuple]:
+    """Each edge the cube shows onto the frame's edges, round after round as the search narrows; and the edges
+    found in the last round."""
     crop = edges.crop(frame, blob, cubes.desk_chroma(frame))
     camera = camera_position(matrix)
     distances = np.zeros(0)
@@ -144,11 +150,11 @@ def _fit_edges(frame: np.ndarray, matrix: np.ndarray, blob: Blob,
         params, distances, _ = least_squares(
             lambda trial: edges.signed_distances(_corners(matrix, trial), starts, ends, targets),
             params, STEPS, huber=EDGE_HUBER_PX, iterations=30)
-    return params, distances
+    return params, distances, (starts, ends, targets)
 
 
 def _found(fit: CameraFit, matrix: np.ndarray, params: np.ndarray, overlap: float,
-           distances: np.ndarray) -> FoundCube:
+           distances: np.ndarray, found: tuple) -> FoundCube:
     to_desk = np.linalg.inv(fit.desk_to_true)
     true = cube_corners(params[:2], params[2])
     corners = np.column_stack((true[:, :2] @ to_desk.T, true[:, 2]))
@@ -158,7 +164,7 @@ def _found(fit: CameraFit, matrix: np.ndarray, params: np.ndarray, overlap: floa
     pixel = project(matrix, np.array([[params[0], params[1], 0.0]]))[0]
     return FoundCube(float(x), float(y), math.degrees(math.atan2(side[1], side[0])) % 90.0, corners, seen,
                      hidden_edges(seen), float(overlap), float(np.median(np.abs(distances))),
-                     (float(pixel[0]), float(pixel[1])))
+                     (float(pixel[0]), float(pixel[1])), math.degrees(params[2]), found)
 
 
 def _corners(matrix: np.ndarray, params) -> np.ndarray:

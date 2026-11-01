@@ -47,11 +47,12 @@ class Edge:
     is_outline: bool        # on the silhouette: the cube on one side, whatever is behind it on the other
 
 
-def cube_corners(centre: Sequence[float], turn: float) -> np.ndarray:
-    """The 8 corners, true mm: the cube standing on the desk at `centre`, turned `turn` radians."""
+def cube_corners(centre: Sequence[float], turn: float, height: float = CUBE_MM) -> np.ndarray:
+    """The 8 corners, true mm: the cube standing on the desk at `centre`, turned `turn` radians; its top at
+    `height`, to measure how tall a cube looks."""
     c, s = math.cos(turn), math.sin(turn)
     corners = [(centre[0] + CUBE_MM * (c * dx - s * dy), centre[1] + CUBE_MM * (s * dx + c * dy), z)
-               for z in (0.0, CUBE_MM) for dx, dy in _SQUARE]
+               for z in (0.0, height) for dx, dy in _SQUARE]
     return np.array(corners)
 
 
@@ -127,12 +128,13 @@ Residuals = Callable[[np.ndarray], np.ndarray]
 
 
 def least_squares(residuals: Residuals, start: np.ndarray, steps: np.ndarray, *, huber: float,
-                  free: Optional[Sequence[int]] = None,
-                  iterations: int = 40) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                  free: Optional[Sequence[int]] = None, iterations: int = 40,
+                  derivatives: Optional[Residuals] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Levenberg-Marquardt, with residuals beyond `huber` counted linearly so outliers pull less.
 
-    `steps` are each parameter's finite-difference step, in its own units. Returns
-    the solution, its residuals, and the normal matrix for the free parameters.
+    `steps` are each parameter's finite-difference step, in its own units, and
+    when to stop; `derivatives`, if given, makes the Jacobian at a solution instead.
+    Returns the solution, its residuals, and the normal matrix for the free parameters.
     """
     free = list(range(len(start))) if free is None else list(free)
     solution, damping = np.asarray(start, float).copy(), 1e-3
@@ -140,11 +142,14 @@ def least_squares(residuals: Residuals, start: np.ndarray, steps: np.ndarray, *,
     normal = np.zeros((len(free), len(free)))
     for _ in range(iterations):
         weights = np.where(np.abs(current) <= huber, 1.0, huber / np.maximum(np.abs(current), 1e-12))
-        jacobian = np.empty((len(current), len(free)))
-        for column, index in enumerate(free):
-            nudged = solution.copy()
-            nudged[index] += steps[index]
-            jacobian[:, column] = (residuals(nudged) - current) / steps[index]
+        if derivatives is not None:
+            jacobian = derivatives(solution)[:, free]
+        else:
+            jacobian = np.empty((len(current), len(free)))
+            for column, index in enumerate(free):
+                nudged = solution.copy()
+                nudged[index] += steps[index]
+                jacobian[:, column] = (residuals(nudged) - current) / steps[index]
         normal = jacobian.T @ (jacobian * weights[:, None])
         gradient = jacobian.T @ (weights * current)
         before = _huber_cost(current, huber)

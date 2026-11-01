@@ -44,7 +44,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 .hint.space { margin: 10px 2px 0; }
 
 .swatch.found { border: 2px solid var(--cube-red); background: rgba(255, 77, 94, 0.2); }
-.swatch.touch { border: 2px solid var(--green); border-radius: 50%; }
+.swatch.touch { border: 2px solid #3d9bff; border-radius: 50%; }
 .swatch.point { border-radius: 50%; background: var(--green); }
 .swatch.next { border: 1.5px dashed var(--cube-red); border-radius: 50%; background: rgba(255, 77, 94, 0.08); }
 
@@ -65,6 +65,8 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 #find { display: inline-flex; align-items: center; gap: 6px; }
 #find .cube-icon { width: 18px; height: 18px; }
 .trial-head .chip { margin-left: auto; }
+.trial-head .help { margin-left: auto; width: 22px; height: 22px; padding: 0; border-radius: 50%; }
+.trial-head .chip + .help { margin-left: 0; }
 
 .trials { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 @media (max-width: 760px) { .trials { grid-template-columns: 1fr; } }
@@ -86,7 +88,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
   stroke-linecap: round; filter: drop-shadow(0 0 6px var(--green-glow)); }
 .touch-icon circle { fill: var(--green); stroke: none; }
 
-/* --- the red cube's points ---------------------------------------------- */
+/* --- the points: the cubes', the red cube's ---------------------------- */
 
 .refine .card-head .chip { font-variant-numeric: tabular-nums; }
 .refine-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px 22px; margin-bottom: 12px; }
@@ -105,5 +107,13 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 .refine-fit .note { color: var(--faint); }
 .refine-save .hint { margin: 0; }
 .refine .table-wrap { max-height: 420px; overflow: auto; }
-.refine td .cube-icon { width: 22px; height: 22px; vertical-align: middle; }
-.refine tr.cube td { color: var(--muted); }
+.refine th.group { text-align: center; padding-bottom: 2px; }
+.refine thead tr.sub th { text-align: right; padding-top: 2px; }
+.refine td .cube-icon { width: 18px; height: 18px; margin-left: 5px; vertical-align: middle; }
+
+/* --- the ? dialogs ------------------------------------------------------- */
+
+.modal.help { width: 560px; }
+.modal.help h2 { margin: 0 34px 6px 0; font-size: 18px; }
+.modal.help p { margin: 12px 0 4px; color: #c9d3dd; line-height: 1.5; }
+.modal.help b { color: var(--text); font-weight: 600; }

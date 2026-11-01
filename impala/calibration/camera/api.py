@@ -14,19 +14,27 @@ stand on the desk while it is used, so the arm crosses over them
 | `POST /api/camera/visit`     | colour  | back to that cube's point, from above                         |
 | `POST /api/camera/calibrate` |         | park the arm, take the frame, fit `camera.json` to it         |
 | `POST /api/camera/validate`  |         | park the arm, take a frame, draw the calibration on it        |
+| `POST /api/camera/view`      | choice  | the live view in the camera's QUALITY or FPS mode; sets the   |
+|                              |         | calibration aside                                             |
 | `GET /api/camera/feed`       |         | the live view, JPEG after JPEG                                |
 | `GET /api/camera/check.jpg`  |         | the latest check image                                        |
 
 CALIBRATE and VALIDATE park the arm first, the way RESET does, so that it is not
 in the picture. CALIBRATE fits the camera to the cubes in its frame (`fit.py`)
 and writes `camera.json`; the check image shows the fit, or, when there is none,
-what was found instead. The red cube's points that refined the camera it replaces
-are set aside. VALIDATE draws the saved calibration on a new frame, and fits that
-frame too, to say how far the camera has moved since: against the cubes' own fit,
-as a refinement would differ from it anyway.
+what was found instead. The points that refined the camera it replaces are set
+aside, and the three cubes are the Fine Tune page's first points. VALIDATE draws
+the saved calibration on a new frame, and fits that frame too, to say how far the
+camera has moved since: against the cubes' own fit, as a refinement would differ
+from it anyway.
+
+QUALITY or FPS is which of the camera's modes the live view is (`devices.py`).
+A calibration holds for its own mode only, so changing it sets the calibration
+and everything in its pixels aside: the page warns first.
 """
 
 import threading
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -40,6 +48,7 @@ from common.worker import Refused, Worker
 
 from . import check, cubes, store
 from .cubes import COLOURS, CubesNotFound
+from .devices import FPS, QUALITY
 from .feed import Feed
 from .fit import CameraFit, CameraNotFound, fit_camera
 from .model import CUBE_MM
@@ -67,7 +76,7 @@ class CameraSession:
         server.add_limits(lambda: {"camera": {"cube": CUBE_MM, "notch": NOTCH_MM, "colours": list(COLOURS)}})
         for name, handler in (("jump", self.jump), ("move", self.move), ("record", self.record),
                               ("forget", self.forget), ("visit", self.visit), ("calibrate", self.calibrate),
-                              ("validate", self.validate)):
+                              ("validate", self.validate), ("view", self.view)):
             server.post(f"/api/camera/{name}", handler)
         server.get_stream("/api/camera/feed", self.feed.frames)
         server.get_bytes("/api/camera/check.jpg", self._check_image)
@@ -144,12 +153,14 @@ class CameraSession:
             raise Refused(f"no calibration from this frame: {reason}. config/{store.CAMERA_FILE} is as it was; "
                           f"the check image shows what was found") from None
         set_aside = store.set_aside_refine_points(self.config_dir)   # first: the tests page reloads on camera.json
+        store.save_refine_points(self.config_dir, store.cube_refine_points(fit, points, time.strftime("%d %b %H:%M")))
         store.save_frame(self.config_dir, frame)                # with the camera.json fitted to it
-        store.save_camera(self.config_dir, fit)
+        store.save_camera(self.config_dir, fit, lens=self.feed.lens)   # the focus the frame was taken at
         summary = store.describe_fit(fit)
         self._save_check(check.draw(frame, fit, ["camera.json, fitted just now", summary]))
         return (f"config/{store.CAMERA_FILE} saved from {described}: {summary}"
-                + (f". The {set_aside} red cube points of the last calibration are set aside" if set_aside else ""))
+                + (f". The {set_aside} points of the last calibration are set aside" if set_aside else "")
+                + ". The three cubes are Fine Tune's points 1, 2 and 3")
 
     def validate(self, body: dict) -> dict:
         return self.worker.run("validate", "VALIDATE: parking the arm, then a snapshot", self._validate)
@@ -168,6 +179,26 @@ class CameraSession:
         self._save_check(check.draw(frame, saved, [store.describe_calibration(self.config_dir)["saved"],
                                                    store.describe_fit(saved), moved]))
         return f"snapshot from {described}: {moved}"
+
+    def view(self, body: dict) -> dict:
+        choice = body.get("choice")
+        if choice not in (QUALITY, FPS):
+            raise BadRequest(f"`choice` should be {QUALITY} or {FPS}, not {choice!r}")
+        return self.worker.run("camera-view", f"the live view in its {choice.upper()} mode",
+                               lambda motion: self._view(choice), uses_arm=False)
+
+    def _view(self, choice: str) -> str:
+        if choice == store.load_view_choice(self.config_dir):
+            return f"the live view is already {choice.upper()}"
+        with self.lock:
+            set_aside = store.set_aside_calibration(self.config_dir)
+            self.points = store.load_points(self.config_dir)
+        store.save_view_choice(self.config_dir, choice)
+        self.feed.reopen()
+        return (f"the camera is now {choice.upper()}"
+                + ("; the camera calibration, the cubes' points and the Fine Tune points are put aside: record the "
+                   "cubes and CALIBRATE again"
+                   if set_aside else ""))
 
     def _save_check(self, image) -> None:
         store.save_check(self.config_dir, image)
@@ -195,6 +226,7 @@ class CameraSession:
             "check": self._check_image_described(),
             "calibration": store.describe_calibration(self.config_dir),
             "feed": self.feed.state(),
+            "view": store.load_view_choice(self.config_dir),
         }}
 
     def _check_image(self) -> Optional[Tuple[bytes, str]]:

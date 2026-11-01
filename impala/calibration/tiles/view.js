@@ -1,11 +1,11 @@
-// The Tiles page's marks over the camera's picture, live or the snapshot, through the calibration:
+// The Tiles page's marks over the camera's live picture, through the calibration:
 // - with the areas: the pickup area, green, and the dropoff area, blue, on the desk; the line between them and the
 //   arm's centre line, dashed; and the arm's reach, faint;
 // - each tile as LOCATE TILES found it: its top face outlined in its status's colour, thin and see-through so the
 //   tile's own edge shows beside it, and its letter on a badge at the letter's bottom right corner, so the badge
 //   says which way up it is; '?' for a letter not read, '–' for a blank tile, both ringed in white, over the top;
-//   a tile PLACE has carried off, dashed and faint, with no badge; and once the tiles are found again after PLACE,
-//   where the tiles it carried were, the same, grey;
+//   where a tile PLACE has carried off was -- while it is carried, and after, until LOCATE TILES -- dotted, grey,
+//   its letter faint at the same corner and a chevron to where the letter's top pointed: to put it back by;
 // - the arc PLACE sets words down along, dotted, with the areas; and where each letter of the word goes: the tile's
 //   face, dashed until the tile is there, then filled, its letter at the letter's bottom right corner;
 // - the arm: where it was sent, and where its servos say the cup is;
@@ -79,20 +79,13 @@ export class TilesMarks extends ViewMarks {
     const { found, limits, picked, moved } = this.marks;
     if (!found) return;
     const hovered = this.hovered();
-    this.ctx.setLineDash([4, 4]);
-    for (const tile of found.carried || []) {
-      const face = tile.corners.map(([x, y]) => this.at([x, y, limits.tiles.height]));
-      if (!face.some((corner) => !corner)) this.polyline([...face, face[0]], CARRIED_INK, 1, 0.5);
-    }
-    this.ctx.setLineDash([]);
+    for (const tile of found.carried || []) this.drawCarried(tile);
     for (const tile of found.tiles) {
       const face = tile.corners.map(([x, y]) => this.at([x, y, limits.tiles.height]));
       if (face.some((corner) => !corner)) continue;
       const ink = STATUS_INK[tile.status];
       if (moved && moved.has(tile.n)) {
-        this.ctx.setLineDash([4, 4]);
-        this.polyline([...face, face[0]], ink, 1, 0.35);
-        this.ctx.setLineDash([]);
+        this.drawCarried(tile);
         continue;
       }
       const isPicked = tile.n === picked || (hovered && tile.n === hovered.n);
@@ -109,6 +102,22 @@ export class TilesMarks extends ViewMarks {
     }
   }
 
+  // Where a tile PLACE carried off was, and how its letter lay.
+  drawCarried(tile) {
+    const { height } = this.marks.limits.tiles;
+    const onFace = (points) => points.map(([x, y]) => this.at([x, y, height]));
+    const face = onFace(tile.corners);
+    if (face.some((corner) => !corner)) return;
+    this.ctx.setLineDash([2, 3]);
+    this.polyline([...face, face[0]], CARRIED_INK, 1.2, 0.75);
+    this.ctx.setLineDash([]);
+    const chevron = onFace(chevronUp(tile));
+    if (!chevron.some((point) => !point)) this.polyline(chevron, CARRIED_INK, 1.5, 0.75);
+    const { text, corner, isMarked } = letterBadge(tile);
+    const at = this.at([...(corner || [tile.x, tile.y]), height]);
+    if (at) this.badge(text, at, CARRIED_INK, isMarked, true);
+  }
+
   // The tile under the pointer, in the full-size view: its top face holds the point seen there.
   hovered() {
     const { hover, found, matrix, limits } = this.marks;
@@ -118,9 +127,9 @@ export class TilesMarks extends ViewMarks {
   }
 
   // A tile's letter on a small disc of its colour; ringed in white when there is no letter to show.
-  badge(text, [x, y], ink, isMarked) {
+  badge(text, [x, y], ink, isMarked, isFaint = false) {
     const { ctx } = this;
-    ctx.globalAlpha = 0.92;
+    ctx.globalAlpha = isFaint ? 0.45 : 0.92;
     ctx.fillStyle = ink;
     ctx.beginPath();
     ctx.arc(x, y, 9, 0, 2 * Math.PI);
@@ -130,12 +139,13 @@ export class TilesMarks extends ViewMarks {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = isFaint ? 0.75 : 1;
     ctx.font = '700 12px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#0b0f14';
     ctx.fillText(text, x, y + 0.5);
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -151,6 +161,16 @@ export function letterBadge(tile) {
     return along > best.along ? { along, each } : best;
   }, { along: -Infinity, each: null }).each;
   return { text: tile.letter, corner, isMarked: false };
+}
+
+// A chevron on a tile's face, its tip towards where the letter's top points, desk mm; none for a letter not read
+// or a blank tile.
+export function chevronUp(tile) {
+  if (!tile.letter || !tile.is_read) return [];
+  const angle = (tile.upright * Math.PI) / 180;
+  const [ux, uy] = [Math.cos(angle), Math.sin(angle)];
+  const at = (along, across) => [tile.x + along * ux - across * uy, tile.y + along * uy + across * ux];
+  return [at(1, -6), at(8, 0), at(1, 6)];
 }
 
 // What the tables and hovers call a tile: its number and letter, '?' or 'blank'.

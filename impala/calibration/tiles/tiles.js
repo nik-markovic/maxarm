@@ -4,14 +4,14 @@
 // in the work areas -- ready to pick up, too close to another, outside the pickup area, or out of reach -- and shown
 // in that colour on the grid, over the camera's picture and in the table. Each tile's letter is read too: shown on a
 // badge at the letter's bottom right corner, '?' where it could not be read, '–' on a blank tile; the table has how
-// sure the reader is, its next best, the dot, and which way the letter's top points. The picture is the live view or
-// the snapshot the tiles were found in; FULL SIZE shows it as large as the window allows. A tile clicked, anywhere, brings
-// the cup over its centre and down to 4 mm over its top, to see whether it is centred.
+// sure the reader is, its next best, the dot, and which way the letter's top points. The picture is the live view;
+// FULL SIZE shows it as large as the window allows. A tile clicked, anywhere, brings the cup over its centre and down
+// to 4 mm over its top, to see whether it is centred.
 // Until letters are typed in the box beside PLACE, each LOCATE TILES -- not the one after PLACE -- puts five there at
 // random from the tiles ready to pick up; PLACE carries the tiles with the letters in the box, in order, to the
 // dropoff arc, each the right way up, the cup gripping each at the desk height in the grip box. Where each goes is
-// drawn, filled once the tile is there. Then the arm parks and the tiles are found again, where the tiles carried were
-// drawn grey.
+// drawn, filled once the tile is there. Then the arm parks and the tiles are found again; where the tiles carried were
+// stays drawn, dotted, with their letters, until LOCATE TILES, so that they can be put back.
 
 import { $, api, fmt, mountHeader, report, showHeader, startPolling } from '/common/page.js';
 import { openFullView } from '/common/fullview.js';
@@ -21,7 +21,6 @@ import { TilesGrid } from './grid.js';
 import { STATUS_INK, TilesMarks, tileAt, tileName } from './view.js';
 
 const FEED = '/api/camera/feed';
-const SNAPSHOT = '/api/tiles/snapshot.jpg';
 const FEED_RETRY_MS = 3000;
 const FEED_NOTES = { idle: 'starting the camera…', starting: 'starting the camera…' };
 const FEED_BADGES = { live: '● LIVE', failed: 'NO CAMERA' };
@@ -37,7 +36,6 @@ const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
   rotation: remembered.rotation || 0,
-  source: 'live',               // the picture shown: 'live', or 'snapshot', the one the tiles were found in
   showAreas: localStorage.getItem(AREAS_KEY) !== 'off',
   picked: null,                 // the tile last sent to, its number
   offered: null,                // the stamp of the snapshot whose letters were put in the box
@@ -48,7 +46,6 @@ let inFlight = 0;
 let isLost = false;
 let full = null;                // the picture full size, while it is open
 let rowsShown = '';
-let snapshotShown = null;       // the stamp of the snapshot the page has loaded
 
 const grid = new TilesGrid($('grid'), limits, visit);
 const marks = new TilesMarks($('marks'));
@@ -86,14 +83,7 @@ function show(next) {
   render();
 }
 
-async function locate() {
-  const reply = await command('tiles/locate', {}, 'LOCATE TILES');
-  if (reply.status === 'done') {
-    ui.source = 'snapshot';
-    connectFeed();
-    render();
-  }
-}
+const locate = () => command('tiles/locate', {}, 'LOCATE TILES');
 
 function visit(n) {
   const tile = found() ? found().tiles.find((each) => each.n === n) : null;
@@ -132,7 +122,6 @@ function render() {
 function renderView() {
   $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
-  for (const button of $('source').children) button.classList.toggle('on', button.dataset.source === ui.source);
   const [pickup, dropoff] = ['pickup', 'dropoff'].map((name) => TILES.areas.find((area) => area.name === name));
   $('areas-line').textContent = `Tile centres ${fmt(dropoff.inner, 0)} to ${fmt(pickup.outer, 0)} mm from the base `
     + `axis, ${fmt(TILES.margin, 0)} mm inside the reach. Pickup: ${fmt(pickup.inner, 0)} to ${fmt(pickup.outer, 0)} `
@@ -234,23 +223,12 @@ function letterCells(tile) {
 function renderPicture() {
   const { frame_size: size, view_problem: viewProblem } = tiles();
   if (size) $('feed-box').style.aspectRatio = `${size[0]} / ${size[1]}`;
-  const result = found();
-  const isSnapshot = ui.source === 'snapshot' && result;
-  if (isSnapshot && snapshotShown !== result.stamp) {
-    $('snapshot').src = `${SNAPSHOT}?stamp=${result.stamp}`;
-    snapshotShown = result.stamp;
-  }
-  $('snapshot').hidden = !isSnapshot;
-  $('feed').hidden = Boolean(isSnapshot);
   const { feed } = state.camera;
-  $('feed-badge').textContent = isSnapshot ? `◉ SNAPSHOT ${result.taken}` : FEED_BADGES[feed.status] || '';
-  $('feed-badge').className = `feed-badge ${isSnapshot ? 'snapshot' : feed.status}`;
+  $('feed-badge').textContent = FEED_BADGES[feed.status] || '';
+  $('feed-badge').className = `feed-badge ${feed.status}`;
   $('feed-note').textContent = full && full.isOpen() ? 'shown full size'
-    : isSnapshot ? '' : viewProblem || (feed.status === 'failed' ? feed.detail : FEED_NOTES[feed.status] || '');
-  $('feed-device').textContent = !isSnapshot && feed.status === 'live' ? feed.detail : '';
-  for (const button of $('source').children) {
-    button.disabled = button.dataset.source === 'snapshot' && !result;
-  }
+    : viewProblem || (feed.status === 'failed' ? feed.detail : FEED_NOTES[feed.status] || '');
+  $('feed-device').textContent = feed.status === 'live' ? feed.detail : '';
   $('expand').disabled = Boolean(tiles().problem);
 }
 
@@ -300,9 +278,9 @@ function pointedTile() {
     note: STATUS_WORDS[tile.status], isOff: tile.status !== 'ready' };
 }
 
-// The live view only while it is shown and the page is in sight; the full-size view takes it over.
+// The live view only while the page is in sight; the full-size view takes it over.
 function connectFeed() {
-  const isWanted = !document.hidden && ui.source === 'live' && !(full && full.isOpen());
+  const isWanted = !document.hidden && !(full && full.isOpen());
   if (isWanted) $('feed').src = `${FEED}?t=${Date.now()}`;
   else $('feed').removeAttribute('src');
 }
@@ -310,13 +288,11 @@ function connectFeed() {
 function openFull() {
   const { frame_size: size, problem } = tiles() || {};
   if (!size || problem || (full && full.isOpen())) return;
-  const result = found();
-  const isSnapshot = ui.source === 'snapshot' && result;
   full = openFullView({
-    image: isSnapshot ? `${SNAPSHOT}?stamp=${result.stamp}` : FEED,
+    image: FEED,
     Marks: TilesMarks,
     aspect: size[0] / size[1],
-    title: isSnapshot ? `THE SNAPSHOT OF ${result.taken}` : 'THE LIVE VIEW',
+    title: 'THE LIVE VIEW',
     hint: 'Click a tile: the cup comes over its centre and down to '
       + `${fmt(TILES.visit.down, 0)} mm, ${fmt(TILES.visit.down - TILES.height, 0)} over its top.`,
     onPick: (u, v) => {
@@ -347,13 +323,6 @@ $('rotate').addEventListener('click', () => {
   rememberView(ui.step, ui.rotation);
   render();
 });
-for (const button of $('source').children) {
-  button.addEventListener('click', () => {
-    ui.source = button.dataset.source;
-    connectFeed();
-    render();
-  });
-}
 $('guides').checked = ui.showAreas;
 $('guides').addEventListener('change', () => {
   ui.showAreas = $('guides').checked;

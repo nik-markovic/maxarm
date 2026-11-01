@@ -22,6 +22,7 @@ import math
 import signal
 import sys
 import threading
+import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -55,27 +56,47 @@ MOVE_MAX_MS = 30000
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
 SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 
-# Each servo has a deadband: it does not move for a target a few pulses away, and
-# stops short of one further off, the same way every time from the same side. So
-# sending the target plus what it fell short by lands it.
-# Landed is every servo within this many pulses of the pulse the firmware sends
-# for the target: the servos only take whole pulses, and the firmware truncates.
-PRECISE_TOLERANCE_PULSES = 1.0
+# Each servo has a deadband: it stops short of a target, and does not move at all
+# for one a few pulses from where it is -- by how much depends on the servo and on
+# which way it turns. A precise move nudges each servo that landed off its target:
+# sends it past the target, quickly, so that it moves, and then the target itself,
+# which it comes back to; the servos on their target are held there (the owner's
+# nudge; STATUS-impala §19.2).
+# Landed is every servo within this many pulses of the target's own: the base,
+# servo 2, servo 3 (whose nudges move it least often).
+PRECISE_TOLERANCE_PULSES = (0.75, 0.75, 1.25)
 PRECISE_ROUNDS = 3
-# A correction is never bigger than this on any axis: a cup held up by something
-# solid must not be pushed into it much further.
-PRECISE_CAP_MM = 3.0
-# A round that does not take the worst servo's miss below this share of the last
-# one ends it: something is in the way, or what is left is within the deadband.
-PRECISE_PROGRESS = 0.8
+# How far past its target a servo is sent, pulses, when it turns + to get there,
+# and when it turns -: the base, servo 2 (furthest short turning +), servo 3.
+PRECISE_PAST_PULSES = ((3.0, 3.0), (6.0, 2.0), (2.0, 2.0))
+# The target itself goes this long after the push.
+PRECISE_PUSH_S = 0.5
+# A push is never further than this from the target on any axis: a cup held up by
+# something solid must not be pushed into it much further.
+PRECISE_CAP_MM = 4.0
+# Where the servos are, from their reads, which flicker by a pulse or more: once
+# they have stopped drifting -- from PRECISE_STEADY_FROM_S after the travel, the
+# mean of the last PRECISE_STEADY_HALF_S against that of the one before it, every
+# servo within PRECISE_STEADY_PULSES -- the mean of both (STATUS-impala §19). At
+# most PRECISE_SETTLE_MAX_S after the travel. From AT_REST_S after it, the mean of
+# PRECISE_STEADY_HALF_S of reads.
+PRECISE_STEADY_FROM_S = 1.0
+PRECISE_STEADY_HALF_S = 0.5
+PRECISE_STEADY_PULSES = 0.35
+PRECISE_SETTLE_MAX_S = 3.0
+AT_REST_S = 2.0
 
 
 class MoveType(Enum):
     FAST = "fast"            # straight there at MOVE_FAST_MM_S, no correction
     SLOW = "slow"            # the same at MOVE_SLOW_MM_S: nothing heavy gets yanked
-    # Slow, then corrected from the servos' own reading until each is within a
-    # pulse of its target: about a second more, for a fraction of the error.
+    # Slow, then each servo that landed off its target nudged onto it, from the
+    # servos' own reading (PRECISE_* above).
     PRECISE = "precise"
+
+
+# The three servos' positions, pulses: as each reads, or a mean of reads.
+Pulses = Tuple[float, float, float]
 
 
 class MoveStatus(Enum):
@@ -133,6 +154,8 @@ class MaxArm:
         self._held: Optional[_Held] = None
         self._abort = threading.Event()
         self._is_frozen = False
+        self._travel_ended = 0.0                       # time.monotonic() when the last command's travel was over
+        self._settled: Optional[Pulses] = None         # where a precise move ended, its servos' mean, until a command
 
     # --- session ----------------------------------------------------------
 
@@ -147,6 +170,7 @@ class MaxArm:
         self._position = home_position()     # where the board's main.py sends the arm on every reset
         self._servo_deg, self._is_suction_on, self._held = 0.0, False, None
         self._is_connected, self._is_frozen = True, False
+        self._travel_ended, self._settled = time.monotonic(), None
         self._abort.clear()
 
     def disconnect(self) -> None:
@@ -304,12 +328,13 @@ class MaxArm:
         return self._planner.problem_with(point) is None
 
     def get_position(self) -> Position:
-        """Where the arm is, as its servos measure it, in the caller's space."""
+        """Where the arm is, as its servos measure it, in the caller's space: the mean of their reads once steady.
+        After a precise move, and nothing sent since, the mean it ended on."""
         self._require_connection()
-        measured = self._protocol.read_settled_position()
-        if measured is None:
+        pulses = self._settled or self._read_steady()
+        if pulses is None:
             raise ProtocolError("the servo bus did not answer a position read")
-        return self._space.from_desk(self._spaces.arm.to_desk(measured))
+        return self._space.from_desk(self._spaces.arm.to_desk(_position_of(pulses)))
 
     # --- the one way anything moves ---------------------------------------
 
@@ -337,33 +362,90 @@ class MaxArm:
         return self._result(MoveStatus.DONE)
 
     def _correct(self, target: Position) -> MoveResult:
-        """Send `target` (arm space) plus what the servos fell short by, until they land or stop gaining.
+        """Nudge each servo that landed off `target` (arm space) onto it, round by round.
 
-        The arm is then taken to be at `target`: what it was sent to last is
-        target plus a correction, which says less about where it is.
+        Each round goes by where the servos are once steady (`_steady()`). Every servo further off its target's
+        pulses than its PRECISE_TOLERANCE_PULSES is sent past them, the others held at theirs; PRECISE_PUSH_S on,
+        `target` itself. The arm is then taken to be at `target`, and the last steady mean is where it is
+        (`get_position()`).
         """
-        wanted = [int(pulse) for pulse in geometry.deg_to_pulse(geometry.inverse(raw.raw_position(target)))]
-        last_miss = math.inf
-        for _ in range(PRECISE_ROUNDS):
+        wanted = _pulses_of(target)
+        rounds = 0
+        while True:
+            pulses = self._steady()
             if self._abort.is_set():
                 return self._result(MoveStatus.STOPPED)
-            pulses = self._protocol.read_settled_pulses()
             if pulses is None:
                 return self._result(MoveStatus.DONE, "the servos did not answer, so it was not corrected")
-            miss = max(abs(goal - now) for goal, now in zip(wanted, pulses))
-            if miss <= PRECISE_TOLERANCE_PULSES or miss > PRECISE_PROGRESS * last_miss:
+            push = self._push(target, wanted, pulses) if rounds < PRECISE_ROUNDS else None
+            if push is None:
                 break
-            here = raw.true_position(geometry.forward(geometry.pulse_to_deg(pulses)))
-            aim = tuple(goal + max(-PRECISE_CAP_MM, min(PRECISE_CAP_MM, goal - now))
-                        for goal, now in zip(target, here))
-            if self._planner.problem_on_the_way(self._spaces.arm.to_desk(aim)):
-                break
-            failed = self._drive(aim, MOVE_SLOW_MM_S, None)
+            failed = self._drive(push, MOVE_FAST_MM_S, None)
             if failed is not None:
                 return failed
-            last_miss = miss
-        self._position = target
+            if not self._wait(PRECISE_PUSH_S * 1000.0 - MOVE_MIN_MS):
+                return self._halt()
+            failed = self._drive(target, MOVE_FAST_MM_S, None)
+            if failed is not None:
+                return failed
+            rounds += 1
+        self._position, self._settled = target, pulses
         return self._result(MoveStatus.DONE)
+
+    def _push(self, target: Position, wanted: Pulses, pulses: Pulses) -> Optional[Position]:
+        """Where to send the cup, arm space, to nudge the servos at `pulses` onto `wanted`: each servo off its target
+        past it by PRECISE_PAST_PULSES, the others at theirs. None if every servo is on its target, or the push would
+        meet something."""
+        past = []
+        for servo, (goal, now) in enumerate(zip(wanted, pulses)):
+            plus, minus = PRECISE_PAST_PULSES[servo]
+            miss = goal - now
+            past.append(0.0 if abs(miss) <= PRECISE_TOLERANCE_PULSES[servo] else plus if miss > 0 else -minus)
+        if not any(past):
+            return None
+        push = _position_of(tuple(goal + by for goal, by in zip(wanted, past)))
+        furthest = max(abs(there - here) for there, here in zip(push, target))
+        if furthest > PRECISE_CAP_MM:
+            share = PRECISE_CAP_MM / furthest
+            push = _position_of(tuple(goal + by * share for goal, by in zip(wanted, past)))
+        if self._planner.problem_on_the_way(self._spaces.arm.to_desk(push)):
+            return None
+        return push
+
+    def _steady(self) -> Optional[Pulses]:
+        """The servos read until they have stopped drifting (PRECISE_STEADY_* above): the mean of their last
+        2 x PRECISE_STEADY_HALF_S of reads; at PRECISE_SETTLE_MAX_S after the travel, however they are. None if none
+        answered, or stop() was called."""
+        reads: list = []
+        half = PRECISE_STEADY_HALF_S
+        while not self._abort.is_set():
+            pulses = self._protocol.read_pulses()
+            now = time.monotonic()
+            if pulses is not None:
+                reads.append((now, pulses))
+            recent = [read for when, read in reads if when > now - half]
+            before = [read for when, read in reads if now - 2 * half < when <= now - half]
+            since = now - self._travel_ended
+            if since >= PRECISE_STEADY_FROM_S and len(recent) >= 3 and len(before) >= 3 and all(
+                    abs(late - early) <= PRECISE_STEADY_PULSES for late, early in zip(_mean(recent), _mean(before))):
+                return _mean(before + recent)
+            if since >= PRECISE_SETTLE_MAX_S:
+                return _mean(before + recent) if before + recent else (reads[-1][1] if reads else None)
+        return None
+
+    def _read_steady(self) -> Optional[Pulses]:
+        """Where the servos are, read now: steady (`_steady()`) soon after a travel; from AT_REST_S after it, the
+        mean of PRECISE_STEADY_HALF_S of reads. None if none answered."""
+        if time.monotonic() - self._travel_ended < AT_REST_S:
+            return self._steady()
+        reads, started = [], time.monotonic()
+        while not reads or time.monotonic() - started < PRECISE_STEADY_HALF_S:
+            pulses = self._protocol.read_pulses()
+            if pulses is not None:
+                reads.append(pulses)
+            elif time.monotonic() - started >= PRECISE_SETTLE_MAX_S:
+                return None
+        return _mean(reads)
 
     def _drive(self, point: Position, speed_mm_s: float,
                servo: Optional[float]) -> Optional[MoveResult]:
@@ -385,6 +467,8 @@ class MaxArm:
             self._protocol.set_nozzle_angle(servo, turn_ms)
         if not self._wait(max(move_ms, turn_ms + nozzle.NOZZLE_SETTLE_MS if turn_ms else 0)):
             return self._halt()
+        if move_ms or turn_ms:
+            self._travel_ended, self._settled = time.monotonic(), None
         return None
 
     def _grab(self, point: Position, angle: Optional[float], servo: float) -> MoveResult:
@@ -444,6 +528,7 @@ class MaxArm:
             return self._result(MoveStatus.STOPPED, "no position read, so the leg ran on")
         self._protocol.set_position(here, MOVE_MIN_MS)
         self._position = here
+        self._travel_ended, self._settled = time.monotonic() + MOVE_MIN_MS / 1000.0, None
         return self._result(MoveStatus.STOPPED)
 
     def _switch_suction(self, is_on: bool) -> Optional[MoveResult]:
@@ -535,6 +620,20 @@ def home_position() -> Position:
 
 def _point(point: Position) -> Position:
     return (float(point[0]), float(point[1]), float(point[2]))
+
+
+def _pulses_of(position: Position) -> Pulses:
+    """The servos' pulses for the cup at a true position, arm space, unrounded."""
+    return geometry.deg_to_pulse(geometry.inverse(raw.raw_position(position)))
+
+
+def _position_of(pulses: Pulses) -> Position:
+    """The cup's true position, arm space, for the servos at `pulses`."""
+    return raw.true_position(geometry.forward(geometry.pulse_to_deg(pulses)))
+
+
+def _mean(reads) -> Pulses:
+    return tuple(sum(read[servo] for read in reads) / len(reads) for servo in range(3))
 
 
 def _move_ms(distance_mm: float, speed_mm_s: float) -> int:

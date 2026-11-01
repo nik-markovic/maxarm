@@ -173,15 +173,18 @@ class _RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def send_stream(self, frames: Iterator[bytes]) -> None:
-        """An MJPEG stream: each JPEG replaces the last in the page's <img>, until the page goes."""
+        """An MJPEG stream: each JPEG replaces the last in the page's <img>, until the page goes. Each frame is
+        followed at once by the boundary: a browser shows a part when the boundary after it comes, so one sent
+        before the next frame would hold every frame back by one -- half a second at QUALITY's rate."""
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", f"multipart/x-mixed-replace; boundary={STREAM_BOUNDARY.decode()}")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
+            self.wfile.write(b"--%s\r\n" % STREAM_BOUNDARY)
             for frame in frames:
-                self.wfile.write(b"--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n"
-                                 % (STREAM_BOUNDARY, len(frame)) + frame + b"\r\n")
+                self.wfile.write(b"Content-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" % len(frame) + frame
+                                 + b"\r\n--%s\r\n" % STREAM_BOUNDARY)
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
             pass                                    # the page was closed or reloaded

@@ -121,19 +121,39 @@
         <div class="trial-head">
           <svg class="touch-icon" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="18" rx="11" ry="6.5"/>
             <path d="M16 3v10M16 23v6M2 18h8M22 18h8"/><circle cx="16" cy="18" r="1.8"/></svg>
-          <b>Arm to the desk</b></div>
-        <p><b>CLICK THE DESK</b>, then a point of the desk in the live view, full size: the arm comes over it at 14 mm
-          and down to 2 mm over <b>the desk</b> -- not over the top of whatever stands there. Anything in its way is
-          knocked aside.</p>
+          <b>Arm to the desk</b>
+          <button class="btn small help" data-help="touch-help" title="More about it">?</button></div>
+        <p><b>CLICK THE DESK</b>, then a point in the live view: the cup comes down to 2 mm over the desk there.</p>
+        <div class="help-text" id="touch-help" hidden>
+          <h2>Arm to the desk</h2>
+          <p><b>CLICK THE DESK</b> shows the live view full size; click a point of the desk in it. The arm comes over
+            the point at 14 mm and down to 2 mm over <b>the desk</b> -- not over the top of whatever stands there.
+            Anything in its way is knocked aside.</p>
+          <p>From a cup at a cube's top, as FIND RED CUBE or a grid click leaves it, the arm parks first; clicks after
+            that go straight there.</p>
+          <p>The point clicked is marked in blue: a crosshair, the cup's rim round it on the desk, a dot. Once the arm
+            is down only the dot is left; once its servos are read, the same in green where they say the cup is, the
+            rim at the height they say. <b>The green rim should sit on the cup in the picture</b>: that tests the
+            calibration, wherever the arm came down.</p>
+        </div>
       </div>
       <div class="trial find">
         <div class="trial-head">
-          <span id="find-head-icon"></span><b>Find the red cube</b><span class="chip">helper</span></div>
-        <p>Set the red cube down anywhere in view, a corner towards the camera. <b>FIND RED CUBE</b>: the arm moves out
-          of the picture, the camera finds the cube, and the arm comes over it at 54 mm and down to 42, 2 mm over its
-          top. A start; the grid and the arrows bring the cup over the cube's centre. On the cube's top: a dot where the
-          arm was sent, and the cup's rim, yellow, where its servos then said it was; the label says how far off it
-          landed, X and Y.</p>
+          <span id="find-head-icon"></span><b>Find the red cube</b><span class="chip">helper</span>
+          <button class="btn small help" data-help="find-help" title="More about it">?</button></div>
+        <p>Brings the cup <b>near</b> the red cube. <b>Align the cube under the cup before RECORD POINT</b>: the point
+          is where the arm is; the cube as found can be off from it.</p>
+        <div class="help-text" id="find-help" hidden>
+          <h2>Find the red cube</h2>
+          <p>Set the red cube down anywhere in view, a corner towards the camera. <b>FIND RED CUBE</b>: the arm moves
+            out of the picture, the camera finds the cube, and the cup comes over it at 54 mm and down to 42, 2 mm over
+            its top.</p>
+          <p>That is only near the cube. <b>Align the cube under the cup</b> -- the arrows, or the cube nudged by hand
+            -- watching the cube, not the screen. RECORD POINT keeps where the arm says the cup is: that is the point,
+            not where the camera found the cube.</p>
+          <p>On the cube's top: a dot where the arm was sent, and the cup's rim, yellow, where its servos then said it
+            was; the label says how far off it landed, X and Y.</p>
+        </div>
         <span class="trial-result" id="find-result"></span>
       </div>
     </div>
@@ -149,12 +169,19 @@
     </div>
     <div class="refine-body">
       <div class="refine-how">
-        <p>The three cubes put the camera in place; points all over the desk tell it better where the arm goes.
+        <p>CALIBRATE's three cubes put the camera roughly in place and lay the arm on it exactly, and are points 1, 2
+          and 3; the red cube's points all over the desk then make it. SAVE fits the camera to every point's cube, 40
+          mm each, from the pictures alone, and lays the arm on all the points at once. XY is how far a point's arm
+          reading is from where all the points put it: 0 for any three, something from the fourth on. Z is how far
+          from 40 mm tall the camera sees its cube. One point far off while the others are not: the cup was off the
+          cube's centre, or the cube's edges were not found right. Forget it (×), a cube's too, and record it again
+          near there.
           Take the three cubes away. Then, again and again, in a new place each time:</p>
         <ol>
           <li>Set the red cube down, <b>a corner towards the camera</b>: its top and two sides in view.</li>
-          <li>Click the grid where the cube stands: the cup comes down 2 mm over its top. Or <b>FIND RED CUBE</b>.</li>
-          <li>Centre the cube under the cup with the arrows, watching the cube, not the screen.</li>
+          <li>Click the grid where the cube stands: the cup comes down 2 mm over its top. Or <b>FIND RED CUBE</b>,
+            to come near it.</li>
+          <li><b>Align the cube</b> under the cup with the arrows, watching the cube, not the screen.</li>
           <li><b>RECORD POINT</b>: where the arm says the cup is, then the arm moves away and the camera's snapshot
             sees where the cube stands.</li>
         </ol>
@@ -168,14 +195,30 @@
     </div>
     <div class="table-wrap">
       <table class="list" id="points">
-        <thead><tr>
-          <th>#</th><th>X</th><th>Y</th>
-          <th title="Where the saved calibration sees the cube, desk mm">seen X</th><th>seen Y</th>
-          <th title="How far the saved calibration puts the cube from where the arm says the cup was">off now</th>
-          <th title="How far the calibration SAVE would write puts the cube from where the arm says the cup was"
-            >after SAVE</th>
-          <th></th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th rowspan="2">#</th><th rowspan="2">X</th><th rowspan="2">Y</th>
+            <th rowspan="2" title="Where the saved calibration sees the cube, desk mm">seen X</th>
+            <th rowspan="2">seen Y</th>
+            <th colspan="2" class="group" title="Through the three cubes' calibration, CALIBRATE's">
+              off at CALIBRATE</th>
+            <th colspan="2" class="group" title="Through the calibration SAVE would write, fitted to the points">
+              after SAVE</th>
+            <th rowspan="2"></th>
+          </tr>
+          <tr class="sub">
+            <th title="How far the arm's reading is from the cube as the camera sees it, the arm laid on CALIBRATE's three
+cubes: 0 for those three. For a later point, how well CALIBRATE foresaw it">
+              XY</th>
+            <th title="How far from 40 mm tall the camera sees the cube, its base on the desk: + taller, - shorter.
+One point far off while the others are not is likely a bad snapshot: forget it, record it again.">Z</th>
+            <th title="How far the arm's reading is from where all the points put it, the arm laid on all of them at once.
+One point far off while the others are not: the cup was off the cube's centre, or its edges were found wrong">
+              XY</th>
+            <th title="How far from 40 mm tall the camera sees the cube, its base on the desk: + taller, - shorter.
+One point far off while the others are not is likely a bad snapshot: forget it, record it again.">Z</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>

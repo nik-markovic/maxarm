@@ -2,14 +2,14 @@
 // The owner's (PILOT-gecko): the slider runs from 70 down to -2 mm over the desk, yellow from the desk down a
 // millimetre and red below, where the cup presses into it. The notch, over a cube's top, catches the slider from a
 // millimetre either side. SAFE is well clear of the cubes anywhere in reach. ▲ and ▼ take the slider's ends
-// further; so does the arm, sent past them -- RESET, at the start -- for as long as it is there, so that the slider
-// always shows its height.
+// further. The arm sent past them -- RESET, at the start -- leaves them where they are: the slider stops at its end
+// and the number says the arm's height, marked as off the slider (the owner's).
 //
 // The page owns the height: the column shows it, and says when it is changed and when to send it.
 
 import { $, fmt } from './page.js';
 
-const HEIGHT = { top: 70, bottom: -2, safe: 80, lower: 2, higher: 20, caution: 0, danger: -1, snap: 1, round: 10 };
+const HEIGHT = { top: 70, bottom: -2, safe: 80, lower: 2, higher: 20, caution: 0, danger: -1, snap: 1 };
 export const SAFE_MM = HEIGHT.safe;
 
 // An isometric cube, lit from above, in a cube's colour: blue, green, red, or the notch's grey.
@@ -46,12 +46,15 @@ export class HeightColumn {
   render(z) {
     const isAtNotch = Math.abs(z - this.notch) < 0.05;
     const slider = $('z-slider');
-    const top = Math.max(this.top, Math.ceil(z / HEIGHT.round) * HEIGHT.round);
-    const bottom = Math.min(this.bottom, Math.floor(z));
+    const { top, bottom } = this;
     slider.min = bottom;
     slider.max = top;
-    if (!this.isDragging) slider.value = Math.round(z);
+    if (!this.isDragging) slider.value = Math.min(top, Math.max(bottom, Math.round(z)));
     $('z-out').textContent = fmt(z);
+    $('z-out').classList.toggle('off-scale', z > top || z < bottom);
+    $('z-out').title = z > top ? 'Above the slider: the arm is higher than its top'
+      : z < bottom ? 'Below the slider: the arm is lower than its bottom'
+        : 'The height over the desk the arm is sent to';
     $('z-out').classList.toggle('at-notch', isAtNotch);
     $('z-notch').classList.toggle('on', isAtNotch);
     $('z-safe').classList.toggle('on', z >= HEIGHT.safe - 0.5);

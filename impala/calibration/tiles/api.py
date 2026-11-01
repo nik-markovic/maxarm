@@ -12,7 +12,6 @@ parked out of the picture first; their letters are read in the same frame
 | `POST /api/tiles/visit`       | n             | the cup over tile n's centre, down to 4 mm over its top face    |
 | `POST /api/tiles/place`       | letters, grip | the tiles that spell them carried to the dropoff arc, in order, |
 |                               |               | each gripped with the cup at desk height `grip`, mm             |
-| `GET /api/tiles/snapshot.jpg` |               | the snapshot the tiles were found in                            |
 
 A visit tries the tile's centre: the cup comes down over it, and the person at the
 arm sees whether it is centred on the tile. A tile the arm cannot reach is refused,
@@ -23,8 +22,9 @@ that are ready to pick up and read; anything it cannot do is refused before the
 arm moves. The tiles it carries are no longer where the snapshot has them, so
 once it is over -- done, refused or failed on the way, but not stopped by RESET --
 the arm parks and the tiles are found again in a new snapshot, as LOCATE TILES
-finds them; where the tiles it carried were is kept with them, to be drawn. Until
-then, the tiles moved cannot be visited.
+finds them; where the tiles it carried were is kept with them, to be drawn, PLACE
+after PLACE, until LOCATE TILES: to put them back by. Until then, the tiles moved
+cannot be visited.
 """
 
 import random
@@ -32,8 +32,6 @@ import threading
 import time
 from pathlib import Path
 from typing import List, Optional, Set, Tuple, Union
-
-import cv2
 
 from maxarm import Camera, MaxArm, MoveResult, MoveStatus, Space
 
@@ -51,8 +49,6 @@ from common.worker import Refused, Worker
 # A visit comes over the tile at the height the areas allow for, then down to 4 mm over its top face.
 VISIT_OVER_MM = areas.OVER_TILE_MM
 VISIT_MM = TILE_HEIGHT_MM + 4.0
-# The snapshot as the page is sent it.
-SNAPSHOT_QUALITY = 85
 COUNTED = (areas.Status.READY, areas.Status.TOO_CLOSE, areas.Status.ELSEWHERE, areas.Status.OUT_OF_REACH)
 # LOCATE TILES offers this many letters for PLACE, at random from those on tiles ready to pick up.
 OFFERED_LETTERS = 5
@@ -61,6 +57,8 @@ OFFERED_LETTERS = 5
 GRIP_MM = 1.0
 GRIP_RANGE_MM = (0.0, VISIT_MM)
 DROP_MM = VISIT_MM - 1.0
+# What is kept of a tile PLACE carried off, to draw where it was and how its letter lay: until LOCATE TILES.
+CARRIED_KEYS = ("n", "x", "y", "corners", "letter", "is_read", "upright")
 
 
 class TilesSession:
@@ -72,7 +70,6 @@ class TilesSession:
         self.found: Optional[dict] = None          # the last LOCATE TILES: the tiles, placed, and when
         self.tiles: List[Tuple[Tile, areas.Place]] = []
         self.letters: List[Letter] = []            # the tiles' letters, in the same order
-        self.snapshot: Optional[bytes] = None      # its frame, as a JPEG
         self.word: Optional[dict] = None           # PLACE on that snapshot: its letters, where each goes, how far
         self._loaded: Tuple[Optional[int], Optional[CameraFit]] = (None, None)
 
@@ -88,7 +85,6 @@ class TilesSession:
         server.post("/api/tiles/locate", self.locate)
         server.post("/api/tiles/visit", self.visit)
         server.post("/api/tiles/place", self.place)
-        server.get_bytes("/api/tiles/snapshot.jpg", self._snapshot)
 
     # --- the requests -----------------------------------------------------
 
@@ -119,13 +115,11 @@ class TilesSession:
         letters = read_letters(frame, camera, tiles)
         reading = time.monotonic() - started
         places = areas.place_tiles(tiles, _arithmetic_arm(self.config_dir).can_reach)
-        jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, SNAPSHOT_QUALITY])[1].tobytes()
         counts = {status.value: sum(place.status is status for place in places) for status in COUNTED}
         on_offer = [letters[index].letter for index in word.letters_on_offer(letters, places)]
         with self.lock:
             self.tiles = list(zip(tiles, places))
             self.letters = letters
-            self.snapshot = jpeg
             self.word = None
             self.found = {
                 "tiles": [{"n": index + 1, **tile.to_json(), **place.to_json(), **letter.to_json(),
@@ -215,8 +209,8 @@ class TilesSession:
     def _find_again(self, motion: Motion, placed: str) -> str:
         """After PLACE: the arm parked, letting go of anything held, and the tiles found again."""
         with self.lock:
-            carried = [{key: tile[key] for key in ("n", "corners", "letter", "is_read")}
-                       for tile in self.found["tiles"] if tile["n"] in self._moved()]
+            carried = self.found["carried"] + [{key: tile[key] for key in CARRIED_KEYS}
+                                               for tile in self.found["tiles"] if tile["n"] in self._moved()]
         parked = motion.reset()                         # out of the picture
         if not parked:
             return f"{placed}; the arm did not park, so the tiles are not found again: {parked.detail}"
@@ -256,10 +250,6 @@ class TilesSession:
             "unavailable": {"tiles": problem} if problem else {},
         }
 
-    def _snapshot(self) -> Optional[Tuple[bytes, str]]:
-        with self.lock:
-            return (self.snapshot, "image/jpeg") if self.snapshot else None
-
     def _calibration(self) -> Tuple[Optional[CameraFit], Optional[str]]:
         """The saved camera calibration, read again only when the file changes; or why there is none."""
         path = self.config_dir / store.CAMERA_FILE
@@ -284,7 +274,7 @@ class TilesSession:
         if size is None or abs(size[0] * height / (size[1] * width) - 1) <= SAME_SHAPE:
             return None
         return (f"the live view is {size[0]} x {size[1]}, the calibration {width} x {height}: not the same "
-                f"picture, so the tiles are drawn on the snapshot only")
+                f"picture, so the tiles cannot be drawn over it")
 
 
 def describe_counts(found: int, counts: dict) -> str:

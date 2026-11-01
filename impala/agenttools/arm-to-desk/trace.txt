@@ -1,0 +1,1280 @@
+    20.925s > pass
+    20.937s < (no output) [12 ms]
+    20.938s > print('#R#', repr(([n in globals() for n in ('arm', 'bus_servo', 'nozzle', 'time', 'gc')], arm.…
+    21.107s < #R# ([True, True, True, True, True], (129, -150, 80), False, 12245) [169 ms]
+    21.107s # to (-140.0, -220.0, 164.5 [raw -143.2, -216.2, 166.0])
+    21.107s > print('#R#', repr(arm.set_position((-143.23, -216.22, 165.98), 779)))
+    21.150s < #R# True [42 ms]
+    21.929s # to (-140.0, -220.0, 103.5 [raw -143.2, -216.2, 101.9])
+    21.929s > print('#R#', repr(arm.set_position((-143.23, -216.22, 101.86), 305)))
+    21.971s < #R# True [41 ms]
+    22.276s # to (-140.0, -220.0, 85.5 [raw -143.1, -216.0, 83.4])
+    22.276s > print('#R#', repr(arm.set_position((-143.07, -215.97, 83.36), 1800)))
+    22.312s < #R# True [36 ms]
+    24.513s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    24.570s < #R# [639, 248, 613] [57 ms]
+    24.570s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    24.628s < #R# [639, 248, 613] [57 ms]
+    24.628s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    24.688s < #R# [638, 248, 613] [60 ms]
+    24.688s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    24.750s < #R# [639, 248, 613] [62 ms]
+    24.750s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    24.855s < #R# [638, 248, False] [105 ms]
+    24.855s # to (-140.5, -219.4, 84.1 [raw -143.4, -215.2, 82.0])
+    24.855s > print('#R#', repr(arm.set_position((-143.44, -215.21, 81.97), 158)))
+    24.893s < #R# True [38 ms]
+    25.451s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    25.509s < #R# [639, 247, 616] [57 ms]
+    25.509s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    25.568s < #R# [638, 246, 616] [60 ms]
+    25.569s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    25.624s < #R# [638, 247, 616] [56 ms]
+    25.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    25.684s < #R# [639, 247, 616] [59 ms]
+    25.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    25.744s < #R# [639, 247, 616] [60 ms]
+    26.144s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.202s < #R# [639, 247, 616] [58 ms]
+    26.202s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.262s < #R# [639, 247, 616] [60 ms]
+    26.262s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.322s < #R# [638, 247, 616] [60 ms]
+    26.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.382s < #R# [639, 247, 616] [60 ms]
+    26.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.442s < #R# [639, 247, 616] [59 ms]
+    26.442s # at (-139.4, -220.4, 84.9 [raw -142.4, -216.3, 82.8])
+    26.442s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.502s < #R# [639, 247, 616] [60 ms]
+    26.502s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.562s < #R# [639, 246, 616] [60 ms]
+    26.562s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.622s < #R# [639, 247, 616] [60 ms]
+    26.622s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.682s < #R# [639, 247, 616] [60 ms]
+    26.682s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.742s < #R# [638, 247, 616] [60 ms]
+    26.742s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.802s < #R# [639, 246, 616] [61 ms]
+    26.802s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.862s < #R# [638, 247, 616] [59 ms]
+    26.862s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.922s < #R# [638, 247, 616] [60 ms]
+    26.922s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    26.982s < #R# [638, 247, 616] [60 ms]
+    26.982s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.042s < #R# [638, 247, 616] [60 ms]
+    27.042s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.102s < #R# [638, 247, 616] [60 ms]
+    27.102s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.162s < #R# [638, 246, 616] [59 ms]
+    27.162s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.222s < #R# [638, 247, 616] [60 ms]
+    27.222s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.282s < #R# [639, 247, 616] [60 ms]
+    27.282s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.342s < #R# [638, 247, 616] [60 ms]
+    27.342s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.402s < #R# [639, 247, 616] [60 ms]
+    27.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.462s < #R# [638, 246, 616] [60 ms]
+    27.462s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.522s < #R# [639, 247, 616] [61 ms]
+    27.523s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.582s < #R# [639, 247, 616] [59 ms]
+    27.582s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.642s < #R# [638, 247, 616] [61 ms]
+    27.642s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.702s < #R# [639, 247, 616] [59 ms]
+    27.702s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.762s < #R# [639, 247, 616] [60 ms]
+    27.762s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.822s < #R# [638, 246, 616] [60 ms]
+    27.822s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.882s < #R# [638, 247, 616] [60 ms]
+    27.882s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    27.942s < #R# [639, 247, 616] [60 ms]
+    27.942s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.002s < #R# [638, 247, 616] [60 ms]
+    28.002s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.062s < #R# [639, 247, 616] [60 ms]
+    28.062s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.122s < #R# [638, 247, 616] [60 ms]
+    28.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.182s < #R# [638, 247, 616] [60 ms]
+    28.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.242s < #R# [638, 246, 616] [60 ms]
+    28.242s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.302s < #R# [638, 247, 616] [60 ms]
+    28.302s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.362s < #R# [638, 247, 616] [60 ms]
+    28.362s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.422s < #R# [638, 247, 616] [59 ms]
+    28.422s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.482s < #R# [638, 246, 616] [61 ms]
+    28.482s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.542s < #R# [639, 246, 616] [59 ms]
+    28.542s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.602s < #R# [638, 247, 616] [60 ms]
+    28.602s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.662s < #R# [638, 247, 616] [59 ms]
+    28.662s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.722s < #R# [638, 247, 616] [60 ms]
+    28.722s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.782s < #R# [638, 246, 616] [60 ms]
+    28.782s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.842s < #R# [638, 247, 616] [60 ms]
+    28.842s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.902s < #R# [638, 247, 616] [60 ms]
+    28.902s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    28.962s < #R# [638, 247, 616] [60 ms]
+    28.962s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.022s < #R# [638, 247, 616] [60 ms]
+    29.022s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.082s < #R# [638, 246, 616] [60 ms]
+    29.082s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.142s < #R# [638, 247, 616] [60 ms]
+    29.142s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.202s < #R# [638, 247, 616] [60 ms]
+    29.202s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.262s < #R# [638, 247, 616] [59 ms]
+    29.262s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.322s < #R# [638, 247, 616] [60 ms]
+    29.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.382s < #R# [638, 247, 616] [60 ms]
+    29.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.442s < #R# [638, 247, 616] [60 ms]
+    29.442s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.502s < #R# [638, 247, 616] [60 ms]
+    29.502s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.562s < #R# [638, 247, 616] [60 ms]
+    29.562s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.622s < #R# [638, 247, 616] [60 ms]
+    29.622s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.682s < #R# [639, 247, 616] [60 ms]
+    29.682s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.742s < #R# [638, 247, 616] [60 ms]
+    29.742s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.802s < #R# [638, 247, 616] [60 ms]
+    29.802s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.862s < #R# [639, 246, 616] [60 ms]
+    29.862s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.922s < #R# [638, 246, 616] [59 ms]
+    29.922s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    29.982s < #R# [638, 247, 616] [60 ms]
+    29.982s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.042s < #R# [638, 247, 616] [60 ms]
+    30.042s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.102s < #R# [638, 246, 616] [59 ms]
+    30.102s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.162s < #R# [638, 247, 616] [60 ms]
+    30.162s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.222s < #R# [638, 247, 616] [60 ms]
+    30.222s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.282s < #R# [638, 247, 616] [60 ms]
+    30.282s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.342s < #R# [638, 247, 616] [60 ms]
+    30.342s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.402s < #R# [638, 247, 616] [60 ms]
+    30.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.462s < #R# [638, 247, 616] [60 ms]
+    30.462s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.522s < #R# [638, 246, 616] [60 ms]
+    30.522s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.582s < #R# [638, 247, 616] [60 ms]
+    30.582s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.642s < #R# [638, 247, 616] [60 ms]
+    30.642s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.702s < #R# [638, 247, 616] [60 ms]
+    30.702s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.762s < #R# [639, 247, 616] [59 ms]
+    30.762s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.822s < #R# [638, 247, 616] [60 ms]
+    30.822s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.882s < #R# [638, 247, 616] [60 ms]
+    30.882s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    30.942s < #R# [638, 247, 616] [60 ms]
+    30.942s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.002s < #R# [638, 247, 616] [60 ms]
+    31.002s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.062s < #R# [638, 246, 616] [60 ms]
+    31.062s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.122s < #R# [638, 247, 616] [60 ms]
+    31.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.182s < #R# [638, 247, 616] [59 ms]
+    31.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.242s < #R# [638, 247, 616] [60 ms]
+    31.242s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.302s < #R# [638, 247, 616] [60 ms]
+    31.302s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.362s < #R# [638, 247, 616] [60 ms]
+    31.362s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.422s < #R# [638, 247, 616] [60 ms]
+    31.422s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.482s < #R# [638, 247, 616] [60 ms]
+    31.482s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.542s < #R# [639, 247, 616] [60 ms]
+    31.542s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.602s < #R# [639, 247, 616] [60 ms]
+    31.602s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.662s < #R# [638, 247, 616] [60 ms]
+    31.662s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.722s < #R# [639, 247, 616] [60 ms]
+    31.722s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.782s < #R# [638, 247, 616] [60 ms]
+    31.782s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.842s < #R# [638, 247, 616] [60 ms]
+    31.842s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.902s < #R# [638, 247, 616] [60 ms]
+    31.902s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    31.962s < #R# [638, 247, 616] [60 ms]
+    31.962s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.022s < #R# [638, 247, 616] [60 ms]
+    32.022s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.082s < #R# [638, 246, 616] [60 ms]
+    32.082s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.142s < #R# [638, 246, 616] [60 ms]
+    32.142s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.202s < #R# [638, 247, 616] [60 ms]
+    32.202s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.262s < #R# [638, 246, 616] [60 ms]
+    32.262s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.322s < #R# [638, 247, 616] [60 ms]
+    32.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.382s < #R# [638, 247, 616] [60 ms]
+    32.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.442s < #R# [638, 247, 616] [60 ms]
+    32.842s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.900s < #R# [638, 247, 616] [58 ms]
+    32.900s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    32.956s < #R# [638, 247, 616] [56 ms]
+    32.956s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    33.012s < #R# [639, 246, 616] [56 ms]
+    33.012s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    33.069s < #R# [638, 246, 616] [56 ms]
+    33.069s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    33.125s < #R# [639, 247, 616] [56 ms]
+    33.125s # at (-138.4, -220.9, 84.9 [raw -141.5, -216.9, 82.8])
+    33.125s # at (-138.4, -220.9, 84.9 [raw -141.5, -216.9, 82.8])
+    33.125s # to (-140.0, -220.0, 103.5 [raw -143.2, -216.2, 101.9])
+    33.125s > print('#R#', repr(arm.set_position((-143.23, -216.22, 101.86), 1800)))
+    33.162s < #R# True [36 ms]
+    34.962s # to (110.0, -220.0, 103.7 [raw 114.2, -216.3, 102.7])
+    34.962s > print('#R#', repr(arm.set_position((114.18, -216.27, 102.75), 1250)))
+    35.003s < #R# True [41 ms]
+    36.254s # to (110.0, -220.0, 85.7 [raw 114.1, -216.0, 84.3])
+    36.254s > print('#R#', repr(arm.set_position((114.05, -216.03, 84.27), 1800)))
+    36.287s < #R# True [33 ms]
+    38.487s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    38.550s < #R# [385, 275, 637] [63 ms]
+    38.550s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    38.608s < #R# [385, 275, 637] [57 ms]
+    38.608s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    38.670s < #R# [382, 275, 636] [62 ms]
+    38.670s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    38.727s < #R# [382, 275, 637] [57 ms]
+    38.728s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    38.790s < #R# [385, 275, 637] [63 ms]
+    39.191s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.249s < #R# [384, 275, 637] [58 ms]
+    39.249s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.309s < #R# [383, 274, 637] [60 ms]
+    39.309s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.369s < #R# [383, 275, 637] [60 ms]
+    39.369s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.425s < #R# [385, 275, 637] [56 ms]
+    39.425s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.484s < #R# [383, 275, 637] [59 ms]
+    39.484s # at (111.1, -219.8, 86.4 [raw 115.2, -215.9, 85.0])
+    39.484s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.544s < #R# [384, 275, 637] [60 ms]
+    39.544s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.604s < #R# [383, 275, 637] [60 ms]
+    39.604s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.664s < #R# [385, 274, 637] [60 ms]
+    39.664s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.724s < #R# [385, 274, 637] [60 ms]
+    39.724s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.784s < #R# [382, 275, 637] [59 ms]
+    39.784s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.844s < #R# [385, 275, 637] [60 ms]
+    39.844s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.904s < #R# [383, 275, 637] [60 ms]
+    39.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    39.964s < #R# [384, 274, 637] [60 ms]
+    39.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.021s < #R# [385, 275, 637] [57 ms]
+    40.021s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.084s < #R# [384, 275, 637] [63 ms]
+    40.084s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.144s < #R# [385, 274, 637] [60 ms]
+    40.144s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.204s < #R# [384, 274, 637] [60 ms]
+    40.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.264s < #R# [385, 275, 637] [60 ms]
+    40.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.324s < #R# [382, 275, 637] [60 ms]
+    40.324s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.384s < #R# [384, 275, 637] [60 ms]
+    40.384s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.444s < #R# [385, 275, 637] [60 ms]
+    40.444s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.504s < #R# [385, 275, 637] [60 ms]
+    40.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.564s < #R# [385, 275, 637] [60 ms]
+    40.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.624s < #R# [385, 275, 637] [60 ms]
+    40.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.684s < #R# [384, 275, 637] [60 ms]
+    40.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.741s < #R# [382, 274, 637] [57 ms]
+    40.741s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.804s < #R# [384, 274, 637] [63 ms]
+    40.804s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.864s < #R# [385, 274, 637] [60 ms]
+    40.864s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.924s < #R# [382, 275, 637] [60 ms]
+    40.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    40.984s < #R# [382, 275, 637] [60 ms]
+    40.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.041s < #R# [382, 275, 637] [57 ms]
+    41.041s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.104s < #R# [385, 275, 637] [63 ms]
+    41.104s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.164s < #R# [385, 275, 637] [60 ms]
+    41.164s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.224s < #R# [383, 275, 637] [60 ms]
+    41.224s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.281s < #R# [383, 274, 637] [57 ms]
+    41.281s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.341s < #R# [382, 275, 637] [60 ms]
+    41.341s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.404s < #R# [383, 274, 637] [63 ms]
+    41.404s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.464s < #R# [385, 274, 637] [60 ms]
+    41.464s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.524s < #R# [384, 274, 637] [60 ms]
+    41.524s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.584s < #R# [383, 275, 637] [60 ms]
+    41.584s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.644s < #R# [385, 274, 637] [60 ms]
+    41.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.704s < #R# [382, 275, 637] [60 ms]
+    41.704s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.764s < #R# [385, 275, 637] [60 ms]
+    41.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.821s < #R# [383, 275, 637] [57 ms]
+    41.821s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.884s < #R# [383, 275, 637] [63 ms]
+    41.884s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    41.944s < #R# [385, 274, 637] [60 ms]
+    41.944s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.004s < #R# [385, 274, 637] [60 ms]
+    42.004s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.064s < #R# [384, 275, 637] [60 ms]
+    42.064s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.124s < #R# [385, 275, 637] [60 ms]
+    42.124s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.184s < #R# [384, 275, 637] [60 ms]
+    42.184s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.241s < #R# [382, 275, 637] [57 ms]
+    42.241s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.304s < #R# [384, 274, 637] [63 ms]
+    42.304s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.364s < #R# [383, 275, 637] [60 ms]
+    42.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.421s < #R# [383, 274, 637] [57 ms]
+    42.421s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.481s < #R# [385, 275, 637] [60 ms]
+    42.481s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.541s < #R# [385, 275, 637] [60 ms]
+    42.541s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.604s < #R# [382, 274, 637] [63 ms]
+    42.604s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.664s < #R# [384, 275, 637] [60 ms]
+    42.664s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.724s < #R# [384, 275, 637] [60 ms]
+    42.724s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.784s < #R# [385, 274, 637] [60 ms]
+    42.784s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.844s < #R# [384, 275, 637] [59 ms]
+    42.844s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.904s < #R# [382, 275, 637] [60 ms]
+    42.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    42.964s < #R# [385, 275, 637] [60 ms]
+    42.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.024s < #R# [385, 275, 637] [60 ms]
+    43.024s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.084s < #R# [383, 275, 637] [60 ms]
+    43.084s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.144s < #R# [384, 274, 637] [60 ms]
+    43.144s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.204s < #R# [385, 275, 637] [60 ms]
+    43.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.264s < #R# [385, 275, 637] [59 ms]
+    43.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.324s < #R# [384, 275, 637] [60 ms]
+    43.324s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.384s < #R# [385, 275, 637] [60 ms]
+    43.384s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.444s < #R# [383, 275, 637] [60 ms]
+    43.444s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.504s < #R# [383, 275, 637] [60 ms]
+    43.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.564s < #R# [382, 275, 637] [60 ms]
+    43.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.624s < #R# [385, 275, 636] [60 ms]
+    43.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.681s < #R# [385, 275, 637] [57 ms]
+    43.681s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.741s < #R# [383, 275, 637] [60 ms]
+    43.741s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.801s < #R# [384, 274, 637] [60 ms]
+    43.801s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.861s < #R# [383, 275, 637] [60 ms]
+    43.861s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.924s < #R# [383, 274, 637] [63 ms]
+    43.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    43.981s < #R# [384, 275, 637] [57 ms]
+    43.981s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.041s < #R# [384, 275, 637] [60 ms]
+    44.041s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.101s < #R# [384, 275, 637] [60 ms]
+    44.101s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.164s < #R# [382, 275, 637] [63 ms]
+    44.164s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.224s < #R# [384, 274, 637] [60 ms]
+    44.224s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.284s < #R# [384, 275, 637] [60 ms]
+    44.284s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.344s < #R# [385, 275, 636] [60 ms]
+    44.344s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.404s < #R# [384, 275, 637] [60 ms]
+    44.404s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.464s < #R# [384, 274, 637] [60 ms]
+    44.464s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.521s < #R# [385, 275, 637] [57 ms]
+    44.521s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.584s < #R# [383, 275, 637] [63 ms]
+    44.584s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.644s < #R# [384, 275, 637] [60 ms]
+    44.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.704s < #R# [384, 274, 637] [60 ms]
+    44.704s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.764s < #R# [384, 275, 637] [60 ms]
+    44.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.821s < #R# [384, 275, 637] [57 ms]
+    44.821s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.884s < #R# [384, 275, 637] [63 ms]
+    44.884s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    44.941s < #R# [385, 275, 637] [57 ms]
+    44.941s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.004s < #R# [384, 275, 637] [63 ms]
+    45.004s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.064s < #R# [384, 275, 637] [60 ms]
+    45.064s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.124s < #R# [384, 274, 637] [60 ms]
+    45.124s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.184s < #R# [384, 275, 637] [60 ms]
+    45.184s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.241s < #R# [383, 275, 638] [57 ms]
+    45.241s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.304s < #R# [384, 275, 637] [63 ms]
+    45.304s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.364s < #R# [383, 275, 637] [60 ms]
+    45.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.421s < #R# [384, 275, 637] [57 ms]
+    45.421s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.480s < #R# [384, 275, 637] [59 ms]
+    45.480s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    45.541s < #R# [384, 275, 636] [60 ms]
+    45.941s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    46.002s < #R# [383, 274, 637] [61 ms]
+    46.002s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    46.062s < #R# [384, 275, 637] [59 ms]
+    46.062s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    46.122s < #R# [385, 275, 637] [60 ms]
+    46.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    46.182s < #R# [384, 274, 637] [60 ms]
+    46.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    46.242s < #R# [383, 275, 637] [60 ms]
+    46.242s # at (110.2, -220.3, 86.4 [raw 114.3, -216.4, 85.0])
+    46.242s # at (110.2, -220.3, 86.4 [raw 114.3, -216.4, 85.0])
+    46.243s # to (110.0, -220.0, 103.7 [raw 114.2, -216.3, 102.7])
+    46.243s > print('#R#', repr(arm.set_position((114.18, -216.27, 102.75), 1800)))
+    46.282s < #R# True [40 ms]
+    48.083s # to (127.0, -60.0, 103.9 [raw 127.3, -56.0, 108.0])
+    48.083s > print('#R#', repr(arm.set_position((127.29, -55.96, 107.98), 804)))
+    48.119s < #R# True [36 ms]
+    48.923s # to (127.0, -60.0, 85.9 [raw 127.1, -55.9, 89.7])
+    48.924s > print('#R#', repr(arm.set_position((127.07, -55.87, 89.66), 1800)))
+    48.959s < #R# True [35 ms]
+    51.159s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    51.222s < #R# [225, 424, 738] [62 ms]
+    51.222s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    51.282s < #R# [225, 424, 738] [60 ms]
+    51.282s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    51.342s < #R# [225, 424, 738] [60 ms]
+    51.342s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    51.402s < #R# [225, 424, 738] [60 ms]
+    51.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    51.462s < #R# [225, 425, 738] [60 ms]
+    51.462s # to (126.3, -58.9, 85.1 [raw 126.2, -54.8, 88.9])
+    51.462s > print('#R#', repr(arm.set_position((126.20, -54.77, 88.87), 156)))
+    51.503s < #R# True [41 ms]
+    52.059s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.122s < #R# [225, 422, 740] [62 ms]
+    52.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.182s < #R# [225, 422, 740] [60 ms]
+    52.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.242s < #R# [225, 422, 740] [60 ms]
+    52.242s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.302s < #R# [225, 422, 740] [60 ms]
+    52.302s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.362s < #R# [225, 422, 741] [60 ms]
+    52.762s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.820s < #R# [225, 422, 740] [57 ms]
+    52.820s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.875s < #R# [225, 422, 740] [56 ms]
+    52.876s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.932s < #R# [225, 422, 740] [57 ms]
+    52.932s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    52.989s < #R# [225, 422, 737] [57 ms]
+    52.990s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.049s < #R# [225, 422, 740] [60 ms]
+    53.049s # at (127.9, -61.2, 85.8 [raw 128.0, -57.0, 89.5])
+    53.050s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.109s < #R# [225, 422, 740] [59 ms]
+    53.109s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.169s < #R# [225, 422, 740] [60 ms]
+    53.169s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.225s < #R# [225, 422, 740] [56 ms]
+    53.225s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.280s < #R# [225, 422, 740] [56 ms]
+    53.281s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.344s < #R# [225, 422, 740] [63 ms]
+    53.344s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.401s < #R# [225, 422, 740] [57 ms]
+    53.401s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.461s < #R# [225, 422, 740] [60 ms]
+    53.461s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.525s < #R# [225, 422, 740] [64 ms]
+    53.525s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.584s < #R# [225, 422, 740] [59 ms]
+    53.584s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.644s < #R# [225, 422, 740] [60 ms]
+    53.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.704s < #R# [225, 422, 740] [60 ms]
+    53.704s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.764s < #R# [225, 422, 740] [60 ms]
+    53.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.824s < #R# [225, 422, 741] [60 ms]
+    53.824s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.881s < #R# [225, 422, 740] [57 ms]
+    53.881s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    53.944s < #R# [225, 422, 740] [63 ms]
+    53.944s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.004s < #R# [225, 422, 740] [60 ms]
+    54.004s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.064s < #R# [225, 422, 740] [60 ms]
+    54.064s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.124s < #R# [225, 422, 740] [60 ms]
+    54.124s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.184s < #R# [225, 422, 740] [60 ms]
+    54.184s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.241s < #R# [225, 422, 740] [57 ms]
+    54.241s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.304s < #R# [225, 422, 741] [63 ms]
+    54.304s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.364s < #R# [225, 422, 740] [60 ms]
+    54.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.424s < #R# [225, 422, 740] [60 ms]
+    54.424s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.484s < #R# [225, 422, 740] [60 ms]
+    54.484s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.541s < #R# [225, 422, 740] [57 ms]
+    54.541s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.604s < #R# [225, 422, 740] [63 ms]
+    54.604s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.664s < #R# [225, 422, 740] [60 ms]
+    54.664s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.724s < #R# [225, 422, 740] [60 ms]
+    54.724s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.784s < #R# [225, 422, 740] [60 ms]
+    54.784s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.841s < #R# [225, 422, 740] [57 ms]
+    54.841s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.904s < #R# [225, 422, 740] [63 ms]
+    54.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    54.964s < #R# [225, 422, 740] [60 ms]
+    54.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.024s < #R# [225, 422, 741] [60 ms]
+    55.024s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.084s < #R# [225, 422, 740] [60 ms]
+    55.084s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.144s < #R# [225, 422, 740] [60 ms]
+    55.144s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.204s < #R# [225, 422, 740] [60 ms]
+    55.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.264s < #R# [225, 422, 740] [59 ms]
+    55.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.324s < #R# [225, 422, 738] [60 ms]
+    55.324s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.381s < #R# [225, 422, 739] [57 ms]
+    55.381s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.444s < #R# [225, 422, 740] [63 ms]
+    55.444s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.504s < #R# [225, 422, 740] [60 ms]
+    55.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.564s < #R# [225, 422, 741] [60 ms]
+    55.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.624s < #R# [225, 422, 740] [60 ms]
+    55.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.684s < #R# [225, 422, 740] [60 ms]
+    55.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.744s < #R# [225, 422, 740] [60 ms]
+    55.744s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.804s < #R# [225, 422, 740] [60 ms]
+    55.804s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.864s < #R# [225, 422, 740] [60 ms]
+    55.864s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.924s < #R# [225, 422, 740] [60 ms]
+    55.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    55.984s < #R# [225, 422, 740] [60 ms]
+    55.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.044s < #R# [225, 422, 740] [60 ms]
+    56.044s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.104s < #R# [225, 422, 740] [60 ms]
+    56.104s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.164s < #R# [225, 422, 740] [60 ms]
+    56.164s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.224s < #R# [225, 422, 740] [60 ms]
+    56.224s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.284s < #R# [225, 422, 740] [60 ms]
+    56.284s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.341s < #R# [225, 422, 740] [57 ms]
+    56.341s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.404s < #R# [225, 422, 740] [63 ms]
+    56.404s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.464s < #R# [225, 422, 740] [60 ms]
+    56.465s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.524s < #R# [225, 422, 740] [59 ms]
+    56.524s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.584s < #R# [225, 422, 740] [60 ms]
+    56.584s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.644s < #R# [225, 422, 740] [60 ms]
+    56.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.705s < #R# [225, 422, 740] [60 ms]
+    56.705s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.761s < #R# [225, 422, 737] [56 ms]
+    56.761s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.821s < #R# [225, 422, 740] [60 ms]
+    56.821s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.884s < #R# [225, 422, 740] [64 ms]
+    56.884s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    56.944s < #R# [225, 422, 740] [59 ms]
+    56.944s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.004s < #R# [225, 422, 740] [60 ms]
+    57.004s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.064s < #R# [225, 422, 740] [60 ms]
+    57.064s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.124s < #R# [225, 422, 740] [60 ms]
+    57.124s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.184s < #R# [225, 422, 740] [60 ms]
+    57.184s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.244s < #R# [225, 422, 740] [60 ms]
+    57.244s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.305s < #R# [225, 422, 739] [61 ms]
+    57.305s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.364s < #R# [225, 422, 740] [59 ms]
+    57.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.424s < #R# [225, 422, 740] [60 ms]
+    57.424s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.484s < #R# [225, 422, 740] [59 ms]
+    57.484s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.544s < #R# [225, 422, 740] [60 ms]
+    57.544s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.604s < #R# [225, 422, 740] [60 ms]
+    57.604s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.664s < #R# [225, 422, 740] [60 ms]
+    57.664s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.724s < #R# [225, 422, 740] [60 ms]
+    57.724s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.781s < #R# [225, 422, 740] [57 ms]
+    57.781s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.844s < #R# [225, 422, 740] [64 ms]
+    57.844s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.904s < #R# [225, 422, 741] [60 ms]
+    57.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    57.964s < #R# [225, 422, 740] [60 ms]
+    57.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.024s < #R# [225, 422, 740] [60 ms]
+    58.024s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.084s < #R# [225, 422, 740] [60 ms]
+    58.084s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.141s < #R# [225, 422, 740] [57 ms]
+    58.141s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.204s < #R# [225, 422, 740] [63 ms]
+    58.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.264s < #R# [225, 422, 740] [60 ms]
+    58.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.321s < #R# [225, 422, 740] [57 ms]
+    58.321s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.384s < #R# [225, 422, 740] [63 ms]
+    58.384s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.444s < #R# [225, 422, 740] [60 ms]
+    58.444s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.505s < #R# [225, 422, 740] [60 ms]
+    58.505s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.564s < #R# [225, 422, 740] [59 ms]
+    58.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.624s < #R# [225, 422, 740] [60 ms]
+    58.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.684s < #R# [225, 422, 740] [60 ms]
+    58.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.744s < #R# [225, 422, 740] [60 ms]
+    58.744s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.805s < #R# [225, 422, 743] [61 ms]
+    58.805s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.864s < #R# [225, 422, 740] [59 ms]
+    58.864s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.924s < #R# [225, 422, 740] [60 ms]
+    58.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    58.984s < #R# [225, 422, 740] [60 ms]
+    58.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.044s < #R# [225, 422, 740] [61 ms]
+    59.044s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.104s < #R# [225, 422, 740] [60 ms]
+    59.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.562s < #R# [225, 422, 740] [58 ms]
+    59.562s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.622s < #R# [225, 422, 740] [60 ms]
+    59.622s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.682s < #R# [225, 422, 740] [60 ms]
+    59.682s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.742s < #R# [225, 422, 740] [60 ms]
+    59.742s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    59.802s < #R# [225, 422, 740] [60 ms]
+    59.802s # at (127.9, -61.2, 85.8 [raw 128.0, -57.0, 89.5])
+    59.802s # at (127.9, -61.2, 85.8 [raw 128.0, -57.0, 89.5])
+    59.802s # to (127.0, -60.0, 103.9 [raw 127.3, -56.0, 108.0])
+    59.802s > print('#R#', repr(arm.set_position((127.29, -55.96, 107.98), 1800)))
+    59.844s < #R# True [41 ms]
+    61.644s # to (-10.0, -150.0, 103.7 [raw -10.4, -148.6, 107.3])
+    61.644s > print('#R#', repr(arm.set_position((-10.39, -148.56, 107.26), 819)))
+    61.681s < #R# True [37 ms]
+    62.501s # to (-10.0, -150.0, 85.7 [raw -10.4, -148.3, 88.9])
+    62.501s > print('#R#', repr(arm.set_position((-10.37, -148.29, 88.93), 1800)))
+    62.543s < #R# True [42 ms]
+    64.743s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    64.805s < #R# [515, 412, 732] [61 ms]
+    64.805s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    64.864s < #R# [515, 412, 732] [59 ms]
+    64.864s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    64.924s < #R# [515, 412, 732] [60 ms]
+    64.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    64.984s < #R# [515, 412, 732] [60 ms]
+    64.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.044s < #R# [515, 412, 731] [59 ms]
+    65.044s # to (-11.0, -149.7, 84.4 [raw -11.4, -147.9, 87.7])
+    65.044s > print('#R#', repr(arm.set_position((-11.38, -147.86, 87.67), 162)))
+    65.082s < #R# True [38 ms]
+    65.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.704s < #R# [515, 407, 734] [60 ms]
+    65.704s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.764s < #R# [516, 407, 734] [60 ms]
+    65.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.821s < #R# [515, 407, 734] [57 ms]
+    65.821s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.881s < #R# [515, 407, 734] [59 ms]
+    65.881s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    65.944s < #R# [514, 407, 734] [63 ms]
+    66.344s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.402s < #R# [515, 407, 734] [58 ms]
+    66.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.462s < #R# [515, 407, 734] [60 ms]
+    66.462s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.522s < #R# [515, 407, 738] [60 ms]
+    66.522s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.582s < #R# [515, 407, 735] [60 ms]
+    66.582s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.642s < #R# [515, 407, 734] [60 ms]
+    66.642s # at (-9.1, -152.0, 85.4 [raw -9.5, -150.3, 88.6])
+    66.642s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.702s < #R# [515, 407, 734] [60 ms]
+    66.702s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.762s < #R# [515, 407, 734] [60 ms]
+    66.762s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.822s < #R# [515, 407, 734] [60 ms]
+    66.822s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.882s < #R# [516, 407, 734] [60 ms]
+    66.882s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    66.942s < #R# [515, 407, 734] [60 ms]
+    66.942s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.002s < #R# [515, 407, 734] [60 ms]
+    67.002s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.062s < #R# [515, 407, 734] [60 ms]
+    67.062s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.122s < #R# [515, 407, 734] [60 ms]
+    67.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.182s < #R# [516, 407, 734] [60 ms]
+    67.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.242s < #R# [516, 407, 734] [60 ms]
+    67.242s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.302s < #R# [515, 407, 734] [60 ms]
+    67.302s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.362s < #R# [516, 407, 734] [59 ms]
+    67.362s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.422s < #R# [516, 407, 734] [60 ms]
+    67.422s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.482s < #R# [516, 407, 734] [60 ms]
+    67.482s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.542s < #R# [515, 407, 734] [60 ms]
+    67.542s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.602s < #R# [515, 407, 734] [60 ms]
+    67.602s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.662s < #R# [516, 407, 734] [60 ms]
+    67.662s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.722s < #R# [516, 407, 734] [60 ms]
+    67.722s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.782s < #R# [516, 407, 734] [60 ms]
+    67.782s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.842s < #R# [515, 407, 734] [60 ms]
+    67.842s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.902s < #R# [515, 407, 734] [60 ms]
+    67.902s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    67.962s < #R# [515, 407, 734] [60 ms]
+    67.962s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.022s < #R# [516, 407, 734] [60 ms]
+    68.022s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.082s < #R# [515, 407, 734] [60 ms]
+    68.082s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.142s < #R# [516, 407, 734] [60 ms]
+    68.142s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.202s < #R# [516, 407, 734] [60 ms]
+    68.202s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.262s < #R# [516, 407, 734] [60 ms]
+    68.262s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.322s < #R# [516, 407, 734] [60 ms]
+    68.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.382s < #R# [515, 407, 734] [60 ms]
+    68.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.442s < #R# [517, 407, 734] [60 ms]
+    68.442s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.502s < #R# [516, 407, 734] [60 ms]
+    68.502s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.562s < #R# [515, 407, 734] [59 ms]
+    68.562s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.622s < #R# [516, 407, 734] [60 ms]
+    68.622s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.682s < #R# [516, 407, 734] [60 ms]
+    68.682s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.742s < #R# [515, 407, 734] [60 ms]
+    68.742s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.802s < #R# [515, 407, 734] [60 ms]
+    68.802s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.862s < #R# [516, 407, 734] [59 ms]
+    68.862s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.922s < #R# [516, 407, 734] [60 ms]
+    68.922s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    68.982s < #R# [516, 407, 734] [60 ms]
+    68.982s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.042s < #R# [516, 407, 734] [60 ms]
+    69.042s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.102s < #R# [516, 407, 734] [60 ms]
+    69.102s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.162s < #R# [516, 407, 735] [59 ms]
+    69.162s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.222s < #R# [515, 407, 734] [61 ms]
+    69.222s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.282s < #R# [516, 407, 734] [59 ms]
+    69.282s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.342s < #R# [516, 407, 734] [61 ms]
+    69.342s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.402s < #R# [516, 407, 734] [60 ms]
+    69.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.462s < #R# [516, 407, 734] [59 ms]
+    69.462s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.522s < #R# [515, 407, 734] [61 ms]
+    69.522s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.582s < #R# [516, 407, 734] [60 ms]
+    69.582s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.642s < #R# [516, 407, 734] [61 ms]
+    69.642s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.702s < #R# [516, 407, 734] [60 ms]
+    69.702s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.762s < #R# [516, 407, 734] [60 ms]
+    69.762s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.822s < #R# [515, 407, 734] [60 ms]
+    69.822s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.882s < #R# [516, 407, 734] [60 ms]
+    69.882s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    69.942s < #R# [516, 407, 734] [60 ms]
+    69.942s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.002s < #R# [516, 407, 734] [60 ms]
+    70.002s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.062s < #R# [516, 407, 734] [60 ms]
+    70.062s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.122s < #R# [515, 407, 732] [60 ms]
+    70.122s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.182s < #R# [515, 407, 734] [60 ms]
+    70.182s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.242s < #R# [516, 407, 734] [60 ms]
+    70.242s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.302s < #R# [516, 407, 734] [60 ms]
+    70.302s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.362s < #R# [516, 407, 734] [60 ms]
+    70.362s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.422s < #R# [516, 407, 734] [60 ms]
+    70.422s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.482s < #R# [516, 407, 734] [60 ms]
+    70.482s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.542s < #R# [516, 407, 734] [60 ms]
+    70.542s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.602s < #R# [515, 407, 734] [60 ms]
+    70.602s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.662s < #R# [515, 407, 734] [60 ms]
+    70.662s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.722s < #R# [516, 407, 734] [60 ms]
+    70.722s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.782s < #R# [516, 407, 734] [60 ms]
+    70.782s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.842s < #R# [515, 407, 734] [60 ms]
+    70.842s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.902s < #R# [516, 407, 734] [60 ms]
+    70.902s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    70.962s < #R# [516, 407, 734] [59 ms]
+    70.962s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.022s < #R# [516, 407, 734] [60 ms]
+    71.022s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.082s < #R# [516, 407, 734] [60 ms]
+    71.082s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.142s < #R# [516, 407, 734] [60 ms]
+    71.142s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.202s < #R# [515, 407, 734] [60 ms]
+    71.202s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.262s < #R# [516, 407, 734] [59 ms]
+    71.262s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.322s < #R# [516, 407, 734] [60 ms]
+    71.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.382s < #R# [516, 407, 734] [60 ms]
+    71.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.442s < #R# [516, 407, 734] [60 ms]
+    71.442s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.502s < #R# [516, 407, 734] [60 ms]
+    71.502s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.562s < #R# [515, 407, 734] [60 ms]
+    71.562s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.622s < #R# [515, 407, 734] [60 ms]
+    71.622s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.682s < #R# [517, 407, 734] [59 ms]
+    71.682s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.742s < #R# [516, 407, 734] [60 ms]
+    71.742s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.802s < #R# [516, 407, 734] [60 ms]
+    71.802s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.862s < #R# [516, 407, 734] [60 ms]
+    71.862s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.922s < #R# [516, 407, 734] [60 ms]
+    71.922s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    71.982s < #R# [515, 407, 734] [60 ms]
+    71.982s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.042s < #R# [515, 407, 734] [60 ms]
+    72.042s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.102s < #R# [516, 407, 734] [60 ms]
+    72.102s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.162s < #R# [516, 407, 734] [60 ms]
+    72.162s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.222s < #R# [516, 407, 734] [60 ms]
+    72.222s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.282s < #R# [516, 407, 734] [60 ms]
+    72.282s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.342s < #R# [516, 407, 734] [59 ms]
+    72.342s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.402s < #R# [516, 407, 734] [60 ms]
+    72.402s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.462s < #R# [516, 407, 734] [60 ms]
+    72.462s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.522s < #R# [517, 407, 734] [60 ms]
+    72.522s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.582s < #R# [516, 407, 734] [60 ms]
+    72.582s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.642s < #R# [515, 407, 734] [60 ms]
+    72.642s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    72.702s < #R# [516, 407, 734] [60 ms]
+    73.102s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    73.160s < #R# [516, 407, 734] [57 ms]
+    73.160s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    73.216s < #R# [516, 407, 734] [56 ms]
+    73.216s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    73.272s < #R# [516, 407, 734] [56 ms]
+    73.272s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    73.328s < #R# [516, 407, 734] [56 ms]
+    73.328s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    73.390s < #R# [516, 407, 734] [61 ms]
+    73.390s # at (-9.7, -152.0, 85.4 [raw -10.1, -150.2, 88.6])
+    73.390s # at (-9.7, -152.0, 85.4 [raw -10.1, -150.2, 88.6])
+    73.390s # to (-10.0, -150.0, 103.7 [raw -10.4, -148.6, 107.3])
+    73.390s > print('#R#', repr(arm.set_position((-10.39, -148.56, 107.26), 1800)))
+    73.427s < #R# True [36 ms]
+    75.227s # to (0.0, -230.0, 103.6 [raw 0.0, -228.6, 103.4])
+    75.227s > print('#R#', repr(arm.set_position((0.00, -228.59, 103.39), 403)))
+    75.262s < #R# True [35 ms]
+    75.666s # to (0.0, -230.0, 85.6 [raw 0.0, -228.3, 84.9])
+    75.666s > print('#R#', repr(arm.set_position((0.00, -228.31, 84.94), 1800)))
+    75.702s < #R# True [37 ms]
+    77.903s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    77.960s < #R# [501, 301, 657] [58 ms]
+    77.960s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.019s < #R# [500, 301, 656] [59 ms]
+    78.019s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.076s < #R# [501, 301, 657] [56 ms]
+    78.076s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.132s < #R# [501, 301, 657] [57 ms]
+    78.132s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.189s < #R# [501, 300, 658] [57 ms]
+    78.190s # to (0.9, -229.3, 84.1 [raw 1.0, -227.4, 83.5])
+    78.190s > print('#R#', repr(arm.set_position((0.96, -227.39, 83.53), 185)))
+    78.227s < #R# True [37 ms]
+    78.812s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.870s < #R# [501, 301, 661] [58 ms]
+    78.870s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.928s < #R# [501, 301, 660] [57 ms]
+    78.928s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    78.988s < #R# [500, 301, 660] [60 ms]
+    78.988s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.050s < #R# [500, 301, 660] [62 ms]
+    79.050s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.108s < #R# [500, 301, 660] [58 ms]
+    79.508s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.569s < #R# [500, 301, 660] [61 ms]
+    79.569s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.625s < #R# [501, 301, 660] [56 ms]
+    79.625s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.684s < #R# [501, 301, 660] [59 ms]
+    79.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.741s < #R# [501, 301, 660] [57 ms]
+    79.741s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.804s < #R# [501, 301, 660] [63 ms]
+    79.804s # at (-0.9, -229.8, 85.6 [raw -1.0, -228.1, 85.0])
+    79.805s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.864s < #R# [500, 301, 660] [60 ms]
+    79.864s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.924s < #R# [500, 301, 660] [60 ms]
+    79.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    79.984s < #R# [501, 301, 660] [60 ms]
+    79.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.041s < #R# [499, 301, 660] [57 ms]
+    80.041s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.104s < #R# [499, 301, 660] [63 ms]
+    80.104s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.164s < #R# [499, 301, 660] [60 ms]
+    80.164s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.224s < #R# [499, 301, 660] [60 ms]
+    80.224s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.281s < #R# [499, 301, 660] [57 ms]
+    80.281s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.341s < #R# [499, 301, 660] [60 ms]
+    80.341s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.404s < #R# [499, 301, 660] [63 ms]
+    80.404s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.461s < #R# [499, 301, 660] [57 ms]
+    80.461s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.521s < #R# [499, 300, 660] [60 ms]
+    80.521s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.581s < #R# [499, 301, 660] [59 ms]
+    80.581s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.644s < #R# [499, 301, 660] [64 ms]
+    80.644s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.701s < #R# [499, 301, 660] [57 ms]
+    80.701s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.764s < #R# [499, 301, 660] [63 ms]
+    80.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.824s < #R# [499, 301, 660] [60 ms]
+    80.824s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.884s < #R# [499, 301, 660] [60 ms]
+    80.884s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    80.944s < #R# [499, 301, 660] [60 ms]
+    80.944s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.001s < #R# [499, 301, 660] [57 ms]
+    81.001s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.061s < #R# [499, 301, 660] [60 ms]
+    81.061s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.121s < #R# [499, 301, 660] [60 ms]
+    81.121s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.181s < #R# [499, 301, 660] [60 ms]
+    81.181s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.241s < #R# [499, 301, 660] [60 ms]
+    81.241s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.304s < #R# [499, 301, 660] [63 ms]
+    81.304s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.364s < #R# [499, 301, 660] [60 ms]
+    81.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.421s < #R# [499, 300, 660] [57 ms]
+    81.421s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.484s < #R# [499, 301, 660] [63 ms]
+    81.484s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.541s < #R# [499, 301, 660] [57 ms]
+    81.541s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.601s < #R# [499, 301, 660] [60 ms]
+    81.601s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.661s < #R# [499, 301, 660] [60 ms]
+    81.661s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.721s < #R# [499, 301, 660] [60 ms]
+    81.721s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.784s < #R# [499, 301, 660] [63 ms]
+    81.784s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.844s < #R# [499, 300, 660] [60 ms]
+    81.844s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.904s < #R# [499, 301, 660] [60 ms]
+    81.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    81.964s < #R# [499, 300, 660] [60 ms]
+    81.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.021s < #R# [499, 300, 660] [57 ms]
+    82.021s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.081s < #R# [499, 300, 660] [60 ms]
+    82.081s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.141s < #R# [499, 301, 660] [60 ms]
+    82.141s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.204s < #R# [499, 301, 660] [63 ms]
+    82.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.264s < #R# [499, 301, 660] [60 ms]
+    82.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.321s < #R# [499, 301, 660] [57 ms]
+    82.321s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.381s < #R# [499, 301, 660] [60 ms]
+    82.381s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.441s < #R# [499, 300, 660] [60 ms]
+    82.441s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.504s < #R# [499, 301, 660] [63 ms]
+    82.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.564s < #R# [499, 301, 660] [60 ms]
+    82.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.624s < #R# [499, 301, 660] [60 ms]
+    82.624s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.681s < #R# [499, 301, 660] [57 ms]
+    82.681s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.741s < #R# [499, 301, 659] [60 ms]
+    82.741s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.804s < #R# [499, 301, 660] [63 ms]
+    82.804s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.861s < #R# [499, 301, 660] [57 ms]
+    82.861s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.924s < #R# [499, 301, 660] [63 ms]
+    82.924s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    82.984s < #R# [499, 301, 660] [60 ms]
+    82.984s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.041s < #R# [499, 301, 660] [57 ms]
+    83.041s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.101s < #R# [498, 301, 660] [60 ms]
+    83.101s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.161s < #R# [499, 300, 660] [60 ms]
+    83.161s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.224s < #R# [499, 300, 660] [63 ms]
+    83.224s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.281s < #R# [499, 301, 660] [57 ms]
+    83.281s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.341s < #R# [499, 301, 660] [60 ms]
+    83.341s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.404s < #R# [499, 301, 660] [63 ms]
+    83.404s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.464s < #R# [499, 301, 660] [60 ms]
+    83.464s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.521s < #R# [499, 301, 660] [57 ms]
+    83.521s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.581s < #R# [499, 301, 660] [60 ms]
+    83.581s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.641s < #R# [499, 301, 660] [60 ms]
+    83.641s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.704s < #R# [499, 300, 660] [63 ms]
+    83.704s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.764s < #R# [499, 301, 660] [60 ms]
+    83.764s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.824s < #R# [499, 301, 660] [60 ms]
+    83.824s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.885s < #R# [499, 300, 660] [61 ms]
+    83.885s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    83.941s < #R# [499, 301, 660] [57 ms]
+    83.941s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.005s < #R# [499, 301, 660] [63 ms]
+    84.005s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.061s < #R# [499, 300, 661] [56 ms]
+    84.061s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.124s < #R# [499, 301, 660] [63 ms]
+    84.124s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.185s < #R# [499, 301, 660] [60 ms]
+    84.185s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.244s < #R# [499, 301, 660] [59 ms]
+    84.244s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.304s < #R# [499, 301, 660] [60 ms]
+    84.304s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.364s < #R# [499, 301, 660] [60 ms]
+    84.364s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.424s < #R# [499, 301, 660] [60 ms]
+    84.424s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.484s < #R# [499, 301, 660] [60 ms]
+    84.484s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.544s < #R# [499, 301, 660] [60 ms]
+    84.544s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.604s < #R# [498, 300, 660] [60 ms]
+    84.604s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.664s < #R# [499, 300, 660] [60 ms]
+    84.664s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.724s < #R# [499, 301, 660] [60 ms]
+    84.724s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.781s < #R# [499, 301, 660] [57 ms]
+    84.781s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.844s < #R# [499, 301, 660] [63 ms]
+    84.844s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.904s < #R# [499, 301, 660] [60 ms]
+    84.904s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    84.964s < #R# [499, 301, 660] [60 ms]
+    84.964s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.021s < #R# [499, 301, 660] [57 ms]
+    85.021s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.084s < #R# [499, 301, 660] [63 ms]
+    85.084s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.144s < #R# [499, 301, 660] [60 ms]
+    85.144s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.204s < #R# [499, 301, 660] [60 ms]
+    85.204s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.264s < #R# [499, 301, 660] [60 ms]
+    85.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.321s < #R# [499, 301, 660] [57 ms]
+    85.321s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.384s < #R# [499, 301, 660] [63 ms]
+    85.384s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.444s < #R# [499, 301, 660] [60 ms]
+    85.444s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.504s < #R# [499, 301, 660] [60 ms]
+    85.504s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.564s < #R# [499, 301, 660] [60 ms]
+    85.564s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.621s < #R# [499, 301, 660] [57 ms]
+    85.621s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.684s < #R# [499, 300, 660] [63 ms]
+    85.684s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.741s < #R# [499, 301, 660] [57 ms]
+    85.741s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.804s < #R# [499, 301, 660] [63 ms]
+    85.804s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    85.864s < #R# [499, 301, 660] [60 ms]
+    86.264s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    86.322s < #R# [499, 301, 660] [58 ms]
+    86.322s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    86.382s < #R# [499, 301, 660] [60 ms]
+    86.382s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    86.442s < #R# [499, 301, 660] [60 ms]
+    86.442s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    86.502s < #R# [499, 301, 660] [60 ms]
+    86.502s > print('#R#', repr([bus_servo.get_position(i) for i in (1, 2, 3)]))
+    86.562s < #R# [499, 301, 660] [60 ms]
+    86.562s # at (0.9, -229.8, 85.6 [raw 1.0, -228.1, 85.0])
+    86.562s # at (0.9, -229.8, 85.6 [raw 1.0, -228.1, 85.0])
+    86.562s # to (0.0, -230.0, 104.0 [raw 0.0, -228.6, 103.8])
+    86.562s > print('#R#', repr(arm.set_position((0.00, -228.59, 103.84), 150)))
+    86.603s < #R# True [41 ms]
+    86.754s # to (0.0, -164.4, 204.7 [raw 0.0, -163.0, 212.0])
+    86.754s > print('#R#', repr(arm.set_position((0.00, -163.00, 212.00), 600)))
+    86.787s < #R# True [34 ms]

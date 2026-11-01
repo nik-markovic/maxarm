@@ -1,13 +1,16 @@
 // The live view's marks, drawn over the camera's picture through the calibration (common/shares.js):
 // - guides: the reach on the desk, 95 and 270 mm, orange and red as on the grid; the arm's target, the cup's rim
-//   there, faint green, with a line down to the desk under it. Not where the servos say the cup is: drawn through the
-//   camera, that mixes the camera's error with the arm's (the owner's, PILOT-impala);
+//   there, faint green, with a line down to the desk under it: where it was sent, not where its servos say it is
+//   (the owner's, PILOT-impala). Not once the arm is down at ARM TO DESK's point: that point's marks say it;
 // - the red cube as FIND RED CUBE found it: its edges in pink, fainter where hidden, an X under its centre, and its
 //   desk x, y over it, clear of the cup's end; and where FIND RED CUBE sent the arm, a dot on the cube's top, with
 //   the cup's 21 mm rim, yellow, where the servos then said it was, on the same plane -- the gap between the two is
 //   the arm's own miss, written after the cube's x, y as X and Y;
-// - ARM TO DESK's point: a crosshair where the view was clicked, half see-through, the cup's rim round the point on
-//   the desk, and its desk x, y;
+// - ARM TO DESK's point, blue as the ring under the pointer: a crosshair where the view was clicked, half
+//   see-through, the cup's rim round the point on the desk, a dot and its desk x, y; once the arm is down there, the
+//   dot alone. Once its servos are read there, the same in green where they say the cup is: the cup's rim at the
+//   height they say, the crosshair and the dot on the desk under it. The test is whether that rim sits on the cup in
+//   the picture, not whether the arm met the point (the owner's, 30 Oct);
 // - with the guides, the red cube's points: each a small ring, numbered, where the camera saw the cube's centre,
 //   coloured by how far off it is (refine.js); and a dashed circle on the desk, a place for the next point;
 // - with the desk grid (off unless asked), desk space every 10 mm on the desk, thin and pale, under everything else:
@@ -19,8 +22,8 @@ import { INK as SHARED_INK, MONO, ViewMarks } from '/common/marks.js';
 import { circle, toDesk } from '/common/shares.js';
 import { offShown, rank } from './refine.js';
 
-// The ring under the pointer is blue, to see against a pale desk (the owner's).
-const INK = { ...SHARED_INK, cube: '#ff4df8', red: '#ff4d5e', pointer: '#3d9bff', desk: '#c9a4ff' };
+// The ring under the pointer is blue, to see against a pale desk (the owner's); so is ARM TO DESK's point, clicked.
+export const INK = { ...SHARED_INK, cube: '#ff4df8', red: '#ff4d5e', pointer: '#3d9bff', desk: '#c9a4ff' };
 // The desk grid: a line every so many mm, a stronger one every so many, out to the reach and a little past it; each
 // line drawn through points this far apart, so that a part behind the camera is left out.
 const DESK_GRID_MM = 10;
@@ -32,26 +35,31 @@ const RANK_INK = { ok: INK.green, warn: '#e6b84a', bad: INK.reach, '': '#8d9aa9'
 const LABEL_OVER_CUP_MM = 16;
 const LABEL_OVER_CUP_PX = 18;
 const SENT_DOT_PX = 2.5;
+// ARM TO DESK's dots: where the servos say the cup is, over where it was clicked, smaller, so that the clicked one
+// still shows round it when the two meet.
+const CLICKED_DOT_PX = 3;
+const SAYS_DOT_PX = 2;
 // A miss, mm, to a tenth, its sign always written.
 const signed = (value) => {
   const shown = Math.round(value * 10) / 10;
   return `${shown < 0 ? '−' : '+'}${Math.abs(shown).toFixed(1)}`;
 };
 export class LiveMarks extends ViewMarks {
-  // found: the red cube; touch: { u, v, desk }; hover: [u, v]; showGuides; refine: the red cube's points and the
-  // cubes, as the tests' state has them; next: { x, y }, desk mm; showDeskGrid.
+  // found: the red cube; touch: { u, v, desk, phase, says }, as tests.js has it; hover: [u, v]; showGuides; refine:
+  // the red cube's points and the cubes, as the tests' state has them; next: { x, y }, desk mm; showDeskGrid.
   constructor(canvas) {
     super(canvas, { found: null, touch: null, hover: null, showGuides: true, refine: null, next: null,
       showDeskGrid: false });
   }
 
   drawMarks() {
+    const { touch } = this.marks;
     if (this.marks.showDeskGrid) this.drawDeskGrid();
     if (this.marks.showGuides) {
       this.drawReach();
       this.drawNext();
       this.drawPoints();
-      this.drawArm();
+      if (!touch || !['landed', 'read'].includes(touch.phase)) this.drawArm();
     }
     this.drawFound();
     this.drawHover();
@@ -110,10 +118,10 @@ export class LiveMarks extends ViewMarks {
     const corners = found.corners.map((corner) => this.at(corner));
     if (corners.some((corner) => !corner)) return;
     for (const [start, end] of [...found.hidden, [0, 2], [1, 3]]) {
-      this.polyline([corners[start], corners[end]], INK.cube, 1, 0.25);
+      this.polyline([corners[start], corners[end]], INK.cube, 1, 0.45);
     }
     for (const [start, end, isOutline] of found.seen) {
-      this.polyline([corners[start], corners[end]], INK.cube, isOutline ? 1.2 : 1, 0.6);
+      this.polyline([corners[start], corners[end]], INK.cube, isOutline ? 1.2 : 1, 0.9);
     }
     const { down, cube } = this.marks.limits.tests.find;
     if (found.landed) this.polyline(this.ring(found.landed, cube), INK.yellow, 1.5, 0.95);
@@ -145,15 +153,33 @@ export class LiveMarks extends ViewMarks {
   drawTouch() {
     const { touch } = this.marks;
     if (!touch) return;
+    const clicked = [touch.u * this.width, touch.v * this.height];
+    if (touch.phase === 'sent') {
+      this.crosshair(clicked, INK.pointer);
+      if (touch.desk) {
+        this.polyline(this.ring(touch.desk), INK.pointer, 2, 0.95);
+        const half = this.crosshairHalf();
+        this.label(`${touch.desk[0].toFixed(1)}, ${touch.desk[1].toFixed(1)}`,
+          [clicked[0] + half * 0.55, clicked[1] + half * 0.55], INK.pointer, 'left');
+      }
+    }
+    if (touch.desk) this.dot(clicked, INK.pointer, CLICKED_DOT_PX);
+    const { says } = touch;
+    const under = says && this.at([says[0], says[1], 0]);
+    if (!under) return;
+    this.crosshair(under, INK.green);
+    this.polyline(this.ring(says, says[2]), INK.green, 2, 0.95);
+    this.dot(under, INK.green, SAYS_DOT_PX);
+  }
+
+  // A crosshair round a canvas point, half see-through, its middle left open.
+  crosshair([x, y], ink) {
     const { ctx } = this;
-    const x = touch.u * this.width;
-    const y = touch.v * this.height;
-    // At least a twentieth of the view across (the owner's): a twelfth.
-    const half = Math.max(this.width, this.height) / 24;
+    const half = this.crosshairHalf();
     const gap = 7;
     ctx.globalAlpha = 0.5;
-    for (const [ink, width] of [[INK.shadow, 4], [INK.green, 2]]) {
-      ctx.strokeStyle = ink;
+    for (const [shade, width] of [[INK.shadow, 4], [ink, 2]]) {
+      ctx.strokeStyle = shade;
       ctx.lineWidth = width;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         ctx.beginPath();
@@ -163,11 +189,11 @@ export class LiveMarks extends ViewMarks {
       }
     }
     ctx.globalAlpha = 1;
-    if (!touch.desk) return;
-    this.polyline(this.ring(touch.desk), INK.green, 2, 0.95);
-    this.dot([x, y], INK.green);
-    this.label(`${touch.desk[0].toFixed(1)}, ${touch.desk[1].toFixed(1)}`, [x + half * 0.55, y + half * 0.55],
-      INK.green, 'left');
+  }
+
+  // Half a crosshair across: at least a twentieth of the view across (the owner's), a twelfth.
+  crosshairHalf() {
+    return Math.max(this.width, this.height) / 24;
   }
 
   // The cup's rim round a desk point, `height` over the desk, its true size, in canvas pixels.

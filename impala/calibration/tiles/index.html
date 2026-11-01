@@ -43,6 +43,7 @@
       <span><i class="swatch tile elsewhere"></i>outside the pickup area</span>
       <span><i class="swatch tile out-of-reach"></i>out of reach</span>
       <span><i class="swatch word-slot"></i>where PLACE sets a word down; filled once a tile is there</span>
+      <span><i class="swatch carried"></i>where a tile PLACE carried was, a chevron to its letter's top</span>
       <span><b class="letter-key">A</b> at the letter's bottom right corner; <b class="letter-key marked">?</b> not
         read, <b class="letter-key marked">–</b> blank</span>
     </div>
@@ -54,8 +55,6 @@
       <h2>Camera</h2>
       <span class="hint" id="feed-device"></span>
       <div class="tools">
-        <div class="seg" id="source" title="The live view, or the snapshot the tiles were found in">
-          <button data-source="live">LIVE</button><button data-source="snapshot">SNAPSHOT</button></div>
         <label class="switch" title="The work areas and the reach, drawn on the desk">
           <input type="checkbox" id="guides" checked><span class="track"></span>Areas</label>
         <button class="btn" id="expand" title="The picture as large as the window allows">⛶ FULL SIZE</button>
@@ -74,7 +73,6 @@
     </div>
     <div class="feed-box" id="feed-box">
       <img id="feed" alt="">
-      <img id="snapshot" alt="" hidden>
       <canvas id="marks"></canvas>
       <span class="feed-badge" id="feed-badge"></span>
       <span class="feed-note" id="feed-note"></span>

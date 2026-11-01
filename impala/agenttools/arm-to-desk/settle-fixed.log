@@ -1,0 +1,18 @@
+connecting: the board resets and homes the arm
+(-140.0, -220.0, 42.0): done; the app's read [-139.37, -220.37, 41.4], settled [-139.53, -220.63, 40.95]
+(110.0, -220.0, 42.0): done; the app's read [110.23, -220.39, 41.79], settled [110.96, -219.62, 42.2]
+(127.0, -60.0, 42.0): done; the app's read [128.36, -61.39, 41.74], settled [127.88, -61.17, 41.89]
+(-10.0, -150.0, 42.0): done; the app's read [-9.66, -150.92, 42.07], settled [-9.66, -150.92, 42.07]
+(0.0, -230.0, 42.0): done; the app's read [0.92, -229.84, 42.04], settled [0.92, -229.84, 42.04]
+(-90.0, -130.0, 42.0): done; the app's read [-89.43, -130.33, 42.18], settled [-89.43, -130.33, 42.18]
+(70.0, -130.0, 42.0): done; the app's read [70.11, -129.54, 41.81], settled [70.11, -129.54, 41.81]
+(-110.0, -144.0, 42.0): done; the app's read [-109.24, -144.49, 41.88], settled [-109.24, -144.49, 41.88]
+(40.0, -200.0, 42.0): done; the app's read [39.56, -199.96, 41.47], settled [40.35, -199.8, 41.47]
+(-104.0, -110.0, 42.0): done; the app's read [-104.49, -110.64, 42.24], settled [-104.49, -110.64, 42.24]
+(90.0, -180.0, 42.0): done; the app's read [90.93, -179.98, 42.22], settled [90.2, -180.34, 42.22]
+(39.0, -250.0, 42.0): done; the app's read [38.76, -250.59, 40.44], settled [38.26, -250.67, 40.44]
+(-79.0, -190.0, 42.0): done; the app's read [-78.42, -190.3, 42.17], settled [-78.56, -190.63, 42.6]
+(121.0, -110.0, 42.0): done; the app's read [121.31, -109.4, 42.01], settled [120.99, -109.12, 41.65]
+(141.0, -149.0, 42.0): done; the app's read [141.25, -149.22, 41.52], settled [141.25, -149.22, 41.52]
+384 frames; wrote /var/b/shared/work/maxarm/impala/agenttools/arm-to-desk/settle-all-fixed.json
+exit 0

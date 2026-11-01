@@ -1,10 +1,12 @@
 // The tests page's view from above: the shared grid in desk space, with where the camera found the red cube -- its
-// footprint, turned as it stands, an X under its centre -- and the point of desk last clicked in the live view.
+// footprint, turned as it stands, an X under its centre -- and the point of desk last clicked in the live view, blue
+// as the live view has it.
 // And the red cube's points that refine the calibration, as on the desk page: each a numbered circle where the arm
 // said the cup was, coloured by how far off it is; and a dashed circle, a place for the next point.
 
 import { CUBE_INK, GridView, INK } from '/common/grid.js';
 import { offShown, rank } from './refine.js';
+import { INK as VIEW_INK } from './view.js';
 
 const RANK_INK = { ok: INK.green, warn: INK.warn, bad: INK.bad, '': INK.neutral };
 
@@ -44,7 +46,7 @@ export class TestsGrid extends GridView {
   drawTouch(touch) {
     const { ctx } = this;
     const [x, y] = this.toScreen(touch[0], touch[1]);
-    ctx.strokeStyle = INK.green;
+    ctx.strokeStyle = VIEW_INK.pointer;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(x, y, this.limits.tests.touch.cup_radius * this.scale, 0, 2 * Math.PI);

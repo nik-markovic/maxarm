@@ -23,9 +23,13 @@ width and height, which hold at any size of the same picture; and the arm's x/y
 error, so that the cup is drawn its true size.
 
 A point is the red cube set down, centred under the cup -- FIND RED CUBE brings the
-cup over it, the person at the arm centres it -- and seen by the camera once the
-arm is out of the way. They are kept in `camera-refine-points.json` and belong
-to the camera as CALIBRATE fitted it: a new CALIBRATE sets them aside.
+cup near it, the person at the arm centres it -- and seen by the camera once the
+arm is out of the way. CALIBRATE's three cubes are points 1, 2 and 3, forgotten
+as any other. They are kept in `camera-refine-points.json` and belong to the
+camera as CALIBRATE fitted it: a new CALIBRATE sets them aside.
+
+ARM TO DESK from a cup at a cube's top -- FIND RED CUBE's or a grid click's
+notch -- parks the arm first: straight across from there strains it (the owner's).
 """
 
 import math
@@ -46,6 +50,7 @@ from camera.feed import Feed
 from camera.fit import CameraFit, CameraNotFound
 from camera.locate import SAME_SHAPE, FoundCube, find_red_cube
 from camera.model import CUBE_MM
+from camera.refine import off_by
 from camera.store import RefinePoint
 from common.motion import OVER_CUBES_MM, Motion
 from common.server import BadRequest, Server, number
@@ -73,7 +78,7 @@ class TestsSession:
         # it and where its servos then said it was, desk space.
         self.found: Optional[dict] = None
         self.lock = threading.Lock()
-        self.points = store.load_refine_points(self.config_dir)   # read again with each new camera.json
+        self.points: List[RefinePoint] = []        # read with each new camera.json
         self._version = 0                           # counts the points' changes
         self._loaded: Tuple[Optional[int], Optional[CameraFit]] = (None, None)
         self._described: Tuple[Optional[tuple], Optional[dict]] = (None, None)
@@ -134,12 +139,17 @@ class TestsSession:
 
     @staticmethod
     def _touch(motion: Motion, target: Position) -> MoveResult:
-        """Over the point, then down to it -- or nothing, if the arm cannot reach it."""
+        """Over the point, then down to it, parked first from a cube's top -- or nothing, if the arm cannot
+        reach it."""
         x, y, _ = target
         motion.use(Space.DESK)
         if not all(motion.arm.can_reach(x, y, z) for z in (TOUCH_OVER_MM, TOUCH_MM)):
             raise Refused(f"desk ({round(x)}, {round(y)}) is out of the arm's reach, {math.hypot(x, y):.0f} mm "
                           f"from its base axis")
+        if CUBE_MM <= motion.position(Space.DESK)[2] < OVER_CUBES_MM:
+            parked = motion.reset()
+            if not parked:
+                return parked
         return motion.approach(Space.DESK, target, precise=True, hover=TOUCH_OVER_MM)
 
     def _still(self) -> np.ndarray:
@@ -197,10 +207,13 @@ class TestsSession:
         with self.lock:
             point = RefinePoint(max((point.id for point in self.points), default=0) + 1, *map(_tidy, here),
                                 sent=list(map(_tidy, sent)), pixel=[round(value, 3) for value in found.pixel],
-                                frame_size=list(size), taken=time.strftime("%d %b %H:%M:%S"))
+                                frame_size=list(size), taken=time.strftime("%d %b %H:%M:%S"),
+                                turn_deg=round(found.true_turn_deg, 4), edges=store.edges_to_json(found.edges))
             self._keep(self.points + [point])
+        seen = off_by(fit, point.sighting)
         return (f"point {point.id}: the arm said ({point.x:.1f}, {point.y:.1f}); the camera, through the saved "
-                f"calibration, sees the cube {off:.1f} mm from there")
+                f"calibration, sees the cube {seen.across:.1f} mm from there, its top {seen.height:+.1f} mm from "
+                f"{CUBE_MM:.0f}")
 
     def forget(self, body: dict) -> dict:
         point_id = int(number(body, "id"))
@@ -218,7 +231,7 @@ class TestsSession:
         return {"status": "done", "detail": f"{count} point{'' if count == 1 else 's'} forgotten"}
 
     def save(self, body: dict) -> dict:
-        return self.worker.run("tests-save", "SAVE CALIBRATION: camera.json refined by the red cube's points",
+        return self.worker.run("tests-save", "SAVE CALIBRATION: camera.json refined by the points",
                                self._save, uses_arm=False)
 
     def _save(self, motion: Motion) -> str:
@@ -231,16 +244,19 @@ class TestsSession:
         refined = refine.refined(fit, points)
         store.save_camera(self.config_dir, refined)
         typical, worst = check.difference_mm(fit, refined)
-        what = (f"refined just now by {len(points)} red cube points" if points
+        what = (f"refined just now by {len(points)} points" if points
                 else "put back just now as the three cubes alone gave it")
         frame = store.load_frame(self.config_dir)
         if frame is not None and check.frame_size_problem(frame, refined) is None:
             store.save_check(self.config_dir, check.draw(frame, refined, [
                 f"camera.json, {what}, on the calibration's own frame", store.describe_fit(refined)]))
-        offs = (f"; the points and cubes {refined.refined['off_mm'][0]:.1f} mm from the arm's points typically, "
-                f"{refined.refined['off_mm'][1]:.1f} at worst" if refined.refined else "")
+        heights = refined.refined.get("height_mm") if refined.refined else None
+        offs = (f"; the arm's readings {refined.refined['off_mm'][0]:.1f} mm from where the points all put them "
+                f"typically, {refined.refined['off_mm'][1]:.1f} at worst" if refined.refined else "")
+        offs += (f"; their cubes' tops {heights[0]:.1f} mm from {CUBE_MM:.0f} typically, {heights[1]:.1f} at worst"
+                 if heights else "")
         return (f"config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the saved one did, "
-                f"{worst:.1f} at worst{offs}")
+                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.desk_to_true)}")
 
     def _keep(self, points: List[RefinePoint]) -> None:
         """The points, now and on file. Hold the lock."""
@@ -272,10 +288,11 @@ class TestsSession:
             return None, "there is no camera calibration yet: CALIBRATE on the camera page"
         stamp = path.stat().st_mtime_ns
         if stamp != self._loaded[0]:
-            with self.lock:                         # CALIBRATE sets the points aside before it writes camera.json
-                self.points = store.load_refine_points(self.config_dir)
+            fit = store.load_camera(self.config_dir)
+            with self.lock:                         # CALIBRATE writes the cubes as points before camera.json
+                self.points = store.load_refine_points(self.config_dir, fit)
                 self._version += 1
-            self._loaded = (stamp, store.load_camera(self.config_dir))
+            self._loaded = (stamp, fit)
         fit = self._loaded[1]
         return (fit, None) if fit else (None, "camera.json was not written by the camera page: CALIBRATE again")
 

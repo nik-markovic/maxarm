@@ -23,7 +23,6 @@ import ast
 import os
 import sys
 import time
-from statistics import median
 from typing import Optional, Tuple
 
 from . import geometry, raw
@@ -57,10 +56,6 @@ ABSENT_SERVO_ID = 5
 # supply is off, and the servos still answer reads while being unable to move.
 SERVO_VOLTAGE_MIN_MV = 6000
 
-# A read waits for the arm to stop creeping after a move, then takes the median of
-# several: a servo's read flickers by a pulse.
-SETTLE_MS = 400
-SETTLE_READS = 5
 READ_PULSES = "[bus_servo.get_position(i) for i in (1, 2, 3)]"
 
 BOARD_CHECK = (
@@ -280,19 +275,6 @@ class ReplProtocol:
         read up to 1 mm out.
         """
         return _true_position(self.read_pulses())
-
-    def read_settled_position(self) -> Optional[Position]:
-        """Let the arm stop creeping, then the tip, true, from the median of several reads, servo by servo."""
-        return _true_position(self.read_settled_pulses())
-
-    def read_settled_pulses(self) -> Optional[Tuple[float, float, float]]:
-        """Let the arm stop creeping, then each servo's median pulse over several reads."""
-        time.sleep(SETTLE_MS / 1000.0)
-        samples = [sample for sample in (self.read_pulses() for _ in range(SETTLE_READS))
-                   if sample is not None]
-        if not samples:
-            return None
-        return tuple(median(sample[servo] for sample in samples) for servo in range(3))
 
 
 def _true_position(pulses: Optional[Tuple[float, float, float]]) -> Optional[Position]:

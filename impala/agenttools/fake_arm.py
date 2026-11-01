@@ -227,7 +227,9 @@ def instant_waits(waits: Optional[list] = None):
     original_wait = MaxArm._wait
     patches = [(protocol_module, "INTERRUPT_SETTLE_S", 0.0),
                (protocol_module, "BOARD_CHECK_RETRY_S", 0.0),
-               (protocol_module, "SETTLE_MS", 0)]
+               (arm_module, "PRECISE_STEADY_FROM_S", 0.0),
+               (arm_module, "PRECISE_STEADY_HALF_S", 0.0),
+               (arm_module, "PRECISE_SETTLE_MAX_S", 0.0)]
     saved = [(module, name, getattr(module, name)) for module, name, _ in patches]
 
     def wait(self, milliseconds: float) -> bool:

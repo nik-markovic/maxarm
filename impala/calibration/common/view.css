@@ -136,3 +136,4 @@ input.vertical { position: absolute; top: 0; left: 8px; width: 24px; height: 100
 .fullview-frame img { display: block; width: 100%; height: 100%; object-fit: fill; border-radius: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
 .fullview-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#z-out.off-scale { color: var(--yellow); }

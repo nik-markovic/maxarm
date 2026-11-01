@@ -1,17 +1,20 @@
 """The camera calibration's files in `config/`.
 
-| file                        | holds                                                                  |
-| --------------------------- | ---------------------------------------------------------------------- |
+| file                        | holds                                                                   |
+| --------------------------- | ----------------------------------------------------------------------- |
 | `camera-points.json`        | where the cup was over each cube, as the servos read it, in desk space |
 | `camera-frame.png`          | the frame CALIBRATE took, the cubes in view and the arm parked: fitted |
 | `camera-check.jpg`          | the latest check image, as the page shows it                           |
 | `camera.json`               | `desk_to_pixel`, 3x4, which the library reads, and the fit behind it   |
-| `camera-refine-points.json` | the red cube's points, from the Fine Tune page, that refine it         |
+| `camera-refine-points.json` | the points that refine it: CALIBRATE's three cubes, then the red cube's |
+|                             | from the Fine Tune page                                                |
+| `camera-view.json`          | QUALITY or FPS: which of the camera's modes the live view is           |
 
 Every file is written beside and renamed into place, so a crash never leaves half of one.
 """
 
 import json
+import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -23,8 +26,10 @@ import numpy as np
 from maxarm.geometry import Position
 
 from .cubes import COLOURS
-from .fit import CameraFit
-from .refine import Sighting
+from .devices import QUALITY
+from .fit import CameraFit, stretch_of
+from .model import CUBE_MM
+from .sighting import Edges, Sighting
 
 POINTS_FILE = "camera-points.json"
 FRAME_FILE = "camera-frame.png"
@@ -32,6 +37,7 @@ CHECK_FILE = "camera-check.jpg"
 CAMERA_FILE = "camera.json"
 REFINE_FILE = "camera-refine-points.json"
 REFINE_PREVIOUS_FILE = "camera-refine-points-previous.json"
+VIEW_FILE = "camera-view.json"
 CHECK_QUALITY = 90
 
 
@@ -60,10 +66,33 @@ class RefinePoint:
     pixel: List[float]       # where the camera then saw the desk under the cube's centre, the arm parked
     frame_size: List[int]    # the frame it was seen in: the snapshot's, or an older live view's
     taken: str
+    cube: Optional[str] = None   # the camera page's cube it is, seen in CALIBRATE's frame; None: the Fine Tune page's
+    turn_deg: Optional[float] = None     # the cube's turn, true mm, as its edges' corners are numbered
+    edges: Optional[List[dict]] = None   # the edges found round the cube: [{"corners": [a, b], "found": [x, y, ...]}]
 
     @property
     def sighting(self) -> Sighting:
-        return Sighting(self.x, self.y, (self.pixel[0], self.pixel[1]), (self.frame_size[0], self.frame_size[1]))
+        return Sighting(self.x, self.y, (self.pixel[0], self.pixel[1]), (self.frame_size[0], self.frame_size[1]),
+                        self.turn_deg, edges_from_json(self.edges) if self.edges else None)
+
+
+def edges_to_json(edges: Edges) -> List[dict]:
+    """The edges found round a cube, an entry per edge: the corners it joins and the points found on it."""
+    starts, ends, found = edges
+    pairs = sorted({(int(a), int(b)) for a, b in zip(starts, ends)})
+    return [{"corners": list(pair),
+             "found": [round(float(value), 2) for point in found[(starts == pair[0]) & (ends == pair[1])]
+                       for value in point]} for pair in pairs]
+
+
+def edges_from_json(stored: List[dict]) -> Edges:
+    starts, ends, found = [], [], []
+    for edge in stored:
+        points = np.array(edge["found"], float).reshape(-1, 2)
+        starts += [edge["corners"][0]] * len(points)
+        ends += [edge["corners"][1]] * len(points)
+        found.append(points)
+    return np.array(starts, int), np.array(ends, int), np.concatenate(found) if found else np.zeros((0, 2))
 
 
 def load_points(config_dir: Path) -> Points:
@@ -84,46 +113,116 @@ def save_points(config_dir: Path, points: Points) -> None:
     _replace(config_dir / POINTS_FILE, lambda partial: partial.write_text(json.dumps(content, indent=2) + "\n"))
 
 
-def load_refine_points(config_dir: Path) -> List[RefinePoint]:
+def load_refine_points(config_dir: Path, fit: Optional[CameraFit] = None) -> List[RefinePoint]:
+    """The points on file. With `fit`, a file from before the cubes were points -- or none -- gets `fit`'s three
+    cubes as points 1, 2 and 3, the points it had numbered on after them, and is written so."""
     path = config_dir / REFINE_FILE
-    return [RefinePoint(**point) for point in json.loads(path.read_text())["points"]] if path.exists() else []
+    stored = json.loads(path.read_text())["points"] if path.exists() else None
+    if fit is None or (stored is not None and all("cube" in point for point in stored)):
+        return [RefinePoint(**point) for point in stored or []]
+    cubes = cube_refine_points(fit, load_points(config_dir), _when(config_dir / FRAME_FILE))
+    points = cubes + [RefinePoint(**{**point, "id": len(cubes) + index + 1})
+                      for index, point in enumerate(stored or [])]
+    save_refine_points(config_dir, points)
+    return points
+
+
+def cube_refine_points(fit: CameraFit, recorded: Points, taken: str) -> List[RefinePoint]:
+    """The three cubes CALIBRATE fitted the camera to, as points 1, 2 and 3: where the arm said the cup was over
+    each, the pixel under its centre in CALIBRATE's frame, and the edges found round it there, if `fit` is
+    CALIBRATE's own."""
+    points = []
+    for index, (colour, cube) in enumerate(fit.cube_fit().cubes.items()):
+        point = recorded.get(colour)
+        z = point.z if point else CUBE_MM                # its point forgotten on the camera page since: its top
+        sent = point.sent if point else [cube["x"], cube["y"], z]
+        turn_deg, edges = (fit.cube_edges or {}).get(colour, (None, None))
+        points.append(RefinePoint(index + 1, cube["x"], cube["y"], z, sent, pixel=list(cube["pixel"]),
+                                  frame_size=list(fit.frame_size), taken=taken, cube=colour, turn_deg=turn_deg,
+                                  edges=edges_to_json(edges) if edges is not None else None))
+    return points
 
 
 def save_refine_points(config_dir: Path, points: List[RefinePoint]) -> None:
     content = {
-        "about": ("The red cube's points, which refine camera.json: for each, where the servos said the cup was "
-                  "when the cube stood centred under it, in desk space as camera-points.json has it, and where the "
-                  "camera then saw the desk under the cube's centre, the arm parked: a pixel of a frame of "
-                  "frame_size. They belong to the camera as CALIBRATE fitted it, and are set aside when it "
-                  "fits again. Written by calibration/, the Fine Tune page."),
+        "about": ("The points which refine camera.json: for each, where the servos said the cup was over the "
+                  "cube's centre, in desk space as camera-points.json has it, and how the camera saw the cube, the "
+                  "arm parked, in a frame of frame_size: the pixel under its centre, and the edges found round it, "
+                  "each the corners it joins, numbered as the cube is turned by turn_deg (true mm), and the pixels "
+                  "found on it, x, y after x, y. `cube` names the camera page's cube a point is, recorded there and "
+                  "seen in CALIBRATE's frame, camera-frame.png (points 1, 2 and 3 as CALIBRATE writes them); null "
+                  "for the red cube's points from the Fine Tune page. A point forgotten on the Fine Tune page is "
+                  "gone, the cubes' too. They belong to the camera as CALIBRATE fitted it, and are set aside when "
+                  "it fits again. Written by calibration/."),
         "points": [asdict(point) for point in points],
     }
-    _replace(config_dir / REFINE_FILE, lambda partial: partial.write_text(json.dumps(content, indent=2) + "\n"))
+    _replace(config_dir / REFINE_FILE, lambda partial: partial.write_text(_json_text(content)))
 
 
 def set_aside_refine_points(config_dir: Path) -> int:
-    """The red cube's points, moved aside for a new calibration: how many there were."""
+    """The points, moved aside for a new calibration: how many there were."""
     count = len(load_refine_points(config_dir))
     if count:
         (config_dir / REFINE_FILE).replace(config_dir / REFINE_PREVIOUS_FILE)
     return count
 
 
-def save_camera(config_dir: Path, fit: CameraFit) -> None:
+def load_view_choice(config_dir: Path) -> str:
+    """QUALITY or FPS, as the camera page last chose; QUALITY if it has not."""
+    path = config_dir / VIEW_FILE
+    return json.loads(path.read_text())["choice"] if path.exists() else QUALITY
+
+
+def save_view_choice(config_dir: Path, choice: str) -> None:
+    content = {
+        "about": ("Which of the camera's modes the live view is: quality, its largest YUYV, uncompressed, or fps, "
+                  "its largest MJPG, fast. A calibration holds for the mode it was taken in only. Written by "
+                  "calibration/, the camera page."),
+        "choice": choice,
+    }
+    _replace(config_dir / VIEW_FILE, lambda partial: partial.write_text(json.dumps(content, indent=2) + "\n"))
+
+
+def set_aside_calibration(config_dir: Path) -> List[str]:
+    """The camera calibration and everything it was made of -- camera.json, the cubes' points, the refine points, the
+    frame, the check image -- renamed `*-previous`: what was set aside."""
+    moved = []
+    for name in (CAMERA_FILE, POINTS_FILE, REFINE_FILE, FRAME_FILE, CHECK_FILE):
+        path = config_dir / name
+        if path.exists():
+            path.replace(path.with_name(f"{path.stem}-previous{path.suffix}"))
+            moved.append(name)
+    return moved
+
+
+def save_camera(config_dir: Path, fit: CameraFit, lens: Optional[dict] = None) -> None:
+    """camera.json; `lens`, the camera and the focus the live view holds it at, kept from the file if not given."""
+    lens = lens or load_lens(config_dir)
     content = {
         "about": ("Desk space to camera pixels: pixel ~ desk_to_pixel @ [x, y, z, 1], desk mm, z the height "
                   "above the desk. It holds for frames of frame_size only, from a camera that has not moved. "
                   "Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, "
-                  "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm, laid "
-                  "along the arm's x and y by the turn and shift that put the arm's points best on the cubes; "
-                  "desk_to_true is the board's mirror; desk_to_pixel is the two together. `refined`, if there, "
-                  "says the arm was placed again on the cubes and the red cube's points in "
-                  "camera-refine-points.json, and `cubes_alone` keeps the two matrices as the cubes alone gave "
-                  "them."),
+                  "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm (the "
+                  "cubes' 40 mm its ruler), turned and shifted along the arm's x and y; desk_to_true takes the "
+                  "arm's x, y to true mm: the board's mirror and a stretch, the arm's measure against the "
+                  "camera's. Together they put the arm's points on the cubes the camera saw, exactly; "
+                  "desk_to_pixel is the two together. `refined`, if there, says the camera was fitted again, all "
+                  "of it, to the pictures of the points in camera-refine-points.json, and the arm laid on them "
+                  "all, least squares; `cubes_alone` keeps the two matrices as the cubes alone gave them. `lens` "
+                  "is the camera it was calibrated with, as it calls itself, and the focus it "
+                  "was held at (focus_absolute): the live view holds that camera at it, since focusing moves the "
+                  "picture."),
         "desk_to_pixel": fit.desk_to_pixel.tolist(),
+        **({"lens": lens} if lens else {}),
         **fit.to_json(),
     }
     _replace(config_dir / CAMERA_FILE, lambda partial: partial.write_text(json.dumps(content, indent=2) + "\n"))
+
+
+def load_lens(config_dir: Path) -> Optional[dict]:
+    """{"camera": ..., "focus": ...}: what camera.json was calibrated with; None if it does not say."""
+    path = config_dir / CAMERA_FILE
+    return json.loads(path.read_text()).get("lens") if path.exists() else None
 
 
 def load_camera(config_dir: Path) -> Optional[CameraFit]:
@@ -173,12 +272,34 @@ def describe_calibration(config_dir: Path) -> dict:
 
 
 def describe_fit(fit: CameraFit) -> str:
-    """The calibration in a line: how well the cubes fit the frame, and how far each stands from its arm's point."""
-    refined = (f"; refined by {fit.refined['points']} red cube points, all within {fit.refined['off_mm'][1]:.1f} mm"
+    """The calibration in a line: how well the cubes fit the frame, how the arm measures against the camera, and how
+    far the points it was refined by are off."""
+    height = (f", their cubes' tops within {fit.refined['height_mm'][1]:.1f} mm of 40"
+              if fit.refined and fit.refined.get("height_mm") else "")
+    refined = (f"; refined by {fit.refined['points']} points, the arm's readings {fit.refined['off_mm'][0]:.1f} mm "
+               f"from where they all put them typically, {fit.refined['off_mm'][1]:.1f} at worst{height}"
                if fit.refined else "")
-    offs = ", ".join(f"{colour} {fit.cube_off_mm(colour):.1f}" for colour in fit.cubes)
-    return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; the cubes from "
-            f"the arm's points: {offs} mm{refined}")
+    return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; "
+            f"{describe_stretch(fit.desk_to_true)}{refined}")
+
+
+def describe_stretch(desk_to_true: np.ndarray) -> str:
+    """How the arm measures against the camera, in words: the camera's distances against the arm's readings."""
+    low, high, skew = stretch_of(desk_to_true)
+    if low >= 1:
+        apart = f"{100 * (low - 1):.1f} to {100 * (high - 1):.1f}% longer"
+    elif high <= 1:
+        apart = f"{100 * (1 - high):.1f} to {100 * (1 - low):.1f}% shorter"
+    else:
+        apart = f"{100 * (1 - low):.1f}% shorter to {100 * (high - 1):.1f}% longer"
+    return f"the camera measures the arm's distances {apart}, its x and y {skew:.1f} deg off square"
+
+
+def _json_text(content: dict) -> str:
+    """Indented JSON with each list of numbers on one line: an edge's found points are hundreds of them."""
+    text = json.dumps(content, indent=2)
+    return re.sub(r"\[\s+([-0-9.eE,\s]*?)\s+\]", lambda numbers: f"[{' '.join(numbers.group(1).split())}]",
+                  text) + "\n"
 
 
 def _described(path: Path, width: int, height: int) -> dict:

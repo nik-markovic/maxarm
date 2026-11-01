@@ -1,6 +1,7 @@
 // The camera calibration page: aim the camera, set each cube down under the cup and record where the cup is, then
 // CALIBRATE, which parks the arm, takes the frame and fits the camera to the cubes in it. VALIDATE CALIBRATION draws
-// the saved calibration on a new frame.
+// the saved calibration on a new frame. QUALITY or FPS picks the camera's mode, where it has the choice; changing it
+// sets the calibration aside, after a warning.
 //
 // Everything is desk space: millimetres, z the height over the desk. The arm's target is the grid point last
 // clicked and the height column. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
@@ -147,13 +148,24 @@ function renderCubes() {
   for (const row of $('cube-rows').children) {
     const cube = cubes[row.dataset.colour];
     row.classList.toggle('recorded', Boolean(cube));
-    row.querySelector('.cube-at').innerHTML = cube
-      ? `X <b>${fmt(cube.x)}</b> Y <b>${fmt(cube.y)}</b> Z <b>${fmt(cube.z)}</b>` : 'not recorded yet';
+    const tuned = fineTunePoint(row.dataset.colour);
+    row.querySelector('.cube-at').innerHTML = (cube
+      ? `X <b>${fmt(cube.x)}</b> Y <b>${fmt(cube.y)}</b> Z <b>${fmt(cube.z)}</b>` : 'not recorded yet')
+      + (tuned ? `<small class="cube-tune ${tuned.isGone ? 'gone' : ''}">${tuned.text}</small>` : '');
     const record = row.querySelector('[data-act="record"]');
     record.disabled = isReading();
     record.textContent = cube ? '● RECORD AGAIN' : '● RECORD';
     for (const act of ['visit', 'forget']) row.querySelector(`[data-act="${act}"]`).disabled = !cube;
   }
+}
+
+// The cube as CALIBRATE's point on the Fine Tune page: its number there, or forgotten there. Null with no calibration.
+function fineTunePoint(colour) {
+  const refine = state.tests ? state.tests.refine : null;
+  if (!refine) return null;
+  const point = refine.points.find((each) => each.cube === colour);
+  return point ? { text: `Fine Tune point ${point.id}`, isGone: false }
+    : { text: 'forgotten on Fine Tune: the calibration leaves it out', isGone: true };
 }
 
 function renderCamera() {
@@ -162,6 +174,7 @@ function renderCamera() {
   $('feed-badge').className = `feed-badge ${feed.status}`;
   $('feed-note').textContent = feed.status === 'failed' ? feed.detail : FEED_NOTES[feed.status] || '';
   $('feed-device').textContent = feed.status === 'live' ? feed.detail : '';
+  renderViewMode(feed, state.camera.view);
   const missing = COLOURS.filter((colour) => !cubes[colour]);
   $('calibrate').disabled = missing.length > 0 || isBusy();
   $('calibrate').title = missing.length ? `Record ${missing.join(', ')} first`
@@ -177,6 +190,37 @@ function renderCamera() {
     ? `<b>Calibration check</b><br>taken ${check.taken}, ${check.size[0]} × ${check.size[1]}<br>`
       + 'click it to see it full size'
     : '<b>No check image yet</b><br>CALIBRATE or VALIDATE CALIBRATION takes one, with the arm out of the way.';
+}
+
+// QUALITY and FPS, shown only when the camera's two modes differ.
+function renderViewMode({ modes }, choice) {
+  const isChoice = Boolean(modes.quality && modes.fps) && JSON.stringify(modes.quality) !== JSON.stringify(modes.fps);
+  $('view-mode').hidden = !isChoice;
+  $('view-note').hidden = !isChoice;
+  $('view-note').className = `chip ${choice === 'quality' ? 'warn' : ''}`;
+  $('view-note').textContent = choice === 'quality' ? 'sharpest · low FPS, recommended' : 'faster · compressed';
+  for (const button of $('view-mode').children) {
+    const mode = modes[button.dataset.choice];
+    button.classList.toggle('on', button.dataset.choice === choice);
+    button.disabled = isBusy();
+    const what = button.dataset.choice === 'quality' ? 'the sharpest picture, slower' : 'a faster picture';
+    button.title = mode ? `${what}: ${modeLine(mode)}` : '';
+  }
+}
+
+// The camera's own fastest rate for the mode: it may give fewer, as in low light.
+const modeLine = ({ size, format }) => `${size[0]} × ${size[1]} ${format}`;
+
+function chooseViewMode(choice) {
+  if (!state || choice === state.camera.view) return;
+  const mode = state.camera.feed.modes[choice];
+  const [width, height] = mode.size;
+  const warning = `Switch the camera to ${choice.toUpperCase()}, ${width} × ${height}?\n\n`
+    + 'The camera calibration, the cubes\' points and the Fine Tune points are put aside: record the cubes and '
+    + 'CALIBRATE again.';
+  const hasWork = state.camera.calibration.exists || Object.values(state.camera.cubes).some(Boolean);
+  if (hasWork && !window.confirm(warning)) return;
+  command('camera/view', { choice }, 'Camera mode').then(connectFeed);
 }
 
 function buildCubeRows() {
@@ -238,6 +282,10 @@ $('cube-rows').addEventListener('click', (event) => {
 });
 
 $('calibrate').addEventListener('click', () => command('camera/calibrate', {}, 'CALIBRATE'));
+$('view-mode').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-choice]');
+  if (button) chooseViewMode(button.dataset.choice);
+});
 $('validate').addEventListener('click', () => command('camera/validate', {}, 'VALIDATE CALIBRATION'));
 $('check-box').addEventListener('click', () => { if (checkShown !== null) showCheck(); });
 $('guide').addEventListener('click', showGuide);

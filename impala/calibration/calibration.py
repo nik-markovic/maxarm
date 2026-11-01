@@ -35,7 +35,7 @@ from tiles.api import TilesSession                           # noqa: E402
 
 def run(host: str, port: int, config_dir: Path = CONFIG_DIR, camera: Optional[str] = None) -> None:
     worker = Worker(Motion(MaxArm(config_dir=None), config_dir))
-    feed = Feed(camera)
+    feed = Feed(camera, config_dir)
     server = Server(HERE, home="desk", pages=["camera", "tests", "tiles"])
     arm_api.register(server, worker)
     DeskSession(worker, config_dir).register(server)

@@ -1,0 +1,23 @@
+connecting: the board resets and homes the arm
+(-141.0, -220.0, 42.0): done, 3 settled reads
+(109.0, -221.0, 42.0): done, 2 settled reads
+(130.0, -59.0, 42.0): done, 3 settled reads
+(-10.0, -150.0, 42.0): done, 3 settled reads
+(-89.0, -130.0, 42.0): done, 3 settled reads
+(70.0, -130.0, 42.0): done, 3 settled reads
+(-110.0, -144.0, 42.0): done, 3 settled reads
+(40.0, -200.0, 42.0): done, 3 settled reads
+(-104.0, -110.0, 42.0): done, 3 settled reads
+(0.0, -230.0, 42.0): done, 3 settled reads
+(90.0, -180.0, 42.0): done, 2 settled reads
+(39.0, -250.0, 42.0): done, 3 settled reads
+(-79.0, -190.0, 42.0): done, 3 settled reads
+(-50.0, -250.0, 42.0): done, 2 settled reads
+(-90.0, -240.0, 42.0): done, 3 settled reads
+(121.0, -110.0, 42.0): done, 3 settled reads
+(132.0, -74.0, 42.0): done, 3 settled reads
+(-39.0, -200.0, 42.0): done, 3 settled reads
+(152.0, -96.0, 42.0): done, 3 settled reads
+(141.0, -149.0, 42.0): done, 3 settled reads
+wrote /var/b/shared/work/maxarm/impala/agenttools/arm-to-desk/response.json
+exit 0

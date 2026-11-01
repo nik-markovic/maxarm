@@ -66,16 +66,30 @@ for step in word.plan_word("TEAM", tiles, letters, places, arm.can_reach):   # r
 - **ARM TO DESK**: the ring under the pointer is blue; the bar over the picture keeps its size, so the picture no
   longer moves as the arm does; the red cube found is cleared from the picture on entering or clicking.
 - **Tiles**: LOCATE TILES offers letters only until some are typed; after PLACE the arm parks and the tiles are found
-  and read again, where the tiles carried were drawn grey (STATUS §4).
-- **Every page**: the cubes' wireframes are thinner and fainter; the height slider's range takes in the arm's height
-  when it is above or below it, as after RESET.
-- **The camera calibration places the arm by a turn and a shift** (`calibration/camera/fit.py`, `refine.py`): the
-  camera is still fitted to the cubes' shapes; the arm's points are then laid on the cubes as seen, with no stretch,
-  at CALIBRATE and at SAVE CALIBRATION. A stretch through three cubes fitted each cube's own error and carried it
-  across the desk: the first calibration was up to 10 mm off on the left, and the reach arcs' centre about 4 mm off
-  (STATUS §6). The camera page's line says how far each cube stands from its arm point.
+  and read again (STATUS §4). The picture is the live view only, the snapshot view gone; where the tiles carried
+  were stays drawn, dotted, with the letter and a chevron to its top, PLACE after PLACE until LOCATE TILES
+  (STATUS §10).
+- **Every page**: the cubes' wireframes are thinner and fainter; the height slider keeps its range: an arm above
+  or below it, as after RESET, puts the slider at its end and its number in yellow, the arm's own height.
+- **The camera from the pictures, the arm laid on it** (`calibration/camera/fit.py`, `refine.py`, STATUS §15): the
+  camera is fitted to the cubes' shapes alone, their 40 mm its ruler; the arm is tied to it by a turn, a shift and
+  a stretch. CALIBRATE's three cubes are 0 mm off: three points have nothing to check one another against. The
+  stretch -- how the arm's x, y measure against the camera's millimetres -- is shown on the camera page and under
+  SAVE, never as a point's error.
+- **SAVE CALIBRATION on Fine Tune** (`calibration/camera/refine.py`): the whole camera -- focal length, principal
+  point, where it stands and which way it looks -- fitted again to every point's cube outline, 40 mm each, the
+  pictures alone; then the arm laid on all the points by least squares. A point's XY is how far its reading is
+  from where the others put it, from the fourth point on: the cup off the cube's centre, or its edges found wrong.
+  Its Z is how far from 40 mm tall the camera sees its cube (`calibration/camera/sighting.py`, STATUS §13). SAVE
+  needs four points. CALIBRATE's three cubes are points 1, 2 and 3, forgotten like any other; the camera page's cube
+  rows say which (STATUS §10).
 - **FIND RED CUBE** on Fine Tune: once the arm is down over the cube, its servos are read; a dot on the cube's top
   where it was sent, the cup's rim, yellow, where the servos say it is, and the miss, X and Y, by the cube's x, y.
+  It brings the cup near the cube: align the cube before RECORD POINT; a **?** beside it, and beside ARM TO DESK,
+  says more. ARM TO DESK from a cup at a cube's top parks first.
+- **ARM TO DESK** on Fine Tune: the point clicked in blue, its dot alone once the arm is down; once the servos are
+  read, the cup's rim in green where they say it is, at their height, with a crosshair and a dot on the desk under
+  it. The green rim should sit on the cup in the picture, wherever the arm came down (STATUS §16).
 - **DESK GRID** on Fine Tune: desk space every 10 mm drawn on the desk over the live view, off unless turned on, the
   lines through the arm's turning axis stronger: grid paper laid along it shows whether the camera's millimetres
   match the paper's all over it.
@@ -92,7 +106,7 @@ arm.set_clearance(14.0)                # mm above the desk
 
 arm.move(x, y, z)                      # fast: 200 mm/s
 arm.move(x, y, z, MoveType.SLOW)       # 10 mm/s: nothing heavy gets yanked
-arm.move(x, y, z, MoveType.PRECISE)    # slow, then corrected until it lands: ~0.5 mm, ~1.2 s more
+arm.move(x, y, z, MoveType.PRECISE)    # slow, then each servo nudged onto its target: ~0.5 mm, a few s more
 arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
 arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
@@ -101,7 +115,7 @@ arm.home()                             # the reset pose, by way of a move
 arm.set_suction(True)                  # by hand, for a job grab() and drop() do not fit
 
 arm.can_reach(x, y, z)                 # arithmetic: works before connect()
-arm.get_position()                     # where the servos say the arm is
+arm.get_position()                     # where the servos say the arm is: their reads' mean once steady
 arm.stop()                             # safe from a signal handler
 arm.stop_on_ctrl_c()                   # Ctrl-C holds the arm for the rest of the run
 ```
@@ -141,10 +155,18 @@ until the camera calibration exists, so the Fine Tune and Tiles pages wait for t
 corrected. A leg is usually the whole move; there are more only when the move has to climb over the clearance or go
 round the arm-base limit (see below).
 
-**PRECISE is slow, then corrected.** After the slow legs it reads the servos (a median of five, settled) and, while
-any servo is more than a pulse from the pulse the firmware sends for the target, sends the target plus the error: at
-most three rounds and 3 mm per axis, every aim checked against the limits, and it stops as soon as a round gains
-nothing, so a cup resting on something is not pushed on and on. The result then says the arm is at the target.
+**PRECISE is slow, then nudged.** The servos stop short of a target, and do not move at all for one a few pulses
+away -- by how much depends on the servo and on which way it turns. After the slow legs a precise move waits until
+the servos are steady and takes the mean of their reads; each servo further from the target's pulses than its
+tolerance (the base and servo 2 0.75 pulse, servo 3 1.25) is sent past them, quickly -- the base 3 pulses, servo 2 6
+turning + and 2 turning -, servo 3 2 -- the others held at theirs, and half a second later the target itself, which it
+comes back to (the owner's nudge). At most three rounds and 4 mm per axis from the target, every push checked
+against the limits. The result then says the arm is at the target, and `get_position()` gives the last mean.
+
+**Where the arm is** is the mean of the servos' reads, which flicker by a pulse or more for as long as they are read:
+from 1 s after a move's travel, the mean of the last half second against the half second before it, every servo
+within 0.35 pulse -- then the mean of that second; at most 3 s after the travel; from 2 s after it, half a second of
+reads (STATUS §19).
 
 **The cup turns with the move.** `angle` is a direction in your space, degrees from its +x towards its +y. The turn is
 sent in the same round trip as the leg that crosses the desk, and the move waits for whichever finishes last: the cup
@@ -216,6 +238,7 @@ Everything else is a constant in the module that uses it, with where it came fro
 
 1. **Connecting moves the arm.** Opening the port resets the board, which homes the arm and centres the cup:
    about 4 s, sometimes 15.
-2. **Fast and slow moves land 1-3 mm short**: the servos' deadband. PRECISE lands within a pulse, about 0.5 mm.
+2. **Fast and slow moves land 1-3 mm short**: the servos' deadband. PRECISE nudges each servo onto its target,
+   about 0.5 mm (STATUS §19.3).
 3. **An arm that accepts commands and does not move** was seen once. `connect()` checks the servo supply; a move
    cannot tell, because it reads nothing back. Power-cycle the arm at the barrel jack.

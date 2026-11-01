@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT), str(ROOT / "calibration")]
 
 from camera import feed as feed_module                       # noqa: E402
+from camera.devices import FPS, QUALITY, Mode                # noqa: E402
 
 FAKE_DEVICE = "/dev/video-fake"
 FAKE_NAME = "fake camera (a still frame)"
@@ -39,7 +40,7 @@ class FakeCamera:
         self.released = 0
         self.is_broken = False          # True: the camera will not open, as if unplugged
 
-    def open_view(self, device: str) -> "StillCapture":
+    def open_view(self, device: str, mode=None, focus=None) -> "StillCapture":
         if self.is_broken:
             raise RuntimeError(f"cannot open {FAKE_NAME}: it is unplugged")
         self.opened += 1
@@ -71,12 +72,19 @@ class StillCapture:
     def release(self) -> None:
         self.camera.released += 1
 
+    def get(self, prop: int) -> float:
+        return -1.0                     # no focus, as a camera without one
+
+    def set(self, prop: int, value: float) -> bool:
+        return False
+
 
 @contextlib.contextmanager
 def fake_camera(frame: np.ndarray):
     """Every `Feed` used inside this sees `frame`, clock and all."""
     camera = FakeCamera(frame)
-    patches = {"open_view": camera.open_view,
+    mode = Mode("MJPG", frame.shape[1], frame.shape[0])
+    patches = {"open_view": camera.open_view, "view_modes": lambda device: {QUALITY: mode, FPS: mode},
                "find_camera": lambda: FAKE_DEVICE, "describe": lambda device: FAKE_NAME}
     saved = {name: getattr(feed_module, name) for name in patches}
     for name, value in patches.items():

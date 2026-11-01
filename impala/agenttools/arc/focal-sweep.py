@@ -26,7 +26,7 @@ blobs = cubes.find_blobs(frame)
 starts = [(*fitmod._start(frame, naming, points), naming) for naming in cubes.namings(blobs)]
 overlap, params0, naming = max(starts, key=lambda s: s[0])
 params0 = fitmod._fit_outlines(naming, points, params0)
-params_free, dist_free = fitmod._fit_edges(frame, naming, points, params0)
+params_free, dist_free, _ = fitmod._fit_edges(frame, naming, points, params0)
 print(f"focal free: {params_free[FOCAL]:.1f} px")
 
 

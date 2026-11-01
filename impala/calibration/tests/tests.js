@@ -12,7 +12,7 @@
 // The arm's target is the grid point last clicked, the arrows' steps and the height column. Whatever moves the arm
 // from elsewhere (a test, RESET, another page) moves the target with it, and a move the arm refuses puts it back.
 
-import { $, api, fmt, mountHeader, report, showHeader, startPolling } from '/common/page.js';
+import { $, api, fmt, mountHeader, openModal, report, showHeader, startPolling } from '/common/page.js';
 import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { HeightColumn, SAFE_MM, cubeIcon } from '/common/height.js';
 import { TestsGrid } from './grid.js';
@@ -24,6 +24,8 @@ import { LiveMarks } from './view.js';
 const SAME_MM = 0.005;
 // Further than this from where it was sent, desk mm across, and the arm has landed off (the owner's).
 const LANDED_OFF_MM = 0.5;
+// The arm is at the point clicked if it was sent this near it, desk mm: the app's rounding of the point allows for it.
+const AT_POINT_MM = 0.05;
 const SCREEN = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const ARROWS = { up: '▲', down: '▼', left: '◀', right: '▶' };
 const FEED = '/api/camera/feed';
@@ -45,7 +47,8 @@ const ui = {
   target: { x: limits.home[0], y: limits.home[1], z: SAFE_MM },
   showGuides: localStorage.getItem(GUIDES_KEY) !== 'off',
   showDeskGrid: localStorage.getItem(DESK_GRID_KEY) === 'on',
-  touch: null,                  // the point of desk last clicked: { u, v } in the view, desk [x, y]
+  touch: null,                  // the point of desk last clicked: { u, v } in the view, desk [x, y], and how ARM
+                                // TO DESK there went: the reply's status, null until it comes
   findNote: '',                 // why the last FIND RED CUBE found nothing
   clearedFound: null,           // the stamp of the red cube found that ARM TO DESK has cleared from view
 };
@@ -133,19 +136,22 @@ async function findRedCube() {
 
 function clearPoints() {
   const count = tests() && tests().refine ? tests().refine.points.length : 0;
-  if (count && window.confirm(`Forget all ${count} red cube points?`)) command('tests/clear', {}, 'CLEAR');
+  if (count && window.confirm(`Forget all ${count} points, the cubes' too?`)) command('tests/clear', {}, 'CLEAR');
 }
 
 // A click in the live view, full size: marked at once, then the arm is sent. A newer click replaces one still
-// waiting for the arm.
+// waiting for the arm. The ring under the pointer goes until the pointer moves: it would hide the point's own.
 async function touch(u, v) {
   const matrix = tests() ? tests().desk_to_view : null;
   if (!matrix) return;
   clearFound();
-  ui.touch = { u, v, desk: toDesk(matrix, [u, v]) };
+  if (full && full.isOpen()) full.marks.update({ hover: null });
+  const clicked = { u, v, desk: toDesk(matrix, [u, v]), status: null };
+  ui.touch = clicked;
   render();
   const reply = await command('tests/touch', { u, v }, 'ARM TO DESK');
-  if (reply.point && ui.touch && ui.touch.u === u && ui.touch.v === v) ui.touch.desk = reply.point;
+  if (reply.point) clicked.desk = reply.point;
+  clicked.status = reply.status;
   render();
 }
 
@@ -162,7 +168,7 @@ function render() {
   const found = latest && latest.stamp !== ui.clearedFound ? latest : null;
   const matrix = tests() ? tests().desk_to_view : null;
   const refine = tests() ? tests().refine : null;
-  const next = refine ? nextSpot([...refine.cubes, ...refine.points], limits, matrix) : null;
+  const next = refine ? nextSpot(refine.points, limits, matrix) : null;
   column.render(ui.target.z);
   renderReadout();
   renderView();
@@ -172,7 +178,7 @@ function render() {
   }
   if (refine) renderRefine(refine, next);
   const view = {
-    matrix, deskToTrue: tests() ? tests().desk_to_true : null, limits, found, touch: ui.touch, target: target(),
+    matrix, deskToTrue: tests() ? tests().desk_to_true : null, limits, found, touch: touchMarks(), target: target(),
     isReading: isReading(),
     showGuides: ui.showGuides, showDeskGrid: ui.showDeskGrid, refine, next,
   };
@@ -245,7 +251,7 @@ function renderRefine(refine, next) {
     + (next ? `The dashed circle on the grid and in the live view is a place far from every point so far, around
       (${fmt(next.x, 0)}, ${fmt(next.y, 0)}).` : 'Every place in reach and in view has a point near it.');
   const offLimits = REFINE.off;
-  const shown = JSON.stringify([refine.points, refine.cubes]);
+  const shown = JSON.stringify(refine.points);
   if (shown !== pointsShown) {
     pointsShown = shown;
     $('points').tBodies[0].innerHTML = tableRows(refine, offLimits);
@@ -265,13 +271,29 @@ function clickedPoint() {
     note: landed ? landed.text : '', isOff: Boolean(landed && landed.isOff) };
 }
 
+// ARM TO DESK's point and the arm: 'sent' until the arm has come down there; 'landed' once it has, until its servos
+// are read; 'read' then; 'left' once the arm is sent elsewhere.
+function touchPhase() {
+  const sent = state ? state.camera.position : null;
+  const { desk, status } = ui.touch;
+  if (status !== 'done' || !desk || !sent) return 'sent';
+  if (Math.hypot(sent[0] - desk[0], sent[1] - desk[1]) > AT_POINT_MM) return 'left';
+  return isReading() || !state.camera.measured ? 'landed' : 'read';
+}
+
+// ARM TO DESK's point as the live view draws it: where it was clicked, how far the arm has got, and once its servos
+// are read there, where they say the cup is, desk mm.
+function touchMarks() {
+  if (!ui.touch) return null;
+  const phase = touchPhase();
+  return { ...ui.touch, phase, says: phase === 'read' ? state.camera.measured : null };
+}
+
 // How the arm landed at the point clicked, by its servos, once it is there and read; null otherwise.
 function landing() {
-  const sent = state ? state.camera.position : null;
-  const desk = ui.touch ? ui.touch.desk : null;
-  if (!desk || !sent || Math.hypot(sent[0] - desk[0], sent[1] - desk[1]) > 0.05) return null;
+  if (!ui.touch || touchPhase() !== 'read') return null;
+  const sent = state.camera.position;
   const says = state.camera.measured;
-  if (!says || isReading()) return null;
   const off = Math.hypot(says[0] - sent[0], says[1] - sent[1]);
   return off > LANDED_OFF_MM ? { text: `landed ${fmt(off)} mm off, by the arm's servos`, isOff: true }
     : { text: `landed within ${fmt(LANDED_OFF_MM)} mm`, isOff: false };
@@ -355,6 +377,9 @@ $('find').addEventListener('click', findRedCube);
 $('record').addEventListener('click', () => command('tests/record', {}, 'RECORD POINT'));
 $('save').addEventListener('click', () => command('tests/save', {}, 'SAVE CALIBRATION'));
 $('clear').addEventListener('click', clearPoints);
+for (const button of document.querySelectorAll('[data-help]')) {
+  button.addEventListener('click', () => { openModal('help').body.innerHTML = $(button.dataset.help).innerHTML; });
+}
 $('points').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-id]');
   if (button) command('tests/forget', { id: Number(button.dataset.id) }, `Forget point ${button.dataset.id}`);

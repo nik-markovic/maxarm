@@ -30,7 +30,7 @@ blobs = cubes.find_blobs(calibration)
 starts = [(*fitmod._start(calibration, naming, points), naming) for naming in cubes.namings(blobs)]
 _, params0, naming = max(starts, key=lambda s: s[0])
 params0 = fitmod._fit_outlines(naming, points, params0)
-params_free, _ = fitmod._fit_edges(calibration, naming, points, params0)
+params_free, _, _ = fitmod._fit_edges(calibration, naming, points, params0)
 
 
 def fit_edges_held(params, free):

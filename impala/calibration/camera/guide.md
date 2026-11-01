@@ -29,6 +29,7 @@
 - Verify that the pink outlines in the generated image sit on the cubes, and the cyan circles on the arm's
   suction cups. Click the image to see it full size.
 - Then make it better on the Fine Tune page: **Refine the calibration** with the red cube alone, set down and
-  centred under the cup, in ten places or more.
+  centred under the cup, in ten places or more. The three cubes are its points 1, 2 and 3; one forgotten there
+  says so on its row here.
 
 **Do not move the camera once the calibration is complete.** If you do, you will need to re-do the calibration.

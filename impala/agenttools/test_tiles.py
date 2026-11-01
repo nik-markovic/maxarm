@@ -285,7 +285,6 @@ def test_locate_and_visit() -> bool:
         located = post("tiles/locate")
         parked, snapshots = legs(board), camera.snapshots
         found = state()["tiles"]["found"]
-        snapshot = server.byte_routes["/api/tiles/snapshot.jpg"]()
         ready = next(tile for tile in found["tiles"] if tile["status"] == "ready")
         visited = post("tiles/visit", n=ready["n"])
         down = legs(board)
@@ -315,8 +314,6 @@ def test_locate_and_visit() -> bool:
         check("each placed: the touching pair too close, the one past 265 mm out of reach",
               sum(tile["status"] == "too close" for tile in found["tiles"]) >= 2 and far["reach"] > 265,
               f"{[tile['status'] for tile in found['tiles']]}"),
-        check("the snapshot is there for the page, as a JPEG", snapshot and snapshot[1] == "image/jpeg"
-              and cv2.imdecode(np.frombuffer(snapshot[0], np.uint8), cv2.IMREAD_COLOR).shape[:2] == (1944, 2592)),
         check("a visit: over the tile at 14 mm, slowly down to 6, 4 mm over its top, on its centre",
               visited["status"] == "done" and heights[-2:] == [VISIT_OVER_MM, VISIT_MM]
               and all(math.dist(point[:2], (ready["x"], ready["y"])) < 0.01 for point, _ in down[-2:])

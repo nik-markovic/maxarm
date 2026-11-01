@@ -14,7 +14,8 @@ calibration pages keep to get there. Every file here but this one belongs to one
 | `camera-points.json`        | where the cup was over each cube's centre, desk space   | `calibration/`, camera page |
 | `camera-frame.png`          | the frame CALIBRATE took: cubes in view, arm parked     | `calibration/`, camera page |
 | `camera-check.jpg`          | the latest check image, as the camera page shows it     | `calibration/`, camera page |
-| `camera-refine-points.json` | the red cube's points, which refine `camera.json`       | `calibration/`, tests page  |
+| `camera-refine-points.json` | the points which refine `camera.json`                   | `calibration/`, both pages  |
+| `camera-view.json`          | QUALITY or FPS: the camera's mode for the live view     | `calibration/`, camera page |
 
 Desk space is millimetres on the desk with z the height above its surface, 0 being the cup snug on it.
 `maxarm/spaces.py` explains how each matrix is used.
@@ -48,7 +49,7 @@ and its top at 40: those, not the cup's height, are what the fit will use.
 ## camera.json
 
 Written by the camera page's CALIBRATE, from the three cubes in `camera-frame.png`, standing where
-`camera-points.json` says, and again by the tests page's SAVE CALIBRATION, refined by the red cube's points in
+`camera-points.json` says, and again by the tests page's SAVE CALIBRATION, the camera fitted to the points in
 `camera-refine-points.json`. The library reads `desk_to_pixel`: desk (x, y, z) to camera pixels,
 
 ```
@@ -64,28 +65,39 @@ The rest is the fit behind it, which the camera page reads back to draw and to c
 
 | key             | what it is                                                                                 |
 | --------------- | ------------------------------------------------------------------------------------------ |
+| `lens`          | the camera as it calls itself, its focus (`focus_absolute`) held still, and its mode       |
 | `frame_size`    | width, height: the only frame size `desk_to_pixel` holds for                               |
-| `true_to_pixel` | 3x4: the camera alone, in true mm (x, y, z up), square pixels, laid along the arm's x, y   |
-| `desk_to_true`  | 2x2: the arm's x, y to true mm -- the board's mirror (a turn and stretch in older files)   |
+| `true_to_pixel` | 3x4: the camera alone, in true mm (x, y, z up), square pixels, along the arm's x, y        |
+| `desk_to_true`  | 2x2: the arm's x, y to true mm -- the board's mirror and the arm's stretch                 |
 | `cubes`         | each cube's desk x, y, its turn on the desk, degrees, and the pixel under its centre       |
 | `edge_px`       | how far the frame's edges sat from the fitted cubes': median and 90%, pixels               |
-| `refined`       | if refined: how many red cube points, and how far off they all are, median and worst, mm   |
+| `refined`       | if refined: how many points, how far their arm readings are from where the points all put  |
+|                 | them (`off_mm`), and their cubes' tops from 40 mm (`height_mm`): median and worst, mm      |
 | `cubes_alone`   | if refined: `true_to_pixel`, `desk_to_true` and `cubes` as the three cubes alone gave them |
 
 `desk_to_pixel` is `true_to_pixel` with `desk_to_true` applied to x and y, scaled. The library's `Camera` refuses a
 frame of another size (`check_frame()`).
 
-CALIBRATE places the arm on the three cubes by a turn and a shift, the best for the three; a refinement places it
-again, on the three cubes and every red cube point at once, and keeps the camera: `true_to_pixel` is the same
-camera, its true millimetres turned and shifted onto the arm's, so that `desk_to_true` is the mirror alone.
+The camera's millimetres are the cubes' 40 mm. The arm is tied to the camera by a turn, a shift and a stretch:
+CALIBRATE's, through its three cubes exactly; a refinement's, the least squares over its points. The turn and
+shift are in `true_to_pixel`, the stretch in `desk_to_true`: how the arm's x, y measure against the camera's.
+A refinement fits the whole camera again -- focal length, principal point, where it stands and which way it
+looks -- to the points' pictures alone, every point's cube 40 mm, then lays the arm on them. The three cubes take
+part as points 1 to 3, unless forgotten; their own calibration is only where the fit starts.
 
 The calibration holds only while the camera and the arm stay where they were. VALIDATE CALIBRATION says whether the
 camera has moved.
 
 ## camera-refine-points.json
 
-Written by the tests page's RECORD POINT: for each point, where the servos said the cup was when the red cube stood
-centred under it, in desk space as in `camera-points.json`, where the cup had been sent, and where the camera then
-saw the desk under the cube's centre, the arm parked: a pixel of a frame of `frame_size`, the live view's. Pixels,
-not millimetres, so a refinement changes none of them. They belong to the camera as CALIBRATE fitted it: the next
-CALIBRATE moves them to `camera-refine-points-previous.json`.
+Written by CALIBRATE, its three cubes as points 1, 2 and 3, and the tests page's RECORD POINT, the red cube's:
+for each point, where the servos said the cup was when the cube stood centred under it, in desk space as in
+`camera-points.json`, where the cup had been sent, and how the camera then saw the cube, the arm parked, in a frame
+of `frame_size`: `pixel`, the desk under the cube's centre, and `edges`, the edges found round the cube -- for each,
+the `corners` it joins and the pixels `found` on it, x, y after x, y -- numbered as the cube is turned by
+`turn_deg` (true mm). SAVE fits the camera to the edges; a point with none, from before they were kept, counts by
+its pixel. `cube` names the camera page's cube a point is, seen in `camera-frame.png`; `null` for the red cube's
+points. A point forgotten on the tests page is gone, a cube's too. Pixels, not millimetres, so a refinement changes
+none of them. They belong to the camera as CALIBRATE fitted it: the next CALIBRATE moves them to
+`camera-refine-points-previous.json`. A file from before the cubes were points gets them once, the next time the
+app reads it, its own points numbered on after them.

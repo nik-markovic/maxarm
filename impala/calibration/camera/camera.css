@@ -47,6 +47,8 @@ main.camera {
 .cube-at { grid-area: at; color: var(--faint); font-size: 12px; }
 .cube-row.recorded .cube-at { color: var(--muted); }
 .cube-at b { color: var(--text); font-weight: 600; margin-right: 6px; }
+.cube-tune { display: block; margin-top: 2px; color: var(--faint); font-size: 11px; }
+.cube-tune.gone { color: #e6b84a; }
 .cube-actions { grid-area: actions; display: flex; align-items: center; gap: 5px; }
 .btn.record { font-size: 12px; letter-spacing: 0.6px; padding: 6px 11px; }
 .btn.record:hover:not(:disabled) { border-color: var(--c);
@@ -83,3 +85,7 @@ main.camera {
 .modal.viewer img { display: block; max-width: calc(100vw - 80px); max-height: calc(100vh - 80px); cursor: zoom-in;
   border-radius: 6px; }
 .modal.viewer img.actual { max-width: none; max-height: none; cursor: zoom-out; }
+
+/* QUALITY or FPS: beside the title, where it is seen, the choice said beside it. */
+.view-mode button { padding: 5px 12px; font-size: 12.5px; letter-spacing: 0.8px; }
+.view-mode button.on[data-choice="quality"] { background: rgba(230, 184, 74, 0.16); color: var(--yellow); }

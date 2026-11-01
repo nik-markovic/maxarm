@@ -31,7 +31,7 @@ blobs = cubes.find_blobs(frame)
 starts = [(*fitmod._start(frame, naming, points), naming) for naming in cubes.namings(blobs)]
 overlap, params0, naming = max(starts, key=lambda s: s[0])
 params0 = fitmod._fit_outlines(naming, points, params0)
-params0, dist0 = fitmod._fit_edges(frame, naming, points, params0)
+params0, dist0, _ = fitmod._fit_edges(frame, naming, points, params0)
 desk = cubes.desk_chroma(frame)
 crops = [edges.crop(frame, naming[c], desk) for c in fitmod.COLOURS]
 centre = np.array([frame.shape[1] / 2, frame.shape[0] / 2])

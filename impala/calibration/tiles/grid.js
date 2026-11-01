@@ -1,11 +1,14 @@
 // The Tiles page's view from above: the shared grid in desk space, with the work areas -- pickup green, dropoff
 // blue, the line between them and the arm's centre line dashed, the arc words go along dotted -- and each tile
 // LOCATE TILES found, its face in its status's colour, its letter at the letter's bottom right corner, as over the
-// picture; a tile PLACE has carried off dashed and faint, and where they were, grey, once found again. Where PLACE
-// sets each letter of a word down: dashed until the tile is there, then filled. The pointer picks out the tile under it; a click is that tile, for onPickTile(n).
+// picture; where a tile PLACE has carried off was, dotted, grey, its letter faint and a chevron to the letter's top,
+// until LOCATE TILES. Where PLACE sets each letter of a word down: dashed until the tile is there, then filled. The
+// pointer picks out the tile under it; a click is that tile, for onPickTile(n).
 
 import { GridView } from '/common/grid.js';
-import { AREA_INK, CARRIED_INK, STATUS_INK, bearings, letterBadge, tileAt, tileName, wordInk } from './view.js';
+import {
+  AREA_INK, CARRIED_INK, STATUS_INK, bearings, chevronUp, letterBadge, tileAt, tileName, wordInk,
+} from './view.js';
 
 export class TilesGrid extends GridView {
   constructor(canvas, limits, onPickTile) {
@@ -28,7 +31,7 @@ export class TilesGrid extends GridView {
   drawMarks() {
     this.drawAreas();
     if (this.view.word) this.drawWord(this.view.word);
-    if (this.view.found) this.drawCarried(this.view.found.carried || []);
+    if (this.view.found) (this.view.found.carried || []).forEach((tile) => this.drawCarried(tile));
     if (this.view.found) this.drawTiles(this.view.found.tiles);
   }
 
@@ -85,19 +88,27 @@ export class TilesGrid extends GridView {
     }
   }
 
-  // Where the tiles PLACE carried were, before the tiles were found again.
-  drawCarried(tiles) {
+  // Where a tile PLACE carried off was, and how its letter lay.
+  drawCarried(tile) {
     const { ctx } = this;
-    ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = `${CARRIED_INK}99`;
-    ctx.lineWidth = 1;
-    for (const tile of tiles) {
+    ctx.setLineDash([2, 3]);
+    ctx.strokeStyle = `${CARRIED_INK}bb`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    this.trace(tile.corners.map(([x, y]) => this.toScreen(x, y)));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const chevron = chevronUp(tile);
+    if (chevron.length) {
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      this.trace(tile.corners.map(([x, y]) => this.toScreen(x, y)));
-      ctx.closePath();
+      this.trace(chevron.map(([x, y]) => this.toScreen(x, y)));
       ctx.stroke();
     }
-    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.5;
+    this.drawBadge(tile, CARRIED_INK);
+    ctx.globalAlpha = 1;
   }
 
   drawTiles(tiles) {
@@ -106,14 +117,7 @@ export class TilesGrid extends GridView {
     for (const tile of tiles) {
       const ink = STATUS_INK[tile.status];
       if (this.view.moved && this.view.moved.has(tile.n)) {
-        ctx.beginPath();
-        this.trace(tile.corners.map(([x, y]) => this.toScreen(x, y)));
-        ctx.closePath();
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = `${ink}77`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]);
+        this.drawCarried(tile);
         continue;
       }
       const isPicked = tile.n === this.view.picked || (hovered && hovered.n === tile.n);

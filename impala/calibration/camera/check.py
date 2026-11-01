@@ -1,8 +1,8 @@
 """The check image: a frame with the calibration drawn on it, to see by eye whether it sits right.
 
-- The cubes, where the calibration has them: their visible edges, thin and faint
-  in pink, so the cube shows through; the edges their faces hide, and an X across
-  each one's bottom under its centre, fainter still. On a frame taken later, a
+- The cubes, where the calibration has them: their visible edges, thin, in pink,
+  so the cube's own edge shows beside them; the edges their faces hide, and an X
+  across each one's bottom under its centre, fainter. On a frame taken later, a
   cube standing anywhere else, or a camera nudged since, shows as the outline off
   its cube.
 - The arm's base: its four suction cups, 40 mm across on a 120 mm square round
@@ -35,8 +35,9 @@ ORANGE = (0, 165, 255)
 RED = (0, 0, 255)
 CYAN = (255, 255, 0)
 WHITE = (255, 255, 255)
-OUTLINE_OPACITY = 0.25                  # the cubes' outlines, a pixel wide: faint enough to see the cube's own edge
-HIDDEN_OPACITY = 0.12                   # the edges a cube hides, and the X under its centre: there, not in the way
+OUTLINE_OPACITY = 0.7                   # the cubes' outlines, a pixel wide: the cube's own edge shows beside them,
+                                        # and they show on the red cube
+HIDDEN_OPACITY = 0.35                   # the edges a cube hides, and the X under its centre: there, not in the way
 DOT_STEP_MM = 50
 LABEL_STEP_MM = 100
 # The MaxArm's base: a suction cup at each corner of a square round the arm's axis, its sides along the arm's x and y.
@@ -145,15 +146,31 @@ def _polyline(image: np.ndarray, matrix: np.ndarray, points: np.ndarray, colour,
 
 
 def _caption(image: np.ndarray, lines: Sequence[str], at_bottom: bool = False) -> None:
-    """The lines across the top, or the bottom, on a dark band so they read over anything."""
+    """The lines across the top, or the bottom, on a dark band so they read over anything; a line too long for the
+    image goes on in the next."""
     scale = image.shape[1] / 1800
+    size = (0.75 if at_bottom else 0.9) * scale
+    lines = [part for line in lines for part in _wrapped(line, size, image.shape[1] - 24 * scale)]
     height = int(34 * scale) + 4
     depth = height * len(lines) + height // 2
     top = image.shape[0] - depth if at_bottom else 0
     band = image[top:top + depth]
     band[:] = (band * 0.35).astype(np.uint8)
     for row, text in enumerate(lines):
-        _text(image, text, np.array([12 * scale, top + (row + 1) * height]), (0.75 if at_bottom else 0.9) * scale)
+        _text(image, text, np.array([12 * scale, top + (row + 1) * height]), size)
+
+
+def _wrapped(line: str, scale: float, width: float) -> List[str]:
+    """`line` as lines no wider than `width` pixels, written at `scale`, broken between words."""
+    thickness = max(1, round(2 * scale))
+    parts, current = [], ""
+    for word in line.split(" "):
+        trial = f"{current} {word}" if current else word
+        if current and cv2.getTextSize(trial, cv2.FONT_HERSHEY_SIMPLEX, scale, thickness)[0][0] > width:
+            parts.append(current)
+            trial = word
+        current = trial
+    return parts + [current]
 
 
 def _text(image: np.ndarray, text: str, at: np.ndarray, scale: float) -> None:
