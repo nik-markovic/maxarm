@@ -1,0 +1,19 @@
+# What both apps need from pip -- the calibration app and the /IOTCONNECT app -- into a venv:
+#
+#     python3 -m venv --system-site-packages .venv          (scripts/install.sh does this)
+#     .venv/bin/pip install -r src/requirements.txt
+#
+# Not here: a TFLite interpreter, for the letter reader. On the i.MX95 it is the BSP's tflite_runtime; on a PC,
+# `pip install ai-edge-litert` (or TensorFlow). applib/letters/reader.py takes whichever is there.
+
+numpy                       # the arm's library, the desk's plane, the tiles
+pyserial                    # the arm's serial port
+opencv-python-headless      # the camera: the live view, the snapshot; the tiles; the overlay
+
+# /IOTCONNECT: telemetry and commands over MQTT, and the KVS channel's credentials; with boto3, for signing.
+iotconnect-sdk-lite[aws-s3]==1.3.0
+
+# KVS WebRTC: aiortc, PyAV -- whose libx264 encodes the stream -- and websockets for the signalling channel.
+aiortc==1.15.0
+av
+websockets

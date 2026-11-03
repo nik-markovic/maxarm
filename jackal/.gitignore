@@ -1,0 +1,13 @@
+# Calibration results, the app's settings and the device's identity: each rig's own, written by the apps or
+# downloaded for the device (config/README.md).
+config/*.json
+config/*.partial
+config/*.png
+config/*.jpg
+config/*.pem
+
+# A venv made beside src/ by scripts/install.sh.
+.venv/
+
+# A training run's best epoch, removed when it finishes (training/letters/train.py).
+training/letters/letters.keras

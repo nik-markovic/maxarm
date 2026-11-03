@@ -1,0 +1,99 @@
+{
+    "code": "maxarm",
+    "name": "maxarm",
+    "authType": 2,
+    "attributes": [
+        {
+            "name": "sdk_version",
+            "displayName": "",
+            "type": "STRING",
+            "description": "Version of the SDK, for troubleshooting",
+            "unit": "",
+            "attributeColor": "",
+            "aggregateTypes": []
+        },
+        {
+            "name": "version",
+            "displayName": "",
+            "type": "STRING",
+            "description": "Application version",
+            "unit": "",
+            "attributeColor": "",
+            "aggregateTypes": []
+        },
+        {
+            "name": "tiles",
+            "displayName": "",
+            "type": "STRING",
+            "description": "The letters on the tiles detected, left to right as seen from behind the arm, lower case: ? a letter not read, - a blank tile",
+            "unit": "",
+            "attributeColor": "",
+            "aggregateTypes": []
+        },
+        {
+            "name": "err_no_reach",
+            "displayName": "",
+            "type": "STRING",
+            "description": "The letters of the tiles detected out of the arm's reach, as in tiles; empty when none is",
+            "unit": "",
+            "attributeColor": "",
+            "aggregateTypes": []
+        },
+        {
+            "name": "err_too_close",
+            "displayName": "",
+            "type": "STRING",
+            "description": "The letters of the tiles detected too close to another to be picked up, as in tiles; empty when none is",
+            "unit": "",
+            "attributeColor": "",
+            "aggregateTypes": []
+        }
+    ],
+    "commands": [
+        {
+            "name": "detect",
+            "command": "detect",
+            "requiredParam": false,
+            "requiredAck": true,
+            "isOTACommand": false
+        },
+        {
+            "name": "place",
+            "command": "place",
+            "requiredParam": true,
+            "requiredAck": true,
+            "isOTACommand": false
+        },
+        {
+            "name": "find-cube",
+            "command": "find-cube",
+            "requiredParam": false,
+            "requiredAck": true,
+            "isOTACommand": false
+        },
+        {
+            "name": "reader-location",
+            "command": "reader-location",
+            "requiredParam": false,
+            "requiredAck": true,
+            "isOTACommand": false
+        }
+    ],
+    "messageVersion": "2.1",
+    "msgCode": "MXARM01",
+    "capability": "0",
+    "c2dOnDemand": 0,
+    "properties": {
+        "description": null,
+        "dataFrequency": "60",
+        "fileSupport": false,
+        "videoStreamResource": "2",
+        "videoStreamType": "2",
+        "autoStartVideoStream": false,
+        "certRenewalDay": 0,
+        "enableCSR": false
+    },
+    "_meta": {
+        "version": "2.0"
+    }
+}

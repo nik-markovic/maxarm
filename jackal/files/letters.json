@@ -1,0 +1,21 @@
+{
+  "model_sha256": "535ef059c4182da5b8b18a6fa8fb4b8aaebb19a057ce1e004871e01a5b0d713f",
+  "render_sha256": "be38a954f709f573cbd65bbe894c2c49f0a8c42070d16c45b9fb6eb5da10897d",
+  "validation_accuracy": 0.9957,
+  "training": {
+    "samples": 300000,
+    "validation": 12000,
+    "epochs": 16,
+    "seed": 0
+  },
+  "versions": {
+    "python": "3.12.3",
+    "tensorflow": "2.21.0",
+    "keras": "3.15.1",
+    "numpy": "2.5.3",
+    "pillow": "12.3.0",
+    "opencv": "5.0.0"
+  },
+  "machine": "x86_64",
+  "built": "2026-10-27 00:37:38 -0500"
+}

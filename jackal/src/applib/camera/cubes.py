@@ -1,0 +1,337 @@
+"""The calibration cubes in a frame: the coloured blobs that could be them, and which colour each would be.
+
+Every decision is measured in the frame itself; nothing is tuned on a camera.
+
+1. **The desk's colour** is the frame's most common chroma (Lab a*, b*): the desk
+   fills most of any frame worth calibrating on.
+2. **Colourful** is chroma far from the desk's. Where to cut is read off this
+   frame's own histogram (Otsu). It must be colour of its own, too, at least half
+   as far from grey: on a coloured desk, black, grey and white things -- a mouse
+   mat, a keyboard -- are far from the desk's chroma but have next to none, where
+   even a pale cube, or a dark side, has more.
+3. **Blobs.** A cube's shaded side keeps the cube's hue but has less colour, and
+   can fall below the cut: each blob takes in the pixels round it of its own hue
+   above part of the cut -- if that leaves it more convex, as a cube's missing side
+   does and a glossy desk's tint or dark plastic beside it does not. A face facing
+   a bright light can lose its colour altogether, washed out to near white: each
+   blob also takes in what joins it far lighter than the desk round it, if that
+   leaves it more convex, the face is the size of a face, and a blob clear of the
+   frame's edges stays clear of them.
+   Standing on a white sheet, nothing round a cube is lighter than the sheet, so
+   nothing is taken. Blobs of one hue that nearly touch are joined.
+4. **Cube-shaped.** Where a blob's parts hang together only by a thin neck -- a
+   cable, a shadow's fringe -- it is cut there, each part a blob, and each part
+   cut again at its own scale: a cube that a cable joins to a keyboard comes away
+   from it. A cube's silhouette is convex and must be whole, so blobs far from
+   convex, or that run off the frame, are dropped.
+5. **Names.** Red is the warm one: the hue nearest Lab's red (+a*). Green and blue
+   lie across the chroma plane from it, and which is which is left to the fit.
+
+Which blobs are the cubes is not settled here either: the arm's base can look as
+green as the green cube. `fit.py` tries each naming `namings()` offers against
+where the arm says the cubes stand, and keeps the one a camera can explain.
+"""
+
+import itertools
+import math
+from dataclasses import dataclass
+from typing import Dict, Iterator, List
+
+import cv2
+import numpy as np
+
+COLOURS = ("blue", "green", "red")      # as the page lists them
+
+# A cube is convex: its blob covers most of its own convex hull, less where glare
+# washes a face out. Anything more ragged is not a cube.
+MIN_SOLIDITY = 0.6
+# The largest blobs that are tried as cubes; each naming of them costs a fit's start.
+MAX_BLOBS = 8
+# Hue windows from the colour names, in degrees from +a*: red is the warm side of
+# the chroma plane, and green and blue lie across from it.
+RED_WITHIN_DEG = 75.0
+COOL_BEYOND_DEG = 90.0
+# Blobs this far apart, as a share of the smaller one's size, may be one cube's faces.
+JOIN_GAP = 0.08
+JOIN_HUE_DEG = 40.0
+# Anything joined to a blob by a neck thinner than this share of its size is cut off.
+TRIM = 0.15
+# A pixel nearer grey than this share of the cut has no colour of its own: black, grey and white things on a
+# coloured desk.
+GREY_SHARE = 0.5
+# A blob grows into its shaded side: pixels within this many degrees of its hue, above
+# this share of the frame's cut, connected to it, within this share of its size round it.
+GROW_HUE_DEG = 30.0
+GROW_CUT = 0.6
+GROW_MARGIN = 0.3
+# A face washed out by a light: lighter than the desk round the blob by this share of the way from it to white, and
+# taking in at least this share of the blob's own coloured area -- a face, not a light speck of desk at its foot --
+# and no more than this many times it.
+WASHED_SHARE = 0.5
+WASHED_MIN_SHARE = 0.1
+WASHED_MAX_SHARE = 2.0
+
+
+class CubesNotFound(Exception):
+    """The frame does not show three cubes that can be told apart. The message says what it does show."""
+
+
+@dataclass
+class Blob:
+    contour: np.ndarray     # the outline, in frame pixels
+    mask: np.ndarray        # the frame's size, 255 inside
+    area: int
+    centroid: np.ndarray    # px, py
+    hue: float              # degrees from +a* towards +b*, measured from the desk's colour
+    solidity: float         # area over the area of its convex hull
+
+    @property
+    def size(self) -> float:
+        return math.sqrt(self.area)
+
+
+def find_blobs(frame: np.ndarray, is_warm_only: bool = False) -> List[Blob]:
+    """The coloured blobs that could be cubes, largest first.
+
+    `is_warm_only`: of the warm pixels only, the red cube's hue -- so that a red
+    cube standing against a green or a blue one in the picture is a blob of its own.
+    """
+    desk = desk_chroma(frame)
+    chroma = chroma_from_desk(frame, desk)
+    distance = np.hypot(chroma[..., 0], chroma[..., 1])
+    scaled = np.clip(distance * 4.0, 0, 255).astype(np.uint8)     # chroma runs about 0-64
+    cut, mask = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    own = np.clip(np.hypot(chroma[..., 0] + desk[0], chroma[..., 1] + desk[1]) * 4.0, 0, 255).astype(np.uint8)
+    mask[own <= GREY_SHARE * cut] = 0
+    if is_warm_only:
+        hue = np.degrees(np.arctan2(chroma[..., 1], chroma[..., 0]))
+        mask[np.abs(hue) > RED_WITHIN_DEG] = 0
+    speck = _odd(min(frame.shape[:2]) / 400)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((speck, speck), np.uint8))
+    min_area = frame.shape[0] * frame.shape[1] * 5e-4
+    height, width = frame.shape[:2]
+    blur = min(frame.shape[:2]) / 400                               # a face is even; speckle is not
+    faint = cv2.GaussianBlur(scaled, (0, 0), blur) > GROW_CUT * cut
+    lightness = cv2.GaussianBlur(cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)[..., 0].astype(np.float32), (0, 0), blur)
+    blobs = [_grow_washed(_grow(blob, chroma, faint), chroma, lightness) for blob in _blobs(mask, chroma, min_area)]
+    blobs = _join_faces(blobs, chroma)
+    pieces = [piece for blob in blobs for piece in _pieces(blob, chroma, min_area)]
+    whole = [piece for piece in pieces if not _touches_edge(piece.contour, width, height)]
+    cubelike = sorted((blob for blob in whole if blob.solidity >= MIN_SOLIDITY), key=lambda blob: -blob.area)
+    return cubelike[:MAX_BLOBS]
+
+
+def namings(blobs: List[Blob]) -> Iterator[Dict[str, Blob]]:
+    """Every way three of the blobs can be the red, green and blue cubes that their hues allow.
+
+    Green and blue come both ways round, in hue order first: on some cameras they
+    are a few degrees apart. Swapping two cubes mirrors their triangle, which no
+    camera above the desk can show, so the fit tells them apart.
+    """
+    for three in itertools.combinations(blobs, 3):
+        red = min(three, key=lambda blob: _apart(blob.hue, 0.0))
+        cool = sorted((blob for blob in three if blob is not red), key=lambda blob: (blob.hue - red.hue) % 360)
+        if is_warm(red) and all(_apart(blob.hue, red.hue) > COOL_BEYOND_DEG for blob in cool):
+            yield {"red": red, "green": cool[0], "blue": cool[1]}
+            yield {"red": red, "green": cool[1], "blue": cool[0]}
+
+
+def is_warm(blob: Blob) -> bool:
+    """On the red side of the chroma plane: the hue a red cube could have."""
+    return _apart(blob.hue, 0.0) <= RED_WITHIN_DEG
+
+
+def describe(blobs: List[Blob]) -> str:
+    """What was found, for a message: how many blobs, and which are warm and which cool."""
+    if not blobs:
+        return "no whole, cube-shaped coloured blob"
+    kinds = ", ".join("warm" if is_warm(blob) else "cool" for blob in blobs)
+    return f"{len(blobs)} whole, cube-shaped coloured blob{'s' if len(blobs) > 1 else ''} ({kinds})"
+
+
+def desk_chroma(frame: np.ndarray) -> np.ndarray:
+    """The desk's a*, b*: the frame's most common chroma, its histogram smoothed."""
+    chroma = _chroma(frame)
+    histogram, a_edges, b_edges = np.histogram2d(chroma[..., 0].ravel(), chroma[..., 1].ravel(),
+                                                 bins=128, range=[[-64, 64], [-64, 64]])
+    histogram = cv2.GaussianBlur(histogram.astype(np.float32), (0, 0), 1.5)
+    i, j = np.unravel_index(int(histogram.argmax()), histogram.shape)
+    return np.array([(a_edges[i] + a_edges[i + 1]) / 2, (b_edges[j] + b_edges[j + 1]) / 2], np.float32)
+
+
+def chroma_from_desk(image: np.ndarray, desk: np.ndarray) -> np.ndarray:
+    """Each pixel's a*, b* less the desk's."""
+    return _chroma(image) - desk
+
+
+def _chroma(image: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)[..., 1:] - 128.0
+
+
+def _blobs(mask: np.ndarray, chroma: np.ndarray, min_area: float) -> List[Blob]:
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    blobs = []
+    for index in range(1, count):
+        if stats[index, cv2.CC_STAT_AREA] >= min_area:
+            blobs.append(_blob((labels == index).astype(np.uint8) * 255, chroma))
+    return blobs
+
+
+def _blob(mask: np.ndarray, chroma: np.ndarray) -> Blob:
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contour = max(contours, key=cv2.contourArea)
+    inside = mask > 0
+    rows, cols = np.nonzero(inside)
+    total = chroma[inside].sum(axis=0)
+    area = int(inside.sum())
+    hull = max(cv2.contourArea(cv2.convexHull(contour)), 1.0)
+    return Blob(contour=contour, mask=mask, area=area, centroid=np.array([cols.mean(), rows.mean()]),
+                hue=math.degrees(math.atan2(total[1], total[0])) % 360, solidity=area / hull)
+
+
+def _join_faces(blobs: List[Blob], chroma: np.ndarray) -> List[Blob]:
+    """Join blobs of one hue that nearly touch: a cube's sides, cut apart where the shade changes.
+
+    Only if the two together are at least as convex as the more convex of them, as
+    a cube's faces are, and a cube with a dark thing of its hue beside it is not.
+    """
+    joined = True
+    while joined:
+        joined = False
+        for first, second in itertools.combinations(blobs, 2):
+            if _apart(first.hue, second.hue) > JOIN_HUE_DEG:
+                continue
+            gap = _odd(JOIN_GAP * min(first.size, second.size))
+            box = _shared_box(first.contour, second.contour, gap, first.mask.shape)
+            if box is None:
+                continue
+            kernel = np.ones((gap, gap), np.uint8)
+            grown = cv2.dilate(first.mask[box], kernel)
+            if not np.any(grown & second.mask[box]):
+                continue
+            union = first.mask | second.mask
+            union[box] = cv2.morphologyEx(union[box], cv2.MORPH_CLOSE, kernel)
+            together = _blob(union, chroma)
+            if together.solidity < max(first.solidity, second.solidity):
+                continue
+            blobs = [blob for blob in blobs if blob is not first and blob is not second] + [together]
+            joined = True
+            break
+    return blobs
+
+
+def _shared_box(first: np.ndarray, second: np.ndarray, gap: int, shape) -> "tuple | None":
+    """The frame slice holding both outlines and the gap round them; None if they are further apart than that."""
+    ax, ay, aw, ah = cv2.boundingRect(first)
+    bx, by, bw, bh = cv2.boundingRect(second)
+    if ax > bx + bw + gap or bx > ax + aw + gap or ay > by + bh + gap or by > ay + ah + gap:
+        return None
+    x0, y0 = max(0, min(ax, bx) - gap), max(0, min(ay, by) - gap)
+    x1, y1 = min(shape[1], max(ax + aw, bx + bw) + gap), min(shape[0], max(ay + ah, by + bh) + gap)
+    return slice(y0, y1), slice(x0, x1)
+
+
+def _grow(blob: Blob, chroma: np.ndarray, faint: np.ndarray) -> Blob:
+    """The blob with what joins it of its own hue, too faint for the cut: a cube's shaded side.
+
+    Kept only if the blob comes out more convex: a cube's silhouette is, and its
+    shaded side completes it, where a tint on the desk or a dark thing behind it
+    would make it ragged.
+    """
+    x, y, w, h = cv2.boundingRect(blob.contour)
+    margin = int(GROW_MARGIN * max(w, h))
+    y0, y1 = max(0, y - margin), min(blob.mask.shape[0], y + h + margin)
+    x0, x1 = max(0, x - margin), min(blob.mask.shape[1], x + w + margin)
+    near = chroma[y0:y1, x0:x1]
+    hue = np.degrees(np.arctan2(near[..., 1], near[..., 0]))
+    alike = faint[y0:y1, x0:x1] & (np.abs((hue - blob.hue + 180.0) % 360.0 - 180.0) <= GROW_HUE_DEG)
+    inside = blob.mask[y0:y1, x0:x1] > 0
+    count, labels = cv2.connectedComponents((alike | inside).astype(np.uint8), connectivity=8)
+    keep = np.isin(labels, np.unique(labels[inside]))
+    mask = blob.mask.copy()
+    mask[y0:y1, x0:x1] = np.where(keep, 255, 0).astype(np.uint8)
+    grown = _blob(mask, chroma)
+    return grown if grown.solidity >= blob.solidity else blob
+
+
+def _grow_washed(blob: Blob, chroma: np.ndarray, lightness: np.ndarray) -> Blob:
+    """The blob with a face of it that a light has washed out: what joins it, across the blurred seam, lighter
+    than the desk round it by WASHED_SHARE of the way to white.
+
+    Kept only if the blob comes out more convex, the face is between WASHED_MIN_SHARE and WASHED_MAX_SHARE of what
+    kept its colour, and a blob clear of the frame's edges stays clear: a cube's lit top completes its silhouette,
+    where white beside it, or a light speck of desk at its foot, would not.
+    """
+    x, y, w, h = cv2.boundingRect(blob.contour)
+    margin = int(GROW_MARGIN * max(w, h))
+    y0, y1 = max(0, y - margin), min(blob.mask.shape[0], y + h + margin)
+    x0, x1 = max(0, x - margin), min(blob.mask.shape[1], x + w + margin)
+    near = lightness[y0:y1, x0:x1]
+    inside = blob.mask[y0:y1, x0:x1] > 0
+    if inside.all():
+        return blob
+    around = float(np.median(near[~inside]))
+    washed = near > around + WASHED_SHARE * (255.0 - around)
+    seam = np.ones((_odd(JOIN_GAP * blob.size),) * 2, np.uint8)
+    reach = cv2.dilate(inside.astype(np.uint8), seam) > 0
+    count, labels = cv2.connectedComponents((washed | reach).astype(np.uint8), connectivity=8)
+    face = np.isin(labels, np.unique(labels[inside])) & washed & ~inside
+    added = int(np.count_nonzero(face))
+    if not WASHED_MIN_SHARE * blob.area <= added <= WASHED_MAX_SHARE * blob.area:
+        return blob
+    region = cv2.morphologyEx(np.where(face | inside, 255, 0).astype(np.uint8), cv2.MORPH_CLOSE, seam)
+    mask = blob.mask.copy()
+    mask[y0:y1, x0:x1] = region
+    grown = _blob(mask, chroma)
+    height, width = mask.shape
+    if _touches_edge(grown.contour, width, height) and not _touches_edge(blob.contour, width, height):
+        return blob
+    return grown if grown.solidity >= blob.solidity else blob
+
+
+def _pieces(blob: Blob, chroma: np.ndarray, min_area: float) -> List[Blob]:
+    """The blob's parts that hang together only by threads -- a cable, a shadow's fringe -- apart, each trimmed at
+    its own scale: a cube that a cable joins to a keyboard comes away from it."""
+    parts = _parts(blob, min_area)
+    if len(parts) < 2:
+        return [_blob(part, chroma) for part in parts]
+    kernel = _round_kernel(TRIM * blob.size)
+    pieces = []
+    for part in parts:
+        restored = _blob(cv2.dilate(part, kernel) & blob.mask, chroma)             # its corners back
+        pieces += [_blob(own, chroma) for own in _parts(restored, min_area)[:1]]
+    return pieces
+
+
+def _parts(blob: Blob, min_area: float) -> List[np.ndarray]:
+    """What is left of the blob once all thinner than TRIM of its size is cut away: each part of at least
+    `min_area`, largest first, as a mask the frame's size."""
+    x, y, w, h = cv2.boundingRect(blob.contour)
+    box = slice(y, y + h), slice(x, x + w)
+    opened = cv2.morphologyEx(blob.mask[box], cv2.MORPH_OPEN, _round_kernel(TRIM * blob.size))
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(opened, connectivity=8)
+    parts = []
+    for index in sorted(range(1, count), key=lambda part: -stats[part, cv2.CC_STAT_AREA]):
+        if stats[index, cv2.CC_STAT_AREA] >= min_area:
+            mask = np.zeros_like(blob.mask)
+            mask[box] = (labels == index).astype(np.uint8) * 255
+            parts.append(mask)
+    return parts
+
+
+def _round_kernel(size: float) -> np.ndarray:
+    return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (_odd(size),) * 2)
+
+
+def _touches_edge(contour: np.ndarray, width: int, height: int) -> bool:
+    x, y, w, h = cv2.boundingRect(contour)
+    return x <= 0 or y <= 0 or x + w >= width or y + h >= height
+
+
+def _apart(first: float, second: float) -> float:
+    """Degrees between two hues, 0 to 180."""
+    return abs((first - second + 180.0) % 360.0 - 180.0)
+
+
+def _odd(value: float) -> int:
+    return max(3, int(round(value)) | 1)
