@@ -9,6 +9,11 @@ the camera and tries them: desk, camera, Fine Tune and Tiles pages, as impala le
 camera's picture with the tiles drawn over it over KVS WebRTC. Calibrate first; the two cannot run at once, as each
 holds the arm and the camera.
 
+Both read the camera through GStreamer, which comes from the system, not pip: its Python bindings (`gi`) and their
+`Gst` and `GstVideo` typelibs, and the base and good plugins. The i.MX95's image has them; on Ubuntu,
+`python3-gi gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-good`. The venv sees them
+(`--system-site-packages`).
+
 ```
 scripts/install.sh                                   # once: a venv, src/requirements.txt, a device key in config/
 ../.venv/bin/python src/calibration/calibration.py   # calibrate, then try it: http://localhost:8080
@@ -47,7 +52,9 @@ Each is answered by its acknowledgement, the answer the console prints. The cons
 The stream is the camera's live view at the calibration's frame size, made as large as H.264 level 3.1 holds (1104 x
 828 from the document camera's 2592 x 1944), with the Tiles page's overlay drawn in -- the areas, the tiles, their
 letters, a word being set down -- the red cube after `find-cube`, and a bar: what the app is doing, the last answer,
-the cloud and the stream.
+the cloud and the stream. It is a branch of the camera's GStreamer pipeline, run only while someone watches, at the
+live view's 5 frames a second at most: H.264 from the board's hardware encoder where GStreamer has one, else x264 in
+PyAV at its fastest, encoded once for every viewer (`src/applib/stream.py`).
 
 ## What the two apps share
 

@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""A camera that exists only in RAM: one still frame, for the camera page with no camera plugged in.
+"""A camera that is one still frame: for the pages and the app with no camera plugged in.
 
 **It is just fake**, like `fake_arm.py`. The frame never changes, but for a
-clock drawn on the live view so the page can be seen to be live. Use it to
-check what the app does with frames -- streams them, averages a snapshot,
-writes the files -- never to learn anything about a camera.
+clock drawn on it so the page can be seen to be live. Use it to check what the
+app does with frames -- streams them, averages a snapshot, writes the files --
+never to learn anything about a camera.
 
-    with fake_camera(frame) as fake:     # every Feed made inside sees `frame`
+    with fake_camera(frame) as fake:     # every Feed opened inside sees `frame`, as MJPG
         ...
-        fake.opened, fake.released       # how often the live view opened and let go of the camera
+        fake.opened                      # how often the camera's pipeline was built
+
+The feed's pipeline starts from the frame as a JPEG file, frozen into a live
+picture at 10 a second with a clock over it, instead of the camera (`feed.camera_source`).
 """
 
 import contextlib
 import sys
-import time
+import tempfile
+from fractions import Fraction
 from pathlib import Path
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -28,69 +31,56 @@ from applib.camera.devices import FPS, QUALITY, Mode              # noqa: E402
 
 FAKE_DEVICE = "/dev/video-fake"
 FAKE_NAME = "fake camera (a still frame)"
+FAKE_FPS = 10
 
 
 class FakeCamera:
-    """The frame, and a count of what was asked of it."""
-
-    def __init__(self, frame: np.ndarray, fps: float = 30.0) -> None:
-        self.frame = frame
-        self.fps = fps
+    def __init__(self, still: Path) -> None:
+        self.still = still
         self.opened = 0
-        self.released = 0
-        self.is_broken = False          # True: the camera will not open, as if unplugged
 
-    def open_view(self, device: str, mode=None, focus=None) -> "StillCapture":
-        if self.is_broken:
-            raise RuntimeError(f"cannot open {FAKE_NAME}: it is unplugged")
+    def source(self, device: str, mode: Mode) -> str:
         self.opened += 1
-        return StillCapture(self)
+        return (f"filesrc name=camera location={self.still} ! jpegdec ! imagefreeze is-live=true ! "
+                f"video/x-raw,framerate={FAKE_FPS}/1 ! clockoverlay halignment=left valignment=bottom ! "
+                f"jpegenc quality=95 ! image/jpeg,width={mode.width},height={mode.height}")
 
 
-class StillCapture:
-    """Reads like the live view's `cv2.VideoCapture`: the frame as the camera's own JPEG, at a camera's pace."""
+class NoControls:
+    """A camera with no focus, zoom, pan or tilt."""
 
-    def __init__(self, camera: FakeCamera) -> None:
-        self.camera = camera
+    def __init__(self, device: str) -> None:
+        pass
 
-    def isOpened(self) -> bool:
-        return True
+    def close(self) -> None:
+        pass
 
-    def grab(self) -> bool:
-        time.sleep(1.0 / self.camera.fps)
-        return not self.camera.is_broken
+    def get(self, control: int) -> None:
+        return None
 
-    def retrieve(self) -> Tuple[bool, np.ndarray]:
-        image = self.camera.frame.copy()
-        cv2.putText(image, time.strftime("%H:%M:%S") + f".{int(time.time() * 10) % 10}", (12, image.shape[0] - 14),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6 * image.shape[1] / 800, (255, 255, 255), 2, cv2.LINE_AA)
-        return True, cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 95])[1]
-
-    def read(self) -> Tuple[bool, np.ndarray]:
-        return self.retrieve() if self.grab() else (False, None)
-
-    def release(self) -> None:
-        self.camera.released += 1
-
-    def get(self, prop: int) -> float:
-        return -1.0                     # no focus, as a camera without one
-
-    def set(self, prop: int, value: float) -> bool:
+    def set(self, control: int, value: int) -> bool:
         return False
+
+    def least(self, control: int) -> None:
+        return None
 
 
 @contextlib.contextmanager
 def fake_camera(frame: np.ndarray):
     """Every `Feed` used inside this sees `frame`, clock and all."""
-    camera = FakeCamera(frame)
-    mode = Mode("MJPG", frame.shape[1], frame.shape[0])
-    patches = {"open_view": camera.open_view, "view_modes": lambda device: {QUALITY: mode, FPS: mode},
-               "find_camera": lambda: FAKE_DEVICE, "describe": lambda device: FAKE_NAME}
-    saved = {name: getattr(feed_module, name) for name in patches}
-    for name, value in patches.items():
-        setattr(feed_module, name, value)
-    try:
-        yield camera
-    finally:
-        for name, value in saved.items():
+    with tempfile.TemporaryDirectory() as folder:
+        still = Path(folder) / "still.jpg"
+        cv2.imwrite(str(still), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        camera = FakeCamera(still)
+        mode = Mode("MJPG", frame.shape[1], frame.shape[0], Fraction(FAKE_FPS))
+        patches = {"camera_source": camera.source, "Controls": NoControls,
+                   "view_modes": lambda device: {QUALITY: mode, FPS: mode}, "find_camera": lambda: FAKE_DEVICE,
+                   "describe": lambda device: FAKE_NAME, "query": lambda device: None}
+        saved = {name: getattr(feed_module, name) for name in patches}
+        for name, value in patches.items():
             setattr(feed_module, name, value)
+        try:
+            yield camera
+        finally:
+            for name, value in saved.items():
+                setattr(feed_module, name, value)

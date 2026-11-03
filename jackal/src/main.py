@@ -28,9 +28,9 @@ The layout, and the rule is one-way, main.py -> app/ -> applib/ -> maxarm/:
 
 The threads:
 
-    camera     the live view, at the calibration's frame size             applib/camera/feed.py
-    stream     each frame, the overlay burnt in, to WebRTC while watched   applib/stream.py
-    webrtc     asyncio: the signalling channel, every viewer, encoding      applib/webrtc.py
+    camera     the camera's GStreamer pipeline; the newest frame, for commands   applib/camera/feed.py
+    GStreamer  its own: the stream's branch -- the overlay, H.264 -- while watched   applib/stream.py
+    webrtc     asyncio: the signalling channel, every viewer                      applib/webrtc.py
     iotc       the telemetry publisher, and paho's own MQTT thread          applib/iotc.py
     command    two: one moves the arm at a time (app/app.py)               applib/commands.py
     main       the console, or a wait for Ctrl-C
@@ -86,14 +86,14 @@ def main() -> int:
     work = TileWork(feed, CONFIG_DIR)
     cube = RedCube(feed)
     overlay = StreamOverlay(fit, stream_size(fit.frame_size), work.scene, lambda: cube.found)
+    stream = Stream(overlay)
+    feed.add_stream(stream)
     telemetry = TelemetryState()
     motion = Motion(MaxArm(config_dir=None), CONFIG_DIR)
     app = TilesApp(motion, work, cube, settings, camera_file, overlay, telemetry)
     service = CommandService(app.on_command, on_result=lambda result: overlay.show_answer(result.message,
                                                                                          result.is_ok))
-    streamer = build_streamer(args, overlay)
-    stream = Stream(feed, overlay, streamer.on_frame if streamer else _drop,
-                    streamer.is_watched if streamer else _nobody)
+    streamer = build_streamer(args, overlay, stream)
     cloud = build_cloud(args, service, telemetry, overlay, streamer)
 
     signal.signal(signal.SIGTERM, _interrupt)           # stopped as Ctrl-C stops it: the arm held, the port closed
@@ -103,11 +103,11 @@ def main() -> int:
         print("arm        : connecting, which resets the board and homes the arm (4 s, sometimes 15)", flush=True)
         connect_arm(motion)
         feed.start()
-        stream.start()
         if cloud is not None:
             cloud.start()
         print(f"camera     : {fit.frame_size[0]} x {fit.frame_size[1]}, as calibrated; stream "
-              f"{stream.size[0]} x {stream.size[1]}", flush=True)
+              f"{stream.size[0]} x {stream.size[1]}, H.264 {'in hardware' if stream.is_hardware else 'by x264'}",
+              flush=True)
         if sys.stdin.isatty():
             Console(service).run()
         else:
@@ -116,12 +116,13 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\nstopping", flush=True)
     finally:
-        shut_down(app, motion, feed, stream, service, streamer, cloud)
+        shut_down(app, motion, feed, service, streamer, cloud)
     return 0
 
 
-def build_streamer(args, overlay: StreamOverlay):
-    """The WebRTC streamer, with no channel yet -- `iotc.py` starts it once the cloud names one -- or None."""
+def build_streamer(args, overlay: StreamOverlay, stream: Stream):
+    """The WebRTC streamer, with no channel yet -- `iotc.py` starts it once the cloud names one -- fed by the stream;
+    or None, and the stream goes nowhere."""
     if args.no_iotc:
         overlay.set_stream_status("stream: off")
         return None
@@ -129,7 +130,10 @@ def build_streamer(args, overlay: StreamOverlay):
         print("WebRTC     : off, aiortc is not installed (src/requirements.txt)", flush=True)
         overlay.set_stream_status("stream: unavailable")
         return None
-    return webrtc.WebRtcStreamer(on_status=overlay.set_stream_status)
+    streamer = webrtc.WebRtcStreamer(on_status=overlay.set_stream_status, on_watched=stream.set_watched,
+                                     on_keyframe_wanted=stream.request_keyframe)
+    stream.connect_encoded(streamer.on_encoded)
+    return streamer
 
 
 def build_cloud(args, service: CommandService, telemetry: TelemetryState, overlay: StreamOverlay, streamer):
@@ -153,8 +157,7 @@ def connect_arm(motion: Motion) -> None:
         raise SystemExit(f"the arm did not connect: {error}") from None
 
 
-def shut_down(app: TilesApp, motion: Motion, feed: Feed, stream: Stream, service: CommandService, streamer,
-              cloud) -> None:
+def shut_down(app: TilesApp, motion: Motion, feed: Feed, service: CommandService, streamer, cloud) -> None:
     """Everything stopped in turn; the arm held where it is and, once no command uses it, its port closed."""
     motion.stopping.set()
     motion.arm.stop()
@@ -162,24 +165,14 @@ def shut_down(app: TilesApp, motion: Motion, feed: Feed, stream: Stream, service
         cloud.stop()
     if streamer is not None:
         streamer.stop()
-    stream.stop()
     service.stop()
     feed.close()
-    stream.join(timeout=5.0)
     if motion.is_connected and app.wait_idle(SHUTDOWN_WAIT_S):
         motion.arm.disconnect()
 
 
 def _interrupt(signum, frame) -> None:
     raise KeyboardInterrupt
-
-
-def _drop(frame) -> None:
-    """No stream: frames go nowhere."""
-
-
-def _nobody() -> bool:
-    return False
 
 
 if __name__ == "__main__":

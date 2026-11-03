@@ -17,6 +17,11 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 "$VENV/bin/pip" install -r src/requirements.txt
 
+if ! "$VENV/bin/python" -c "import gi; gi.require_version('Gst', '1.0'); gi.require_version('GstVideo', '1.0')" \
+    2>/dev/null; then
+  echo "NOTE: no GStreamer for Python, so no camera. It comes from the system: see README.md."
+fi
+
 if ! "$VENV/bin/python" -c "import tflite_runtime" 2>/dev/null \
     && ! "$VENV/bin/python" -c "import ai_edge_litert" 2>/dev/null \
     && ! "$VENV/bin/python" -c "import tensorflow" 2>/dev/null; then

@@ -146,7 +146,8 @@ a warning, sets the calibration and everything in its pixels aside, as `*-previo
 held still, since focusing moves the picture (the C920's by up to 4%): at the focus `camera.json` was calibrated
 at (`lens`), for the same camera; with none, the camera focuses itself once, until its picture keeps still, and
 CALIBRATE keeps where it stopped. Zoom is at its least, the widest view; pan and tilt at 0.
-The camera's own JPEGs go to the page as they come. The snapshot is five fresh frames of the view averaged: nothing
+The camera is read through GStreamer (`applib/camera/feed.py`): a frame its driver marks damaged is dropped, and the
+camera's own JPEGs go to the page as they come. The snapshot is five fresh frames of the view averaged: nothing
 pauses for it. The document camera's raw format, YUYV, shows the same picture, at 2 frames a second
 (`work/STATUS-impala.md` §1).
 

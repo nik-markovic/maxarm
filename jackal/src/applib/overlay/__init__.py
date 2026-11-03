@@ -11,7 +11,7 @@
 
     layer = picture_layer(fit, 1200, 1.5, lambda canvas, view: draw_tiles(canvas, view, work.scene()))
     layer.png()                   # a page lays it over its live view
-    layer.burn(frame)             # the stream draws it into each frame of its size
+    layer.burn(frame)             # or into a frame of its size, for a picture; the stream has GStreamer lay it over
 
 A page asks for its layer at the size it shows the picture, in its own pixels, and
 its pixel ratio as `scale`: lines and letters come out the size they always were.

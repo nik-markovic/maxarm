@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""The stream's WebRTC track, sent to a second peer in the same process: no KVS, no cloud.
+"""The stream, from the camera to a second WebRTC peer in the same process: no KVS, no cloud, no arm.
 
-    ../.venv/bin/python agenttools/webrtc-loopback.py
+    ../.venv/bin/python agenttools/webrtc-loopback.py [CONFIG_DIR]
 
-`webrtc.FrameTrack` fed frames at the stream's size, H.264 pinned as for a
-viewer, encoded by aiortc; the other peer decodes them. Says how many frames came
-through, their size, and what was negotiated -- that the encoding path works, not
-how a browser on another network fares.
+The camera's pipeline with the stream's branch (`stream.py`), its access units
+on a `webrtc.H264Track`, H.264 pinned as for a viewer; the other peer decodes
+them. Nobody watches for the first seconds, then the peer does. Says how many
+frames came through, their size, the CPU the process took while nobody watched
+and while the peer did, and what was negotiated -- that the path works, not how
+a browser on another network fares. CONFIG_DIR, config/ by default, needs a camera.json; the
+camera's mode is its camera-view.json's.
 """
 
 import asyncio
@@ -14,24 +17,48 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "src"))
 
 from aiortc import RTCPeerConnection                          # noqa: E402
 
-from applib.stream import stream_size                         # noqa: E402
-from applib.webrtc import FrameTrack, pin_h264                # noqa: E402
+from applib.camera.feed import Feed                           # noqa: E402
+from applib.camera.store import CameraFile                    # noqa: E402
+from applib.overlay.stream import StreamOverlay               # noqa: E402
+from applib.stream import Stream, stream_size                 # noqa: E402
+from applib.webrtc import H264Track, pin_h264                 # noqa: E402
 
-SIZE = stream_size((2592, 1944))
-FRAMES = 25
-FPS = 5.0
+IDLE_S = 8.0
+WATCHED_S = 10.0
 
 
-async def main() -> int:
+async def main(config_dir: Path) -> int:
+    fit, problem = CameraFile(config_dir).get()
+    if problem:
+        print(problem)
+        return 1
+    loop = asyncio.get_running_loop()
+    overlay = StreamOverlay(fit, stream_size(fit.frame_size), lambda: {}, lambda: None)
+    overlay.set_resting("webrtc-loopback")
+    stream = Stream(overlay)
+    feed = Feed(None, config_dir)
+    feed.add_stream(stream)
+    keyframes = []
+    track = H264Track(lambda: keyframes.append(time.monotonic()))
+    units = []
+    stream.connect_encoded(lambda unit: (units.append(len(unit)),
+                                         loop.call_soon_threadsafe(track.offer, unit, time.monotonic())))
+    feed.start()
+    started = time.monotonic()
+    while feed.state()["status"] != "live" and time.monotonic() - started < 20:
+        await asyncio.sleep(0.2)
+    print(f"camera: {feed.state()['detail']}; H.264 {'in hardware' if stream.is_hardware else 'by x264'}")
+    cpu, wall = time.process_time(), time.monotonic()
+    await asyncio.sleep(IDLE_S)
+    idle_cpu = 100 * (time.process_time() - cpu) / (time.monotonic() - wall)
+    idle_units = len(units)
+
     sender, receiver = RTCPeerConnection(), RTCPeerConnection()
-    track = FrameTrack()
     sender.addTrack(track)
     received = []
 
@@ -43,7 +70,7 @@ async def main() -> int:
                     frame = await incoming.recv()
                 except Exception:
                     return
-                received.append((frame.width, frame.height, frame.to_ndarray(format="bgr24")))
+                received.append((frame.width, frame.height))
         asyncio.ensure_future(take())
 
     receiver.addTransceiver("video", direction="recvonly")
@@ -52,20 +79,23 @@ async def main() -> int:
     await sender.setRemoteDescription(receiver.localDescription)
     await sender.setLocalDescription(await sender.createAnswer())
     await receiver.setRemoteDescription(sender.localDescription)
-    codecs = {line.split()[1] for line in sender.localDescription.sdp.splitlines() if line.startswith("a=rtpmap")}
-    for index in range(FRAMES):
-        frame = np.full((SIZE[1], SIZE[0], 3), (40, 90, 30), np.uint8)
-        frame[:, (index * 37) % SIZE[0]:][:, :40] = (255, 255, 255)
-        track.offer(frame, time.monotonic())
-        await asyncio.sleep(1.0 / FPS)
-    await asyncio.sleep(1.0)
+    stream.set_watched(True)
+    cpu, wall = time.process_time(), time.monotonic()
+    await asyncio.sleep(WATCHED_S)
+    watched_cpu = 100 * (time.process_time() - cpu) / (time.monotonic() - wall)
+    stream.set_watched(False)
     await sender.close()
     await receiver.close()
-    sizes = sorted({(width, height) for width, height, _ in received})
-    print(f"offered {FRAMES} frames {SIZE[0]} x {SIZE[1]} at {FPS:g} fps; received {len(received)}, sizes {sizes}; "
-          f"answer's codecs {sorted(codecs)}")
+    feed.close()
+    codecs = {line.split()[1] for line in sender.localDescription.sdp.splitlines() if line.startswith("a=rtpmap")}
+    sent = units[idle_units:]
+    print(f"nobody watching: {idle_units} access units, CPU {idle_cpu:.1f}% of a core")
+    print(f"watched {WATCHED_S:g} s: {len(sent)} access units, mean {sum(sent) / max(len(sent), 1) / 1024:.0f} KB; "
+          f"received {len(received)} frames, sizes {sorted(set(received))}; keyframes asked {len(keyframes)}; "
+          f"CPU {watched_cpu:.1f}% of a core")
+    print(f"answer's codecs {sorted(codecs)}")
     return 0 if received else 1
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(asyncio.run(main(Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / "config")))

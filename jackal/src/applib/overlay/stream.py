@@ -3,7 +3,8 @@
     overlay = StreamOverlay(fit, size, work.scene, lambda: cube.found)
     overlay.set_doing("Placing TEAM")          # what the app is doing; "" when it waits for a command
     overlay.show_answer("TEAM set down", True) # a command's answer, for a few seconds
-    overlay.burn(frame)                        # every frame of the stream, its size, on the stream's thread
+    layer = overlay.current()                  # the layer for this frame of the stream, on GStreamer's thread
+    overlay.burn(frame)                        # or into a frame of the stream's size, for a picture
 
 The tiles and the cube are drawn as the Tiles and Fine Tune pages draw them
 (`tiles.py`, `cube.py`): one overlay, here and there. Along the bottom, a bar:
@@ -13,8 +14,8 @@ the right. Over the bar, a command's
 answer for a few seconds, white, or red when it was refused or failed.
 
 The layer is drawn again only when something it shows has changed, on the
-stream's thread, over the work areas drawn once; every frame only has it burnt in
-(`Layer.burn()`).
+stream's thread, over the work areas drawn once; GStreamer lays it over every
+frame (`stream.py`).
 """
 
 from __future__ import annotations
@@ -88,13 +89,17 @@ class StreamOverlay:
 
     def burn(self, frame: np.ndarray) -> None:
         """The overlay into `frame`, the stream's size, in place."""
+        self.current().burn(frame)
+
+    def current(self) -> Layer:
+        """The layer as it should look now: the same object until something it shows changes."""
         scene, cube = self.scene(), (self.cube() if self.is_cube_shown else None)
         answer = self.answer if time.monotonic() < self.answer_until else ""
         key = repr((_scene_key(scene), cube and (cube["stamp"], cube.get("landed")), self.doing, self.resting,
                     self.status, answer, self.is_answer_ok))
         if key != self._key:
             self._layer, self._key = self._draw(scene, cube, answer), key
-        self._layer.burn(frame)
+        return self._layer
 
     def _draw(self, scene: dict, cube: Optional[dict], answer: str) -> Layer:
         canvas = Canvas(self.size, self.scale, under=self._areas)

@@ -4,10 +4,11 @@ Every /dev/videoN is asked what it is (V4L2's QUERYCAP). Nodes that cannot
 capture video -- a USB camera's metadata node, say -- are skipped, and so are
 virtual cameras: OBS's v4l2loopback, or anything calling itself virtual.
 
-The camera is asked its formats and sizes (ENUM_FMT, ENUM_FRAMESIZES). Two of
-them can be the live view: QUALITY, its largest YUYV, uncompressed, and FPS, its
-largest MJPG, faster. The choice is there only when the YUYV is at least as
-large as the MJPG; otherwise the MJPG is both.
+The camera is asked its formats and sizes (ENUM_FMT, ENUM_FRAMESIZES), and
+how fast it gives each (ENUM_FRAMEINTERVALS). Two of them can be the live view:
+QUALITY, its largest YUYV, uncompressed, and FPS, its largest MJPG, faster. The
+choice is there only when the YUYV is at least as large as the MJPG; otherwise
+the MJPG is both.
 """
 
 import fcntl
@@ -16,6 +17,7 @@ import os
 import re
 import struct
 from dataclasses import dataclass
+from fractions import Fraction
 from typing import Dict, List, Optional, Tuple
 
 # The owner's document camera, by the USB port it hangs off (PILOT-gecko).
@@ -28,6 +30,7 @@ _CAP_DEVICE_CAPS = 0x80000000            # device_caps is filled in
 _VIRTUAL_DRIVERS = ("v4l2 loopback",)
 _VIDIOC_ENUM_FMT = 0xC0405602            # _IOWR('V', 2, struct v4l2_fmtdesc), 64 bytes
 _VIDIOC_ENUM_FRAMESIZES = 0xC02C564A     # _IOWR('V', 74, struct v4l2_frmsizeenum), 44 bytes
+_VIDIOC_ENUM_FRAMEINTERVALS = 0xC034564B  # _IOWR('V', 75, struct v4l2_frmivalenum), 52 bytes
 _BUF_TYPE_VIDEO_CAPTURE = 1
 _DISCRETE = 1
 VIEW_FORMATS = ("YUYV", "MJPG")          # what the live view can take: raw, or the camera's own JPEGs
@@ -56,9 +59,10 @@ class Mode:
     fourcc: str           # YUYV or MJPG
     width: int
     height: int
+    fps: Optional[Fraction] = None    # the fastest the camera gives this size; None, not known
 
     def describe(self) -> str:
-        return f"{self.width} x {self.height} {self.fourcc}"
+        return f"{self.width} x {self.height} {self.fourcc}" + (f", {float(self.fps):g} fps" if self.fps else "")
 
     def to_json(self) -> dict:
         return {"format": self.fourcc, "size": [self.width, self.height]}
@@ -89,7 +93,7 @@ def list_modes(device: str) -> List[Mode]:
             if fourcc not in VIEW_FORMATS:
                 continue
             for width, height in _sizes(handle, fourcc):
-                modes.append(Mode(fourcc, width, height))
+                modes.append(Mode(fourcc, width, height, _fastest(handle, fourcc, width, height)))
     finally:
         os.close(handle)
     return modes
@@ -116,6 +120,22 @@ def _sizes(handle: int, fourcc: str) -> List[Tuple[int, int]]:
         if kind != _DISCRETE:
             break
     return found
+
+
+def _fastest(handle: int, fourcc: str, width: int, height: int) -> Optional[Fraction]:
+    """Frames a second at the shortest interval the camera gives `width` x `height` at; a stepwise range at its
+    shortest."""
+    intervals = []
+    for index in range(64):
+        reply = bytearray(struct.pack("<IIII", index, _code(fourcc), width, height) + bytes(36))
+        if not _asked(handle, _VIDIOC_ENUM_FRAMEINTERVALS, reply):
+            break
+        kind, numerator, denominator = struct.unpack_from("<III", reply, 16)
+        if numerator and denominator:
+            intervals.append(Fraction(numerator, denominator))
+        if kind != _DISCRETE:
+            break
+    return 1 / min(intervals) if intervals else None
 
 
 def _asked(handle: int, request: int, reply: bytearray) -> bool:

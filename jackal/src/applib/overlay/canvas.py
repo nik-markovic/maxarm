@@ -4,7 +4,7 @@
     canvas = Canvas((1104, 828), scale=1104 / 900)
     canvas.lines(view.arc(270.0, -120.0, 120.0), RED, width=2, opacity=0.35)
     layer = canvas.layer()            # BGRA, straight alpha: a PNG for a page,
-    layer.burn(frame)                 # or into a frame of the same size, for the stream
+    layer.burn(frame)                 # or into a frame of the same size, for a picture
 
 A `Canvas` is a transparent layer the size of the picture it goes over. Every
 mark is drawn antialiased as a coverage mask over its own box and laid over
@@ -83,19 +83,21 @@ class Layer:
     def __init__(self, image: np.ndarray) -> None:
         self.image = image
         alpha = image[:, :, 3]
+        self.box = None                     # the part drawn on, (rows, columns); None for nothing
         if alpha.any():
             left, top, width, height = cv2.boundingRect(alpha)
             self.box = (slice(top, top + height), slice(left, left + width))
-            self.colour = np.ascontiguousarray(image[self.box][:, :, :3])
-            self.weight = alpha[self.box].astype(np.float32) / 255
-            self.rest = 1 - self.weight
-        else:
-            self.box = None
+        self._blend = None
 
     def burn(self, frame: np.ndarray) -> None:
         """Draw the layer into `frame`, BGR, its size, in place."""
-        if self.box is not None:
-            frame[self.box] = cv2.blendLinear(frame[self.box], self.colour, self.rest, self.weight)
+        if self.box is None:
+            return
+        if self._blend is None:
+            weight = self.image[self.box][:, :, 3].astype(np.float32) / 255
+            self._blend = (np.ascontiguousarray(self.image[self.box][:, :, :3]), weight, 1 - weight)
+        colour, weight, rest = self._blend
+        frame[self.box] = cv2.blendLinear(frame[self.box], colour, rest, weight)
 
     def png(self) -> bytes:
         return cv2.imencode(".png", self.image, [cv2.IMWRITE_PNG_COMPRESSION, 1])[1].tobytes()

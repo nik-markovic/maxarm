@@ -1,5 +1,5 @@
 """KVS WebRTC: the stream, live in a browser -- the /IOTCONNECT dashboard's video tab (the property-alarm demo's
-`webrtc.py`, `work/refs/iotc-eiq-imx95-property-alarm`, fed frames instead of encoded video).
+`webrtc.py`, `work/refs/iotc-eiq-imx95-property-alarm`).
 
 The device is the master on an Amazon Kinesis Video Streams signalling channel.
 /IOTCONNECT hands over the channel ARN and temporary AWS credentials (`iotc.py`);
@@ -7,15 +7,17 @@ one signed WebSocket to the channel stays open the whole run, and every viewer
 pressing play arrives on it as an SDP offer and gets a peer connection of its own.
 
     /IOTCONNECT ---> channel ARN + AWS credentials ---> this file
-    stream.py   ---> BGR frames, the overlay drawn in ---> this file ---> H.264 ---> RTP ---> viewer
+    stream.py   ---> H.264 access units, the overlay drawn in ---> this file ---> RTP ---> viewer
 
-Here the frames are encoded by aiortc, in software (libx264 in PyAV), H.264
-pinned as the property-alarm demo pins it. That demo hands aiortc H.264 that the
-i.MX95's own encoder made; this app on the i.MX95 can do the same later.
+The stream is encoded once, in `stream.py`, whoever watches; aiortc only cuts
+each access unit into RTP packets (`H264Track` hands it an `av.Packet`, not a
+frame). So aiortc cannot ask for a keyframe or a bitrate itself: a keyframe is
+asked of the stream when a viewer joins and when one falls behind, and the
+stream is told when anyone watches at all, so that it is made only then.
 
-Each frame is stamped with the wall-clock time it came, at 90 kHz, so media time
-and the viewer's clock cannot drift apart whatever the frame rate does. A viewer
-behind is given the newest frame, not every one in between.
+Each access unit is stamped with the wall-clock time it came, at 90 kHz, so
+media time and the viewer's clock cannot drift apart whatever the frame rate
+does.
 """
 
 from __future__ import annotations
@@ -28,8 +30,6 @@ from fractions import Fraction
 from threading import Thread
 from time import monotonic
 from typing import Callable, Dict, Optional, Set, Tuple
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,7 @@ except ImportError:                     # the app runs without the stream, as it
 VIDEO_CLOCK_RATE = 90000                # the RTP clock for video, fixed by the standard
 SIGNED_URL_TTL_S = 299                  # KVS refuses a signature older than 5 minutes
 RECONNECT_WAIT_S = 5.0
+QUEUE_DEPTH = 4                         # access units a viewer may fall behind before it is brought up to now
 # A viewer in any of these is gone. `disconnected` too: a browser closed with its X says no goodbye, and a viewer
 # that comes back sends a fresh offer.
 DEAD_STATES = ("disconnected", "failed", "closed")
@@ -59,14 +60,17 @@ DEAD_STATES = ("disconnected", "failed", "closed")
 class WebRtcStreamer:
     """One signalling channel, held open, and one peer connection per viewer."""
 
-    def __init__(self, on_status: Optional[Callable[[str], None]] = None) -> None:
-        self.on_status = on_status or (lambda status: None)
+    def __init__(self, on_status: Callable[[str], None], on_watched: Callable[[bool], None],
+                 on_keyframe_wanted: Callable[[], None]) -> None:
+        self.on_status = on_status
+        self.on_watched = on_watched                    # anyone watching, or about to, or nobody now
+        self.on_keyframe_wanted = on_keyframe_wanted
         self.channel_arn = ""
         self.region = ""
         self.get_credentials: Callable[[], object] = lambda: None
         self.endpoints: Dict[str, str] = {}
-        self._viewers: Dict[str, Tuple["RTCPeerConnection", "FrameTrack"]] = {}
-        self._tracks: Set["FrameTrack"] = set()
+        self._viewers: Dict[str, Tuple["RTCPeerConnection", "H264Track"]] = {}
+        self._tracks: Set["H264Track"] = set()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._task: Optional[asyncio.Task] = None
         self._thread = Thread(target=self._run, name="webrtc", daemon=True)
@@ -93,24 +97,20 @@ class WebRtcStreamer:
         if self._thread.is_alive():
             self._thread.join(timeout=5.0)
 
-    def is_watched(self) -> bool:
-        """Whether anyone is watching, or about to: the stream makes frames only then."""
-        return bool(self._tracks)
-
-    def on_frame(self, frame: np.ndarray) -> None:
-        """The stream's thread, once per frame, BGR: stamped now and handed to the event loop."""
+    def on_encoded(self, access_unit: bytes) -> None:
+        """GStreamer's thread, once per encoded frame: stamped now and handed to the event loop."""
         loop = self._loop
         if loop is None or loop.is_closed():
             return
         stamp = monotonic()
         try:
-            loop.call_soon_threadsafe(self._dispatch, frame, stamp)
+            loop.call_soon_threadsafe(self._dispatch, access_unit, stamp)
         except RuntimeError:            # the loop closed between the check and the call
             pass
 
-    def _dispatch(self, frame: np.ndarray, stamp: float) -> None:
+    def _dispatch(self, access_unit: bytes, stamp: float) -> None:
         for track in tuple(self._tracks):
-            track.offer(frame, stamp)
+            track.offer(access_unit, stamp)
 
     def _run(self) -> None:
         self._loop = asyncio.new_event_loop()
@@ -201,9 +201,10 @@ class WebRtcStreamer:
         await self._drop_viewer(viewer_id)  # a reload sends a second offer for the same id
         ice_servers = await asyncio.to_thread(self._ice_servers)
         peer = RTCPeerConnection(RTCConfiguration(iceServers=ice_servers))
-        track = FrameTrack()
+        track = H264Track(self.on_keyframe_wanted)
         self._viewers[viewer_id] = (peer, track)
         self._tracks.add(track)
+        self.on_watched(True)
 
         @peer.on("connectionstatechange")
         async def on_state_change() -> None:
@@ -218,6 +219,7 @@ class WebRtcStreamer:
         await peer.setLocalDescription(await peer.createAnswer())
         await socket.send(_encode_signal("SDP_ANSWER", peer.localDescription, viewer_id))
         self._report_viewers()
+        self.on_keyframe_wanted()            # so the first picture comes now, not at the next keyframe
 
     async def _on_ice_candidate(self, payload: dict, viewer_id: str) -> None:
         viewer = self._viewers.get(viewer_id)
@@ -235,6 +237,8 @@ class WebRtcStreamer:
             return
         peer, track = viewer
         self._tracks.discard(track)
+        if not self._tracks:
+            self.on_watched(False)
         await peer.close()
 
     def _report_viewers(self) -> None:
@@ -242,40 +246,41 @@ class WebRtcStreamer:
         self.on_status(f"stream: {watching} watching" if watching else "stream: ready")
 
 
-class FrameTrack(MediaStreamTrack):
-    """One viewer's view of the stream: the newest frame, encoded by aiortc as it is taken."""
+class H264Track(MediaStreamTrack):
+    """One viewer's view of the stream: the access units it has yet to be sent, a few at most."""
 
     kind = "video"
 
-    def __init__(self) -> None:
+    def __init__(self, on_keyframe_wanted: Callable[[], None]) -> None:
         super().__init__()
-        self._queue: asyncio.Queue = asyncio.Queue(maxsize=1)
+        self.on_keyframe_wanted = on_keyframe_wanted
+        self._queue: asyncio.Queue = asyncio.Queue()
         self._started_at: Optional[float] = None
 
-    def offer(self, frame: np.ndarray, stamp: float) -> None:
-        """Event-loop thread. A frame still waiting gives way to the newer one."""
-        if self._queue.full():
-            self._queue.get_nowait()
-        self._queue.put_nowait((frame, stamp))
+    def offer(self, access_unit: bytes, stamp: float) -> None:
+        """Event-loop thread. A viewer behind is brought up to now, not sent stale frames: H.264 with its middle
+        dropped is broken until the next keyframe, so all that waits is dropped and a keyframe asked for."""
+        if self._queue.qsize() >= QUEUE_DEPTH:
+            _drain(self._queue)
+            self.on_keyframe_wanted()
+        self._queue.put_nowait((access_unit, stamp))
 
     def stop(self) -> None:
         """Wake `recv()`, so that the sender can finish when the connection closes."""
         super().stop()
-        if self._queue.full():
-            self._queue.get_nowait()
         self._queue.put_nowait(None)
 
-    async def recv(self) -> "av.VideoFrame":
+    async def recv(self) -> "av.Packet":
         item = await self._queue.get()
         if item is None:
             raise MediaStreamError          # the track was stopped: aiortc unwinds the sender on this
-        frame, stamp = item
+        access_unit, stamp = item
         if self._started_at is None:
             self._started_at = stamp
-        picture = av.VideoFrame.from_ndarray(frame, format="bgr24")
-        picture.pts = int((stamp - self._started_at) * VIDEO_CLOCK_RATE)
-        picture.time_base = Fraction(1, VIDEO_CLOCK_RATE)
-        return picture
+        packet = av.Packet(access_unit)
+        packet.pts = int((stamp - self._started_at) * VIDEO_CLOCK_RATE)
+        packet.time_base = Fraction(1, VIDEO_CLOCK_RATE)
+        return packet
 
 
 def pin_h264(peer: "RTCPeerConnection") -> None:
@@ -307,3 +312,8 @@ def _botocore_credentials(credentials):
     """The SDK's credentials, as botocore's signer takes them."""
     return Credentials(access_key=credentials.access_key_id, secret_key=credentials.secret_access_key,
                        token=credentials.session_token)
+
+
+def _drain(queue: asyncio.Queue) -> None:
+    while not queue.empty():
+        queue.get_nowait()
