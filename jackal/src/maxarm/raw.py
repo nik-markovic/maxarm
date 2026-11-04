@@ -11,7 +11,7 @@ changes over its turn. The library corrects every target before it is sent
 and every reading after it is read:
 
     true z = raw z + 0.05 x (reach - 207) - (h / 120)^2 x (3.4 + 0.0126 x (reach - 207))
-    true reach = reach + 6.6 - 0.118 x min(h, 44)
+    true reach = reach + 6.26 - 0.110 x min(h, 44)
     true bearing = bearing - 1.36 x sin 2b + 0.33 x (cos 2b - 1), in degrees
 
     reach = sqrt(x^2 + y^2), the firmware's, mm;  h = true z - 44, the height above the desk, 0 below it;
@@ -28,6 +28,7 @@ nothing else should need it.
 """
 
 import math
+from typing import Tuple
 
 from .geometry import Position
 
@@ -44,8 +45,8 @@ TALL_PER_MM_OF_REACH = 0.0126      # how much more for every mm further out
 # x and y: the cup is REACH_AT_DESK_MM further out than the firmware says on the desk, REACH_LESS_PER_MM less for
 # every mm above it, no less above REACH_TOP_MM; and the base points WAVE_SIN_DEG x sin 2b + WAVE_COS_DEG x
 # (cos 2b - 1) degrees further round than it says, b the firmware's bearing.
-REACH_AT_DESK_MM = 6.6
-REACH_LESS_PER_MM = 0.118
+REACH_AT_DESK_MM = 6.26
+REACH_LESS_PER_MM = 0.110
 REACH_TOP_MM = 44.0
 WAVE_SIN_DEG = -1.36
 WAVE_COS_DEG = 0.33
@@ -100,7 +101,7 @@ def _too_tall_per_mm2(out: float) -> float:
     return (TALL_AT_STACK_MM + TALL_PER_MM_OF_REACH * out) / STACK_MM ** 2
 
 
-def _true_xy(x: float, y: float, height: float) -> tuple:
+def _true_xy(x: float, y: float, height: float) -> Tuple[float, float]:
     """The firmware's x and y, `height` over the desk, where the cup really is."""
     reach = math.hypot(x, y)
     if reach == 0.0:
@@ -110,7 +111,7 @@ def _true_xy(x: float, y: float, height: float) -> tuple:
     return reach * math.sin(bearing), -reach * math.cos(bearing)
 
 
-def _raw_xy(x: float, y: float, height: float) -> tuple:
+def _raw_xy(x: float, y: float, height: float) -> Tuple[float, float]:
     """Where the firmware is to be sent for the cup to be at x and y, `height` over the desk."""
     reach = math.hypot(x, y)
     if reach == 0.0:

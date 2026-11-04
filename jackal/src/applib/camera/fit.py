@@ -6,14 +6,14 @@
 The cubes' shapes make the camera. A 40 mm cube seen from above is a small
 frame of known edges, and three of them, each turned however it was set down,
 fix a square-pixel camera: focal length, principal point and pose, in true
-millimetres, the cubes' 40 mm its ruler. The arm is tied to it by a turn, a
-shift and a stretch, with the board's mirror (it negates x): six numbers, which
-three points fix exactly. So each cube stands wherever its shape puts it, and
-the arm's point for it lies on it: CALIBRATE's three cubes are 0 mm off. The
-stretch is how the arm's x and y -- as the library corrects the firmware's
-(`maxarm/raw.py`) -- measure against the camera's millimetres: the arm's own
-measure, shown (`stretch_of()`), not counted against a cube. Three points have
-nothing to be checked against; the Fine Tune points do (`refine.py`).
+millimetres, the cubes' 40 mm its ruler. While the camera is fitted, a turn, a
+shift and a stretch from the arm's points (six numbers, which three points fix
+exactly) leave each cube wherever its shape puts it: the arm cannot pull the
+camera. Then the arm is laid on the cubes as seen by a turn and a shift alone,
+with the board's mirror (it negates x): the arm's millimetres are real ones, as
+the library corrects the firmware's (`maxarm/raw.py`), so each cube keeps the
+miss its reading has. The stretch is kept as the arm's measure against the
+camera's millimetres (`arm_stretch`, `stretch_of()`): shown, not used.
 
 1. **Start.** For each naming of the blobs (`cubes.py`), and focal lengths across
    any plausible lens, the camera that puts each cube's middle on its blob (P3P),
@@ -23,10 +23,10 @@ nothing to be checked against; the Fine Tune points do (`refine.py`).
 3. **Edges.** Each visible edge of each cube moved onto the strongest colour edge
    beside it (`edges.py`). An outline counts only where the cube's colour is on
    its inner side: a shadow's edge, or the desk's grain, has the desk on both sides.
-4. **The arm.** Its three points lie on the cubes as seen, by the turn, shift and
-   stretch the edges' fit settled with the camera: `desk_to_true` is the stretch
-   and the mirror, `true_to_pixel` the camera along the arm's x and y, and
-   `desk_to_pixel` names the desk point the arm must be sent to.
+4. **The arm.** Laid on the cubes as seen by a turn and a shift, least squares
+   (`link_arm()`): `desk_to_true` is the mirror, `true_to_pixel` the camera along
+   the arm's x and y, and `desk_to_pixel` names the desk point the arm must be
+   sent to.
 """
 
 import math
@@ -121,6 +121,9 @@ class CameraFit:
     # As CALIBRATE fits it, not kept in camera.json: each cube's turn, degrees, as its edges' corners are numbered,
     # and the edges found round it in the frame -- for the refine points (store.cube_refine_points()).
     cube_edges: Optional[Dict[str, Tuple[float, Tuple[np.ndarray, np.ndarray, np.ndarray]]]] = None
+    # 2x2: the stretch and mirror a turn, shift and stretch would lay the arm on the cubes with: the arm's measure
+    # against the camera's millimetres, shown, not used. None in a file written before the arm was laid without it.
+    arm_stretch: Optional[np.ndarray] = None
 
     @property
     def desk_to_pixel(self) -> np.ndarray:
@@ -137,6 +140,12 @@ class CameraFit:
         width, height = self.frame_size
         shares = np.array([[1 / width, 0.0, 0.5 / width], [0.0, 1 / height, 0.5 / height], [0.0, 0.0, 1.0]])
         return shares @ self.desk_to_pixel
+
+    @property
+    def measured_stretch(self) -> np.ndarray:
+        """How the arm's x and y measure against the camera's millimetres: `arm_stretch`, or for a file written
+        before it, the stretch the arm was laid with."""
+        return self.desk_to_true if self.arm_stretch is None else self.arm_stretch
 
     @property
     def camera_position(self) -> np.ndarray:
@@ -172,12 +181,14 @@ class CameraFit:
             return self
         alone = self.cubes_alone
         return CameraFit(np.array(alone["true_to_pixel"]), np.array(alone["desk_to_true"]), alone["cubes"],
-                         self.frame_size, self.edge_px, self.edges_used)
+                         self.frame_size, self.edge_px, self.edges_used,
+                         arm_stretch=_matrix_or_none(alone.get("arm_stretch")))
 
     def to_json(self) -> dict:
         refinement = {"refined": self.refined, "cubes_alone": self.cubes_alone} if self.refined else {}
+        stretch = {} if self.arm_stretch is None else {"arm_stretch": self.arm_stretch.tolist()}
         return {"true_to_pixel": self.true_to_pixel.tolist(), "desk_to_true": self.desk_to_true.tolist(),
-                "cubes": self.cubes, "frame_size": list(self.frame_size),
+                **stretch, "cubes": self.cubes, "frame_size": list(self.frame_size),
                 "edge_px": list(self.edge_px), "edges_used": self.edges_used, **refinement}
 
     @classmethod
@@ -186,7 +197,12 @@ class CameraFit:
         cubes = {colour: cube if "pixel" in cube else _with_pixel(cube, true_to_pixel, desk_to_true)
                  for colour, cube in stored["cubes"].items()}
         return cls(true_to_pixel, desk_to_true, cubes, tuple(stored["frame_size"]), tuple(stored["edge_px"]),
-                   stored["edges_used"], stored.get("refined"), stored.get("cubes_alone"))
+                   stored["edges_used"], stored.get("refined"), stored.get("cubes_alone"),
+                   arm_stretch=_matrix_or_none(stored.get("arm_stretch")))
+
+
+def _matrix_or_none(stored: Optional[list]) -> Optional[np.ndarray]:
+    return None if stored is None else np.array(stored)
 
 
 def _with_pixel(cube: dict, true_to_pixel: np.ndarray, desk_to_true: np.ndarray) -> dict:
@@ -198,18 +214,28 @@ def _with_pixel(cube: dict, true_to_pixel: np.ndarray, desk_to_true: np.ndarray)
 
 
 def link_arm(desk: np.ndarray, true: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """The turn, shift and stretch that lay the arm's desk x, y rows best on the `true` rows, how far each reading is
-    from its row counted in desk mm, least squares: true = turn @ desk_to_true @ desk + shift, `desk_to_true` the
-    stretch (symmetric) and the board's mirror. Three rows fit it exactly. Raises ValueError if no stretch does it
-    without turning the mirror over: the rows in a line, or not the arm's."""
+    """The turn and shift that lay the arm's desk x, y rows best on the `true` rows, least squares: true = turn @
+    desk_to_true @ desk + shift, `desk_to_true` the board's mirror alone. The arm's millimetres are taken as real
+    ones (the library makes them so, `maxarm/raw.py`), so no stretch hides a reading's miss. Two rows fix it."""
+    desk = np.asarray(desk, float) @ HANDEDNESS.T
+    true = np.asarray(true, float)
+    left, _, right = np.linalg.svd((desk - desk.mean(0)).T @ (true - true.mean(0)))
+    turn = (left @ np.diag([1.0, np.sign(np.linalg.det(left @ right))]) @ right).T
+    return turn, true.mean(0) - turn @ desk.mean(0), HANDEDNESS.copy()
+
+
+def measured_stretch(desk: np.ndarray, true: np.ndarray) -> np.ndarray:
+    """The stretch (symmetric) and the board's mirror that a turn, shift and stretch would lay the arm's desk x, y
+    rows on the `true` rows with, least squares: the arm's measure against the camera's millimetres, shown, not used
+    to lay it. Three rows fit it exactly. Raises ValueError if no stretch does it without turning the mirror over:
+    the rows in a line, or not the arm's."""
     desk, true = np.asarray(desk, float), np.asarray(true, float)
     to_desk = np.linalg.lstsq(np.column_stack((true, np.ones(len(true)))), desk, rcond=None)[0]
     linear = np.linalg.inv(to_desk[:2].T)                         # true = linear @ desk + shift
     left, scales, right = np.linalg.svd(linear @ HANDEDNESS)
     if np.linalg.det(left @ right) < 0:
         raise ValueError("the points lay the arm's x and y on the camera's mirrored")
-    stretch = right.T @ np.diag(scales) @ right
-    return left @ right, -linear @ to_desk[2], stretch @ HANDEDNESS
+    return right.T @ np.diag(scales) @ right @ HANDEDNESS
 
 
 def stretch_of(desk_to_true: np.ndarray) -> Tuple[float, float, float]:
@@ -295,21 +321,24 @@ def _corners(params: np.ndarray, points: Points) -> List[np.ndarray]:
 
 def _result(params: np.ndarray, points: Points, frame: np.ndarray, distances: np.ndarray,
             found: Optional[list] = None) -> CameraFit:
-    """The camera as fitted, the arm on the cubes it saw by the fit's own turn, shift and stretch (step 4); with the
-    edges `found` round each cube."""
+    """The camera as fitted, the arm laid on the cubes it saw by a turn and a shift (step 4), the fit's own stretch
+    kept as the arm's measure; with the edges `found` round each cube."""
     true_to_pixel, centres = _pinhole(params).matrix, _centres(params, points)
     pixels = project(true_to_pixel, np.array([(*centre, 0.0) for centre in centres]))
     cubes_seen = {colour: {"x": float(points[colour][0]), "y": float(points[colour][1]),
                            "turn_deg": round(math.degrees(turn) % 90.0, 2),
                            "pixel": [round(float(pixel[0]), 3), round(float(pixel[1]), 3)]}
                   for colour, turn, pixel in zip(COLOURS, params[TURNS], pixels)}
+    turn, shift, desk_to_true = link_arm([points[colour] for colour in COLOURS], centres)
+    true_to_pixel, cubes_seen = laid_along_arm(true_to_pixel, cubes_seen, turn, shift)
+    turned_deg = math.degrees(math.atan2(turn[1, 0], turn[0, 0]))
     cube_edges = None if found is None else {
-        colour: (round(math.degrees(cube_turn), 4), found_on)
+        colour: (round(math.degrees(cube_turn) - turned_deg, 4), found_on)
         for colour, cube_turn, found_on in zip(COLOURS, params[TURNS], found)}
-    return CameraFit(true_to_pixel, _desk_to_true(params), cubes_seen,
+    return CameraFit(true_to_pixel, desk_to_true, cubes_seen,
                      (frame.shape[1], frame.shape[0]),
                      (float(np.median(np.abs(distances))), float(np.percentile(np.abs(distances), 90))),
-                     len(distances), cube_edges=cube_edges)
+                     len(distances), cube_edges=cube_edges, arm_stretch=_desk_to_true(params))
 
 
 # --- 1. the start ---------------------------------------------------------

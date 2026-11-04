@@ -132,10 +132,10 @@ desk's, as measured in the same frame, that are whole and cube-shaped; red is th
 can look as green as the green cube, so which blobs are the cubes, and green from blue, is settled by where the
 arm says each cube stands: only the right ones fit a camera. A camera with square pixels is then fitted to every
 visible edge of the three 40 mm cubes, each turned however it was set down: the cubes' 40 mm are its ruler. The
-arm is tied to it by a turn, a shift and a stretch, which three points fix exactly: each cube stands where the arm
-said, 0 mm off, since three points have nothing to check one another against. The stretch is how the arm's x and
-y, as the library corrects the firmware's, measure against the camera's millimetres; the page's line says it as
-information, not as an error. A pixel names the desk point the arm must be sent to. The arm
+arm is then laid on the cubes as seen by a turn and a shift, least squares: its millimetres, as the library
+corrects the firmware's, are real ones, so each cube keeps the miss its reading has, and the page's line gives
+them. The stretch a turn, shift and stretch would take is how the arm's x and y measure against the camera's
+millimetres: information, not used. A pixel names the desk point the arm must be sent to. The arm
 should be out of the picture, as CALIBRATE leaves it; lens distortion is not modelled.
 
 **The live view** is the camera at its full size, the size every calibration is fitted at, only while a page is
@@ -205,10 +205,10 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
    spread over where pieces will go -- the dashed circle on the grid and in the live view is the place in reach and in
    view furthest from every point so far. Each point says how far the arm's
    reading is from the cube as the camera sees it, across the desk (*XY*), and how far from 40 mm tall the camera
-   sees the cube (*Z*, + taller): through the three cubes' calibration, *off at CALIBRATE* -- 0 for its three
-   cubes, and for a later point how well CALIBRATE foresaw it -- and through the one SAVE would write, *after
-   SAVE*, the arm laid on all the points at once: 0 for any three, from the fourth on how far a point's reading is
-   from where the others put it. Green within 1 mm, yellow within 2, red beyond; the point's circle on the grid
+   sees the cube (*Z*, + taller): through the three cubes' calibration, *off at CALIBRATE* -- for its three
+   cubes the miss its turn and shift leave, for a later point how well CALIBRATE foresaw it -- and through the one
+   SAVE would write, *after SAVE*: the point left out, how far its reading is from where the others put it; in the
+   live view the point's dot is that place, its ring the cube. Green within 1.5 mm, yellow within 2.5, red beyond; the point's circle on the grid
    takes the colour of its XY, as on the desk page. One point far off while the others are not: in XY the cup was
    off the cube's centre or its edges were found wrong, in Z the snapshot's edges were not all the cube's; forget
    it and record it again. **SAVE CALIBRATION**, from four points on, writes `camera.json` with the camera fitted
@@ -249,10 +249,10 @@ camera, those edges make a cube standing somewhere on the desk: moved and turned
 edges lie along them. **The camera** -- focal length, principal point (held loosely to the frame's middle), where
 it stands and which way it looks -- is fitted to the pictures alone: every point's cube a 40 mm cube, wherever its
 edges put it, as CALIBRATE fits its three, the cubes' points 1 to 3 among them until forgotten. The arm has no say
-in it. **The arm** is then laid on the cubes as that camera sees them by a turn, a shift and a stretch, the least
-squares of how far each reading is from its cube: six numbers, which three points fit exactly, so a point's XY is
-its reading against the others' from the fourth point on, and the stretch is the arm's measure against the
-camera's, shown, not counted against any point. Z is the cube's height through the camera, made free: a
+in it. **The arm** is then laid on the cubes as that camera sees them by a turn and a shift, the least squares of
+how far each reading is from its cube, its millimetres taken as real: a point's XY is its reading against where
+the others put it, the point left out, and the stretch a turn, shift and stretch would take is the arm's measure
+against the camera's, shown, not used. Z is the cube's height through the camera, made free: a
 picture's own check. A point kept before the edges were has only the pixel under the cube's centre, as the camera
 of its day saw it: it counts for the arm, not for the camera, and has no Z. The cubes' own calibration is only
 where the fit starts. Points all in one corner do not fix a camera: SAVE refuses one whose focal length is more

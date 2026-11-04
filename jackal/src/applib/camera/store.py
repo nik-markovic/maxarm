@@ -204,9 +204,10 @@ def save_camera(config_dir: Path, fit: CameraFit, lens: Optional[dict] = None) -
                   "Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, "
                   "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm (the "
                   "cubes' 40 mm its ruler), turned and shifted along the arm's x and y; desk_to_true takes the "
-                  "arm's x, y to true mm: the board's mirror and a stretch, the arm's measure against the "
-                  "camera's. Together they put the arm's points on the cubes the camera saw, exactly; "
-                  "desk_to_pixel is the two together. `refined`, if there, says the camera was fitted again, all "
+                  "arm's x, y to true mm: the board's mirror. The arm is laid on the cubes the camera saw by a "
+                  "turn and a shift, least squares, its millimetres taken as real ones; arm_stretch is the "
+                  "stretch a turn, shift and stretch would take, the arm's measure against the camera's, shown, "
+                  "not used. desk_to_pixel is the two together. `refined`, if there, says the camera was fitted again, all "
                   "of it, to the pictures of the points in camera-refine-points.json, and the arm laid on them "
                   "all, least squares; `cubes_alone` keeps the two matrices as the cubes alone gave them. `lens` "
                   "is the camera it was calibrated with, as it calls itself, and the focus it "
@@ -294,10 +295,12 @@ def describe_fit(fit: CameraFit) -> str:
     height = (f", their cubes' tops within {fit.refined['height_mm'][1]:.1f} mm of 40"
               if fit.refined and fit.refined.get("height_mm") else "")
     refined = (f"; refined by {fit.refined['points']} points, the arm's readings {fit.refined['off_mm'][0]:.1f} mm "
-               f"from where they all put them typically, {fit.refined['off_mm'][1]:.1f} at worst{height}"
-               if fit.refined else "")
+               f"from where the others put each typically, {fit.refined['off_mm'][1]:.1f} at worst{height}"
+               if fit.refined else
+               f"; the arm's readings {', '.join(f'{fit.cube_off_mm(colour):.1f}' for colour in fit.cubes)} mm "
+               f"from its cubes")
     return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; "
-            f"{describe_stretch(fit.desk_to_true)}{refined}")
+            f"{describe_stretch(fit.measured_stretch)}{refined}")
 
 
 def describe_stretch(desk_to_true: np.ndarray) -> str:

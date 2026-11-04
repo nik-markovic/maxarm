@@ -72,19 +72,21 @@ The rest is the fit behind it, which the camera page reads back to draw and to c
 | `lens`          | the camera as it calls itself, its focus (`focus_absolute`) held still, and its mode       |
 | `frame_size`    | width, height: the only frame size `desk_to_pixel` holds for                               |
 | `true_to_pixel` | 3x4: the camera alone, in true mm (x, y, z up), square pixels, along the arm's x, y        |
-| `desk_to_true`  | 2x2: the arm's x, y to true mm -- the board's mirror and the arm's stretch                 |
+| `desk_to_true`  | 2x2: the arm's x, y to true mm -- the board's mirror                                       |
+| `arm_stretch`   | 2x2: the stretch a turn, shift and stretch would take: the arm's measure, not used         |
 | `cubes`         | each cube's desk x, y, its turn on the desk, degrees, and the pixel under its centre       |
 | `edge_px`       | how far the frame's edges sat from the fitted cubes': median and 90%, pixels               |
-| `refined`       | if refined: how many points, how far their arm readings are from where the points all put  |
-|                 | them (`off_mm`), and their cubes' tops from 40 mm (`height_mm`): median and worst, mm      |
-| `cubes_alone`   | if refined: `true_to_pixel`, `desk_to_true` and `cubes` as the three cubes alone gave them |
+| `refined`       | if refined: how many points, how far each arm reading is from where the others put it      |
+|                 | (`off_mm`), and their cubes' tops from 40 mm (`height_mm`): median and worst, mm           |
+| `cubes_alone`   | if refined: the matrices and `cubes` as the three cubes alone gave them                    |
 
 `desk_to_pixel` is `true_to_pixel` with `desk_to_true` applied to x and y, scaled. The library's `Camera` refuses a
 frame of another size (`check_frame()`).
 
-The camera's millimetres are the cubes' 40 mm. The arm is tied to the camera by a turn, a shift and a stretch:
-CALIBRATE's, through its three cubes exactly; a refinement's, the least squares over its points. The turn and
-shift are in `true_to_pixel`, the stretch in `desk_to_true`: how the arm's x, y measure against the camera's.
+The camera's millimetres are the cubes' 40 mm. The arm is tied to the camera by a turn and a shift, least squares,
+its millimetres taken as real: CALIBRATE's over its three cubes, a refinement's over its points. The turn and shift
+are in `true_to_pixel`, the mirror in `desk_to_true`; `arm_stretch` is how the arm's x, y measure against the
+camera's.
 A refinement fits the whole camera again -- focal length, principal point, where it stands and which way it
 looks -- to the points' pictures alone, every point's cube 40 mm, then lays the arm on them. The three cubes take
 part as points 1 to 3, unless forgotten; their own calibration is only where the fit starts.

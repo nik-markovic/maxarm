@@ -14,14 +14,16 @@ makes two things of the points, apart:
    the one through which all their edges lie best along those found, each cube
    wherever its edges put it: as CALIBRATE fits three cubes, all the points'.
    The arm has no say in it; the camera's millimetres are the cubes'.
-2. **The arm**, laid on what the camera sees: a turn, a shift and a stretch
+2. **The arm**, laid on what the camera sees: a turn and a shift
    (`fit.link_arm()`), the least squares over the points of how far each arm
-   reading is from its cube as the camera sees it. Six numbers, which three
-   points fit exactly: a point's miss across the desk (XY) says something from
-   the fourth point on -- how far its reading is from where the others put it:
-   the cup off the cube's centre, or the cube's edges not found right. The
-   stretch is the arm's measure against the camera's, shown, not counted
-   against any point.
+   reading is from its cube as the camera sees it. The arm's millimetres are
+   real ones (`maxarm/raw.py` makes them so), so no stretch takes up a point's
+   miss: two points fix the arm, and from the third on each can disagree. How
+   far a reading is from where the others put it, the point left out
+   (`left_out()`), is its miss: the cup off the cube's centre, the reading off,
+   or the cube's edges not found right. The stretch a turn, shift and stretch
+   would take is kept as the arm's measure against the camera's (`arm_stretch`),
+   shown, not used.
 
 A point's height (Z) is the camera's alone: how far from 40 mm tall its cube
 looks, its base on the desk. One far off while the others are not says its
@@ -33,8 +35,8 @@ a focal length far from it is refused against. A point from before the edges
 were kept has only the pixel under the cube's centre, as the camera of its day
 saw it: it counts for the arm, not the camera, and has no height.
 
-`camera.json` keeps its form: `desk_to_true` is the stretch and the board's
-mirror, `true_to_pixel` the camera along the arm's x and y. Points are the
+`camera.json` keeps its form: `desk_to_true` is the board's mirror,
+`true_to_pixel` the camera along the arm's x and y, `arm_stretch` the measure. Points are the
 frame's pixels and edges, which no refinement changes, so a calibration refined
 again is refined from the same points.
 """
@@ -48,7 +50,7 @@ import cv2
 import numpy as np
 
 from applib.camera.fit import (CENTRE_SPREAD, EDGE_HUBER_PX, STEPS, CameraFit, laid_along_arm, link_arm,
-                               stretch_problem)
+                               measured_stretch, stretch_problem)
 from applib.camera.model import CUBE_MM, Pinhole, least_squares
 from applib.camera.sighting import STEPS as CUBE_STEPS
 from applib.camera.sighting import Sighting, in_frame, measure, misses, on_desk, place, start
@@ -116,14 +118,33 @@ def refine(fit: CameraFit, points: Sequence[Sighting]) -> CameraFit:
         return alone
     refined = _laid(alone, _camera(alone, points), points)
     offs = [off_by(refined, point) for point in points]
-    across = [off.across for off in offs]
+    across = [off.across if others is None else float(math.dist(others, refined.desk_to_true @ off.seen))
+              for off, others in zip(offs, left_out(refined, points))]       # each from where the others put it
     heights = [abs(off.height) for off in offs if off.height is not None]
     summary = {"points": len(points), "off_mm": [round(float(np.median(across)), 2), round(max(across), 2)]}
     if heights:
         summary["height_mm"] = [round(float(np.median(heights)), 2), round(max(heights), 2)]
+    stretch = {} if alone.arm_stretch is None else {"arm_stretch": alone.arm_stretch.tolist()}
     return dataclasses.replace(refined, refined=summary,
                                cubes_alone={"true_to_pixel": alone.true_to_pixel.tolist(),
-                                            "desk_to_true": alone.desk_to_true.tolist(), "cubes": alone.cubes})
+                                            "desk_to_true": alone.desk_to_true.tolist(), **stretch,
+                                            "cubes": alone.cubes})
+
+
+def left_out(fit: CameraFit, points: Sequence[Sighting]) -> List[Optional[np.ndarray]]:
+    """For each point, where the others put its reading: true x, y through `fit`'s camera, the arm laid on the rest
+    alone by a turn and a shift. Its distance from the point's cube as the camera sees it is the point's miss. None
+    each with fewer than three points."""
+    if len(points) < 3:
+        return [None] * len(points)
+    seen = [_seen(in_frame(fit.true_to_pixel, fit.frame_size, point), point) for point in points]
+    desk = [(point.x, point.y) for point in points]
+    put = []
+    for index in range(len(points)):
+        rest = [other for other in range(len(points)) if other != index]
+        turn, shift, desk_to_true = link_arm([desk[other] for other in rest], [seen[other] for other in rest])
+        put.append(turn @ desk_to_true @ np.asarray(desk[index]) + shift)
+    return put
 
 
 def _seen(matrix: np.ndarray, point: Sighting) -> np.ndarray:
@@ -182,20 +203,24 @@ def _camera(alone: CameraFit, points: Sequence[Sighting]) -> np.ndarray:
 
 
 def _laid(alone: CameraFit, true_to_pixel: np.ndarray, points: Sequence[Sighting]) -> CameraFit:
-    """The camera with the arm laid on it: the turn, shift and stretch that put each point's arm reading nearest its
-    cube as the camera sees it, least squares over the points (`fit.link_arm()`)."""
+    """The camera with the arm laid on it: the turn and shift that put each point's arm reading nearest its cube as
+    the camera sees it, least squares over the points (`fit.link_arm()`); the stretch a turn, shift and stretch would
+    take, kept as the arm's measure, and checked."""
     seen = [_seen(in_frame(true_to_pixel, alone.frame_size, point), point) for point in points]
+    desk = [(point.x, point.y) for point in points]
     try:
-        turn, shift, desk_to_true = link_arm([(point.x, point.y) for point in points], seen)
+        turn, shift, desk_to_true = link_arm(desk, seen)
+        stretch = measured_stretch(desk, seen)
     except (ValueError, np.linalg.LinAlgError):
         raise PointsDoNotFit("the points do not lay the arm on the camera: spread them over the desk, not along a "
                              "line") from None
-    problem = stretch_problem(desk_to_true)
+    problem = stretch_problem(stretch)
     if problem:
         raise PointsDoNotFit(f"the points do not lay the arm on the camera: {problem}. Forget the points far off "
                              f"and record them again")
     camera, cubes = laid_along_arm(true_to_pixel, alone.cubes, turn, shift)
-    return CameraFit(camera, desk_to_true, cubes, alone.frame_size, alone.edge_px, alone.edges_used)
+    return CameraFit(camera, desk_to_true, cubes, alone.frame_size, alone.edge_px, alone.edges_used,
+                     arm_stretch=stretch)
 
 
 def _edge_moves(camera: Callable[[np.ndarray], np.ndarray], numbers: np.ndarray, point: Sighting,

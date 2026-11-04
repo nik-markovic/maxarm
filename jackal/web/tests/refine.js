@@ -58,7 +58,7 @@ export function fitLine(refine) {
   const height = fit.height_mm ? ` Their cubes' tops are <b>${fmt(fit.height_mm[0])}</b> mm from 40 typically,
     <b>${fmt(fit.height_mm[1])}</b> at worst.` : '';
   return `After SAVE the arm's readings are <b>${fmt(fit.off_mm[0])}</b> mm typically, <b>${fmt(fit.off_mm[1])}</b>
-    at worst, from where all the points put them (XY).${height} ${change} ${armLine(fit.arm)}`;
+    at worst, from where the other points put each (XY).${height} ${change} ${armLine(fit.arm)}`;
 }
 
 // How the arm measures against the camera: information, not counted against any point.

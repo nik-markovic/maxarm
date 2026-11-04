@@ -233,12 +233,12 @@ class TestsSession:
             store.save_check(self.config_dir, check.draw(frame, refined, [
                 f"camera.json, {what}, on the calibration's own frame", store.describe_fit(refined)]))
         heights = refined.refined.get("height_mm") if refined.refined else None
-        offs = (f"; the arm's readings {refined.refined['off_mm'][0]:.1f} mm from where the points all put them "
+        offs = (f"; the arm's readings {refined.refined['off_mm'][0]:.1f} mm from where the others put each "
                 f"typically, {refined.refined['off_mm'][1]:.1f} at worst" if refined.refined else "")
         offs += (f"; their cubes' tops {heights[0]:.1f} mm from {CUBE_MM:.0f} typically, {heights[1]:.1f} at worst"
                  if heights else "")
         return (f"config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the saved one did, "
-                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.desk_to_true)}")
+                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}")
 
     def _keep(self, points: List[RefinePoint]) -> None:
         """The points, now and on file. Hold the lock."""

@@ -8,7 +8,8 @@
 //   height they say, the crosshair and the dot on the desk under it. The test is whether that rim sits on the cup in
 //   the picture, not whether the arm met the point (the owner's, 30 Oct);
 // - with the guides, the red cube's points: each a small ring, numbered, where the camera saw the cube's centre,
-//   coloured by how far off it is (refine.js); and a dashed circle on the desk, a place for the next point;
+//   coloured by how far off it is (refine.js), and a dot where the other points put its reading, a line to it: a bad
+//   point's dot lies off its ring; and a dashed circle on the desk, a place for the next point;
 // - with the desk grid (off unless asked), desk space every 10 mm on the desk, thin and pale, under everything else:
 //   every 50 mm a little stronger, and the two lines through the arm's turning axis stronger still.
 // The cup's rim is drawn its true size (tests/api.py). The drawing itself, and the reach and the arm, are the shared
@@ -31,6 +32,8 @@ const RANK_INK = { ok: INK.green, warn: '#e6b84a', bad: INK.reach, '': '#8d9aa9'
 // still shows round it when the two meet.
 const CLICKED_DOT_PX = 3;
 const SAYS_DOT_PX = 2;
+// A point's dot: where the other points put its reading.
+const PUT_DOT_PX = 2.5;
 export class LiveMarks extends ViewMarks {
   // touch: { u, v, desk, phase, says }, as tests.js has it; hover: [u, v]; showGuides; refine: the red cube's points
   // and the cubes, as the tests' state has them; next: { x, y }, desk mm; showDeskGrid.
@@ -86,6 +89,18 @@ export class LiveMarks extends ViewMarks {
       ctx.beginPath();
       ctx.arc(x, y, 5, 0, 2 * Math.PI);
       ctx.stroke();
+      if (row.put) {
+        const [px, py] = [row.put[0] * this.width, row.put[1] * this.height];
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.arc(px, py, PUT_DOT_PX, 0, 2 * Math.PI);
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
       ctx.font = `600 10px ${MONO}`;
       ctx.textAlign = 'left';
