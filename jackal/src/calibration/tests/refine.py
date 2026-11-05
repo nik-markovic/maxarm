@@ -4,16 +4,15 @@ The points are CALIBRATE's three cubes, 1, 2 and 3, until forgotten, and the red
 cube's from this page. Each is shown with how far the arm's reading for it is
 from its cube as the camera sees it, across the desk (XY), and how far from 40
 mm tall the camera sees the cube (Z): through the three cubes' calibration,
-CALIBRATE's, which lays the arm on its three cubes by a turn and a shift, and
-through the one SAVE CALIBRATION would write, the camera fitted to all the
-points' pictures. There XY is the point left out: how far its reading is from
-where the arm laid on the others puts it (`camera/refine.py`'s `left_out()`),
-and the page draws that place beside the cube. With no points, SAVE CALIBRATION
-puts back the three cubes' own calibration.
+CALIBRATE's, and through the one SAVE CALIBRATION would write, the camera fitted
+with every point's cube where the arm read it. There XY is the point left out:
+its cube through the camera the other points make, against its reading
+(`camera/refine.py`'s `left_out()`), and the page draws its reading beside the
+cube. With no points, SAVE CALIBRATION puts back the three cubes' own calibration.
 """
 
 import math
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -22,7 +21,7 @@ from applib.camera.model import project
 from applib.camera.sighting import in_frame
 from applib.camera.store import RefinePoint
 from camera import check
-from camera.refine import Off, PointsDoNotFit, Sighting, left_out, off_by, refine
+from camera.refine import Off, PointsDoNotFit, Sighting, off_by, refine_and_leave_out
 from common.worker import Refused
 
 # SAVE CALIBRATION takes this many points at the least -- the arm is laid by a turn and a shift, which two points fix,
@@ -36,14 +35,19 @@ OFF_MM = (1.5, 2.5)
 
 def refined(fit: CameraFit, points: List[RefinePoint]) -> CameraFit:
     """The calibration SAVE CALIBRATION writes, or Refused, saying why the points do not make one."""
+    return _refined(fit, points)[0]
+
+
+def _refined(fit: CameraFit, points: List[RefinePoint]) -> Tuple[CameraFit, List[Optional[np.ndarray]]]:
+    """`refined()`, and each point's reading as the camera the other points make has it (`left_out()`)."""
     if not points and fit.refined:
-        return refine(fit, [])
+        return refine_and_leave_out(fit, [])
     if len(points) < MIN_POINTS:
         missing = MIN_POINTS - len(points)
         raise Refused(f"record {missing} more point{'s' if missing > 1 else ''} first: {MIN_POINTS} at the least, "
                       f"{SUGGESTED_POINTS} or more spread over the desk to be of use")
     try:
-        return refine(fit, [point.sighting for point in points])
+        return refine_and_leave_out(fit, [point.sighting for point in points])
     except PointsDoNotFit as reason:
         raise Refused(str(reason)) from None
 
@@ -51,11 +55,11 @@ def refined(fit: CameraFit, points: List[RefinePoint]) -> CameraFit:
 def describe(fit: CameraFit, points: List[RefinePoint]) -> dict:
     """The points, how far off each is, and what SAVE CALIBRATION would change."""
     try:
-        trial, problem = refined(fit, points), None
+        (trial, put), problem = _refined(fit, points), None
     except Refused as reason:
-        trial, problem = None, str(reason)
+        (trial, put), problem = (None, []), str(reason)
     sightings = [point.sighting for point in points]
-    put = left_out(trial, sightings) if trial and trial.refined else [None] * len(points)
+    put = put if trial and trial.refined else [None] * len(points)
     rows = [{"id": point.id, "cube": point.cube, "z": point.z, "taken": point.taken,
              **_row(fit, trial, sighting, others)} for point, sighting, others in zip(points, sightings, put)]
     return {"points": rows, "fit": _summary(fit, trial, rows) if trial else None, "problem": problem,

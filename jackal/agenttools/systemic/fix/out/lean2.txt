@@ -1,0 +1,7 @@
+edges facing sideways +0.0 px out: edges 1.374, f 1895.1 centre (1274.0, 745.9) | left x 1.0199 y 1.0081, right x 1.0273 y 1.0099 (as flat sheets to 0.52 mm) | arm left out 3.25 / 6.20
+edges facing sideways -1.0 px out: edges 1.456, f 1899.8 centre (1281.9, 745.7) | left x 1.0206 y 1.0097, right x 1.0285 y 1.0118 (as flat sheets to 0.58 mm) | arm left out 3.42 / 6.45
+edges facing sideways -2.0 px out: edges 1.529, f 1905.4 centre (1288.6, 746.5) | left x 1.0221 y 1.0119, right x 1.0304 y 1.0143 (as flat sheets to 0.67 mm) | arm left out 3.70 / 6.87
+edges facing sideways +1.0 px out: edges 1.340, f 1891.8 centre (1265.6, 746.8) | left x 1.0195 y 1.0066, right x 1.0261 y 1.0080 (as flat sheets to 0.47 mm) | arm left out 3.06 / 5.96
+edges facing sideways +2.0 px out: edges 1.361, f 1888.9 centre (1260.7, 748.0) | left x 1.0176 y 1.0044, right x 1.0235 y 1.0055 (as flat sheets to 0.39 mm) | arm left out 2.73 / 5.39
+edges facing up/down  -1.0 px out: edges 1.329, f 1897.8 centre (1274.1, 746.7) | left x 1.0246 y 1.0124, right x 1.0324 y 1.0145 (as flat sheets to 0.70 mm) | arm left out 3.94 / 7.37
+edges facing up/down  +1.0 px out: edges 1.444, f 1895.3 centre (1276.2, 745.2) | left x 1.0150 y 1.0034, right x 1.0223 y 1.0054 (as flat sheets to 0.35 mm) | arm left out 2.51 / 5.07

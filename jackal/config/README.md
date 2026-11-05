@@ -83,13 +83,13 @@ The rest is the fit behind it, which the camera page reads back to draw and to c
 `desk_to_pixel` is `true_to_pixel` with `desk_to_true` applied to x and y, scaled. The library's `Camera` refuses a
 frame of another size (`check_frame()`).
 
-The camera's millimetres are the cubes' 40 mm. The arm is tied to the camera by a turn and a shift, least squares,
-its millimetres taken as real: CALIBRATE's over its three cubes, a refinement's over its points. The turn and shift
-are in `true_to_pixel`, the mirror in `desk_to_true`; `arm_stretch` is how the arm's x, y measure against the
-camera's.
+The camera is fitted with each cube standing where the arm read the cup over it, its millimetres taken as real:
+CALIBRATE's three cubes, a refinement's points. The arm's distances between them are the camera's measure, the
+cubes' 40 mm their shape; no turn or shift lies between the two. The mirror is in `desk_to_true`; `arm_stretch` is
+how the arm's x, y measure against the cubes where their own edges put them.
 A refinement fits the whole camera again -- focal length, principal point, where it stands and which way it
-looks -- to the points' pictures alone, every point's cube 40 mm, then lays the arm on them. The three cubes take
-part as points 1 to 3, unless forgotten; their own calibration is only where the fit starts.
+looks -- with every point's cube, 40 mm, where the arm read it. The three cubes take part as points 1 to 3, unless
+forgotten; their own calibration is only where the fit starts.
 
 The calibration holds only while the camera and the arm stay where they were. VALIDATE CALIBRATION says whether the
 camera has moved.

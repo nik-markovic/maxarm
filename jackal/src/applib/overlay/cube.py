@@ -2,10 +2,11 @@
 
     draw_cube(canvas, view, found)            # found: FoundCube.to_json(), and where the arm was sent and landed
 
-- its edges, thin, in pink, fainter where its own faces hide them, and an X
-  across its bottom under its centre: the cube's own edge shows beside them;
+- its edges, thin, yellow and half see-through, fainter where its own faces hide
+  them, and an X across its bottom under its centre: the cube's own edge shows
+  beside them;
 - where the arm was sent over it: a small dot on the cube's top;
-- where the servos then said the cup was: the cup's rim, yellow, on the same
+- where the servos then said the cup was: the cup's rim, green, on the same
   plane -- the gap between the two is the arm's own miss;
 - its desk x, y over it, clear of the cup's end, and the miss, X and Y.
 """
@@ -24,6 +25,10 @@ CUP_RADIUS_MM = 10.5
 LABEL_OVER_CUP_MM = 16.0
 LABEL_OVER_CUP_PX = 18.0
 SENT_DOT_PX = 2.5
+# A cube's wireframe, as every one is drawn: design px, and how opaque its seen and its hidden edges are.
+WIRE_PX = 0.75
+WIRE_OPACITY = 0.5
+HIDDEN_OPACITY = 0.25
 
 
 def draw_cube(canvas: Canvas, view: View, found: dict, down_mm: float) -> None:
@@ -32,14 +37,14 @@ def draw_cube(canvas: Canvas, view: View, found: dict, down_mm: float) -> None:
     corners = view.path(found["corners"])
     if any(corner is None for corner in corners):
         return
-    pink = inks.BGR["cube"]
+    wire = inks.BGR["yellow"]
     for start, end in [*found["hidden"], *BASE_DIAGONALS]:
-        canvas.lines([corners[start], corners[end]], pink, 1.0, 0.45)
-    for start, end, is_outline in found["seen"]:
-        canvas.lines([corners[start], corners[end]], pink, 1.2 if is_outline else 1.0, 0.9)
+        canvas.lines([corners[start], corners[end]], wire, WIRE_PX, HIDDEN_OPACITY)
+    for start, end, _ in found["seen"]:
+        canvas.lines([corners[start], corners[end]], wire, WIRE_PX, WIRE_OPACITY)
     landed = found.get("landed")
     if landed:
-        canvas.lines(view.ring(landed[0], landed[1], CUP_RADIUS_MM, CUBE_MM), inks.BGR["yellow"], 1.5, 0.95)
+        canvas.lines(view.ring(landed[0], landed[1], CUP_RADIUS_MM, CUBE_MM), inks.BGR["green"], 1.5, 0.95)
     sent = found.get("sent") or [found["x"], found["y"]]
     aim = view.at(sent[0], sent[1], CUBE_MM)
     canvas.disc(aim, SENT_DOT_PX + 1.5, inks.BGR["shadow"], 1.0)
@@ -49,4 +54,4 @@ def draw_cube(canvas: Canvas, view: View, found: dict, down_mm: float) -> None:
     over = view.at(found["x"], found["y"], down_mm + LABEL_OVER_CUP_MM)
     if end and over:
         bottom = min(over[1], end[1] - LABEL_OVER_CUP_PX * canvas.scale)
-        canvas.label(f"{found['x']:.1f}, {found['y']:.1f}{missed}", (end[0], bottom - 11 * canvas.scale), pink)
+        canvas.label(f"{found['x']:.1f}, {found['y']:.1f}{missed}", (end[0], bottom - 11 * canvas.scale), wire)

@@ -1,0 +1,23 @@
+the camera's motion 4 Nov -> today, affine today = A [then, 1]:
+ [[ 1.00089e+00 -1.80000e-04  3.32856e+00]
+ [ 1.90000e-04  1.00034e+00 -2.82875e+00]]
+4 Nov 12 points' edges, each cube placed freely, through the sheets' camera: 1.564 px (the app's own 12-point camera: see pinned.txt)
+config/camera.json (11:45 SAVE) on today's pixels, the motion not taken out: sheets read: left x 1.0236 y 1.0105, right x 1.0328 y 1.0134 (as flat sheets to 0.63 mm)
+config/camera.json (11:45 SAVE), the motion taken out:                    sheets read: left x 1.0199 y 1.0080, right x 1.0273 y 1.0100 (as flat sheets to 0.52 mm)
+
+12 points, readings held within 0.5 mm: edges 1.378 px; f 1896.9, middle (1277.9, 745.6), lens 243.0 up, looks 51.4 deg down
+      sheets read: left x 1.0188 y 1.0077, right x 1.0256 y 1.0092 (as flat sheets to 0.50 mm); cubes against the arm 2.58 typ, 5.62 worst
+12 points, readings held within 1.0 mm: edges 1.376 px; f 1896.0, middle (1276.0, 745.7), lens 242.8 up, looks 51.4 deg down
+      sheets read: left x 1.0193 y 1.0078, right x 1.0264 y 1.0096 (as flat sheets to 0.51 mm); cubes against the arm 2.60 typ, 5.78 worst
+      each point left out of the fit, against its arm reading: 2.89 typ, 6.33 worst
+12 points, readings held within 2.0 mm: edges 1.375 px; f 1895.5, middle (1274.9, 745.8), lens 242.7 up, looks 51.4 deg down
+      sheets read: left x 1.0196 y 1.0080, right x 1.0269 y 1.0098 (as flat sheets to 0.51 mm); cubes against the arm 2.53 typ, 5.98 worst
+      each point left out of the fit, against its arm reading: 2.92 typ, 6.53 worst
+12 points, readings held within 4.0 mm: edges 1.375 px; f 1895.2, middle (1274.4, 745.8), lens 242.6 up, looks 51.4 deg down
+      sheets read: left x 1.0198 y 1.0080, right x 1.0271 y 1.0099 (as flat sheets to 0.52 mm); cubes against the arm 2.88 typ, 5.69 worst
+12 points, readings held within 8.0 mm: edges 1.375 px; f 1895.1, middle (1274.1, 745.9), lens 242.6 up, looks 51.4 deg down
+      sheets read: left x 1.0199 y 1.0080, right x 1.0273 y 1.0100 (as flat sheets to 0.52 mm); cubes against the arm 2.96 typ, 5.64 worst
+CALIBRATE's 3 cubes, readings held within 1.0 mm: edges 1.333 px; f 1907.7, middle (1320.8, 748.0), lens 247.1 up, looks 50.9 deg down
+      sheets read: left x 1.0095 y 1.0086, right x 1.0112 y 1.0072 (as flat sheets to 0.41 mm); the other 9 points against the arm 1.51 typ, 3.33 worst
+CALIBRATE's 3 cubes, readings held within 2.0 mm: edges 1.333 px; f 1907.3, middle (1320.4, 748.0), lens 247.0 up, looks 50.9 deg down
+      sheets read: left x 1.0096 y 1.0086, right x 1.0115 y 1.0073 (as flat sheets to 0.41 mm); the other 9 points against the arm 1.67 typ, 3.35 worst

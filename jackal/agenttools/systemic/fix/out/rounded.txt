@@ -1,0 +1,15 @@
+sharp, every edge (the app's)      fitted alone: edges 1.374 px; f 1895.1, middle (1274.0, 745.9), lens 242.6 up, looks 51.4 deg down
+                                   sheets read: left x 1.0199 y 1.0081, right x 1.0273 y 1.0099 (as flat sheets to 0.52 mm); the arm by a turn and a shift, left out 3.25 typ, 6.20 worst
+                                   the same edges through the sheets' camera: 1.564 px; the arm, left out 1.69 typ, 3.21 worst
+sharp, no base outline             fitted alone: edges 1.208 px; f 1870.5, middle (1225.8, 743.7), lens 238.7 up, looks 52.5 deg down
+                                   sheets read: left x 1.0294 y 1.0107, right x 1.0342 y 1.0112 (as flat sheets to 0.67 mm); the arm by a turn and a shift, left out 3.14 typ, 6.24 worst
+                                   the same edges through the sheets' camera: 1.540 px; the arm, left out 1.71 typ, 3.14 worst
+rounded 0.25 mm, every edge        fitted alone: edges 1.378 px; f 1894.2, middle (1274.0, 745.9), lens 241.8 up, looks 51.4 deg down
+                                   sheets read: left x 1.0166 y 1.0050, right x 1.0239 y 1.0069 (as flat sheets to 0.40 mm); the arm by a turn and a shift, left out 2.81 typ, 5.44 worst
+                                   the same edges through the sheets' camera: 1.485 px; the arm, left out 1.66 typ, 3.16 worst
+rounded 0.25 mm, no base outline   fitted alone: edges 1.204 px; f 1871.1, middle (1225.8, 743.4), lens 238.0 up, looks 52.5 deg down
+                                   sheets read: left x 1.0262 y 1.0075, right x 1.0308 y 1.0078 (as flat sheets to 0.54 mm); the arm by a turn and a shift, left out 2.68 typ, 5.52 worst
+                                   the same edges through the sheets' camera: 1.432 px; the arm, left out 1.67 typ, 3.12 worst
+rounded 0.5 mm, no base outline    fitted alone: edges 1.201 px; f 1871.6, middle (1225.8, 743.2), lens 237.3 up, looks 52.5 deg down
+                                   sheets read: left x 1.0230 y 1.0043, right x 1.0275 y 1.0046 (as flat sheets to 0.43 mm); the arm by a turn and a shift, left out 2.13 typ, 4.81 worst
+                                   the same edges through the sheets' camera: 1.399 px; the arm, left out 1.61 typ, 3.10 worst

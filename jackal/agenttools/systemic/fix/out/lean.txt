@@ -1,0 +1,5 @@
+uprights +0.0 px out at the foot, -0.0 at the top: edges 1.374, f 1895.1 centre (1274.0, 745.9) | left x 1.0199 y 1.0081, right x 1.0273 y 1.0099 (as flat sheets to 0.52 mm) | arm left out 3.25 / 6.20
+uprights +0.5 px out at the foot, -0.5 at the top: edges 1.389, f 1898.5 centre (1275.9, 745.8) | left x 1.0197 y 1.0079, right x 1.0267 y 1.0095 (as flat sheets to 0.51 mm) | arm left out 3.21 / 6.14
+uprights +1.0 px out at the foot, -1.0 at the top: edges 1.414, f 1902.2 centre (1277.7, 746.1) | left x 1.0196 y 1.0077, right x 1.0264 y 1.0092 (as flat sheets to 0.51 mm) | arm left out 3.20 / 6.12
+uprights -0.5 px out at the foot, +0.5 at the top: edges 1.373, f 1892.2 centre (1271.8, 746.1) | left x 1.0203 y 1.0083, right x 1.0282 y 1.0105 (as flat sheets to 0.53 mm) | arm left out 3.29 / 6.28
+uprights -1.0 px out at the foot, +1.0 at the top: edges 1.383, f 1890.0 centre (1269.8, 746.4) | left x 1.0207 y 1.0085, right x 1.0291 y 1.0110 (as flat sheets to 0.54 mm) | arm left out 3.35 / 6.39

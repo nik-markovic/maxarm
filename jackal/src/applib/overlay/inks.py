@@ -12,8 +12,8 @@ CARRIED = "#9db0c8"
 UNREAD = "#f0524a"         # a letter not read: its tile's outline and its '?' (the owner's, PILOT-jackal)
 REACH = "#f0524a"
 REACH_MIN = "#f08c3c"
-CUBE = "#ff4df8"
-YELLOW = "#ffd23f"
+YELLOW = "#ffd23f"             # also every cube's wireframe, half see-through (the owner's, PILOT-jackal)
+GREEN = "#41c363"
 WHITE = "#ffffff"
 SHADOW = "#05070a"
 BADGE_TEXT = "#0b0f14"
@@ -29,5 +29,5 @@ def to_json() -> dict:
 
 
 BGR = {name: ink(value) for name, value in {
-    "reach": REACH, "reach_min": REACH_MIN, "cube": CUBE, "yellow": YELLOW, "white": WHITE, "shadow": SHADOW,
+    "reach": REACH, "reach_min": REACH_MIN, "yellow": YELLOW, "green": GREEN, "white": WHITE, "shadow": SHADOW,
     "badge_text": BADGE_TEXT, "pill": PILL, "carried": CARRIED, "unread": UNREAD}.items()}

@@ -1,0 +1,27 @@
+blobs:
+  0: centroid (1828, 412), area 105432, hue -90, solidity 1.00
+  1: centroid (721, 636), area 87198, hue -75, solidity 0.99
+  2: centroid (2051, 811), area 45107, hue +49, solidity 0.82
+  3: centroid (1947, 1134), area 20648, hue -71, solidity 0.99
+  4: centroid (1598, 376), area 15780, hue +72, solidity 0.89
+  5: centroid (391, 719), area 9392, hue +87, solidity 0.97
+  6: centroid (2174, 351), area 6484, hue -87, solidity 0.76
+  7: centroid (2030, 566), area 6048, hue +80, solidity 0.96
+
+book at 40.0 mm: camera f 1780.8
+  blue, on the book: 145 edge points, 1.61 px typ as a 40 mm cube; height from its edges 39.27 mm (base held); base -4.36 mm, top 35.91 mm (both free)
+     top outline -4.92 (10) | upright outline -1.36 (42) | bottom outline -1.38 (45) | top inner -1.36 (48)
+  red, on the desk: 111 edge points, 1.62 px typ as a 40 mm cube; height from its edges 39.76 mm (base held); base +1.00 mm, top 40.51 mm (both free)
+     top outline +0.09 (27) | upright outline +0.80 (10) | bottom outline -0.45 (20) | top inner -0.10 (37) | upright inner +0.04 (17)
+
+book at 39.8 mm: camera f 1771.9
+  blue, on the book: 143 edge points, 1.55 px typ as a 40 mm cube; height from its edges 39.15 mm (base held); base -4.41 mm, top 35.77 mm (both free)
+     top outline -4.86 (12) | upright outline -0.91 (43) | bottom outline -1.59 (42) | top inner -1.46 (46)
+  red, on the desk: 112 edge points, 1.99 px typ as a 40 mm cube; height from its edges 40.03 mm (base held); base -0.52 mm, top 39.64 mm (both free)
+     top outline -0.09 (23) | upright outline -0.18 (13) | bottom outline -0.03 (21) | top inner +0.56 (36) | upright inner -0.14 (19)
+
+book at 40.2 mm: camera f 1789.7
+  blue, on the book: 146 edge points, 1.67 px typ as a 40 mm cube; height from its edges 39.34 mm (base held); base -4.46 mm, top 35.91 mm (both free)
+     top outline -5.81 (10) | upright outline -1.75 (41) | bottom outline -1.22 (47) | top inner -1.15 (48)
+  red, on the desk: 122 edge points, 1.69 px typ as a 40 mm cube; height from its edges 40.19 mm (base held); base -0.69 mm, top 39.68 mm (both free)
+     top outline +0.13 (28) | upright outline -0.15 (16) | bottom outline +0.80 (20) | top inner +0.20 (37) | upright inner -0.30 (21)

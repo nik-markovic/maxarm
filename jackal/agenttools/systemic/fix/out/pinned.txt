@@ -1,0 +1,33 @@
+the sheets' camera (today's frame): f 1906.9, middle (1343.3, 734.5), lens 246.4 up, looks 50.6 deg down; sheets read: left x 0.9993 y 1.0004, right x 1.0015 y 0.9993 (as flat sheets to 0.07 mm)
+4 Nov camera.json:                  f 1917.5, middle (1295.7, 740.6), lens 245.1 up, looks 50.8 deg down; sheets read: left x 1.0174 y 1.0054, right x 1.0257 y 1.0079 (as flat sheets to 0.41 mm)
+
+4 Nov, 12 points, cubes placed freely (the app's): edges 1.374 px; f 1895.1, middle (1274.0, 745.9), lens 242.6 up, looks 51.4 deg down
+      sheets read: left x 1.0199 y 1.0081, right x 1.0273 y 1.0099 (as flat sheets to 0.52 mm)
+      all 12 points, the arm laid by a turn and a shift, left out: 3.25 typ, 6.20 worst
+4 Nov, 12 points, cubes where the arm read them:   edges 2.350 px; f 1946.9, middle (1327.5, 800.8), lens 246.1 up, looks 50.2 deg down
+      sheets read: left x 0.9997 y 0.9959, right x 1.0140 y 1.0025 (as flat sheets to 0.32 mm)
+      all 12 points' cubes through it against the arm, no turn or shift: 1.14 typ, 3.24 worst; with a turn and a shift laid, left out: 1.16 typ, 3.54 worst
+      the same without holding the middle near the frame's: f 1946.9, middle (1327.5, 800.8), lens 246.1 up, looks 50.2 deg down; sheets read: left x 0.9997 y 0.9959, right x 1.0140 y 1.0025 (as flat sheets to 0.32 mm)
+      each point left out of the fit, its cube through the others' camera against its arm reading: 2.28 typ, 3.35 worst
+           4 bear  -86.7 reach   211: out -1.71 round +1.26
+           5 bear  -67.2 reach   185: out +1.12 round -3.05
+           1 bear  -53.6 reach   223: out +2.03 round -1.87
+          11 bear  -39.0 reach   144: out -0.28 round +1.12
+           6 bear  -14.1 reach   203: out -0.89 round +0.82
+           7 bear  +10.7 reach   164: out +3.22 round +0.92
+           9 bear  +12.6 reach   238: out +1.40 round +1.66
+           8 bear  +28.7 reach   127: out +0.29 round -1.00
+           2 bear  +30.5 reach   256: out -1.09 round -2.65
+          10 bear  +30.7 reach   198: out -1.32 round -1.98
+           3 bear  +44.8 reach   157: out +0.13 round +1.35
+          13 bear  +48.9 reach   228: out +0.15 round +2.62
+
+4 Nov, CALIBRATE's 3 cubes, cubes placed freely (the app's): edges 1.333 px; f 1907.0, middle (1319.9, 747.9), lens 247.0 up, looks 50.9 deg down
+      sheets read: left x 1.0097 y 1.0086, right x 1.0117 y 1.0074 (as flat sheets to 0.41 mm)
+      all 12 points, the arm laid by a turn and a shift, left out: 1.83 typ, 3.87 worst
+4 Nov, CALIBRATE's 3 cubes, cubes where the arm read them:   edges 1.975 px; f 1936.9, middle (1322.3, 830.0), lens 244.4 up, looks 50.4 deg down
+      sheets read: left x 0.9956 y 0.9956, right x 1.0127 y 1.0039 (as flat sheets to 0.39 mm)
+      all 12 points' cubes through it against the arm, no turn or shift: 1.66 typ, 3.53 worst; with a turn and a shift laid, left out: 1.36 typ, 3.50 worst
+
+impala 2 Nov, 22 points, free: edges 1.479 px; f 1947.0, middle (1245.1, 748.1), lens 236.0 up, looks 56.9 deg down; left out by turn and shift 1.44 typ, 2.69 worst
+impala 2 Nov, 22 points, pinned: edges 2.519 px; f 1946.1, middle (1254.3, 722.5), lens 232.8 up, looks 56.7 deg down; each left out of the fit 1.27 typ, 2.85 worst

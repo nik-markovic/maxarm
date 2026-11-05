@@ -43,7 +43,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 .pad [data-dir="down"] { grid-area: 3 / 2; }
 .hint.space { margin: 10px 2px 0; }
 
-.swatch.found { border: 2px solid var(--cube-red); background: rgba(255, 77, 94, 0.2); }
+.swatch.found { border: 1px solid rgba(255, 210, 63, 0.75); background: rgba(255, 210, 63, 0.12); }
 .swatch.touch { border: 2px solid #3d9bff; border-radius: 50%; }
 .swatch.point { border-radius: 50%; background: var(--green); }
 .swatch.next { border: 1.5px dashed var(--cube-red); border-radius: 50%; background: rgba(255, 77, 94, 0.08); }
@@ -117,3 +117,11 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 .modal.help h2 { margin: 0 34px 6px 0; font-size: 18px; }
 .modal.help p { margin: 12px 0 4px; color: #c9d3dd; line-height: 1.5; }
 .modal.help b { color: var(--text); font-weight: 600; }
+
+/* RECORD POINT's dialog: the snapshot zoomed in on the cube, as large as fits, and UNDO, REDO, KEEP. */
+.modal.record { width: min(960px, 100%); max-width: min(960px, 100%); padding: 16px 20px; }
+.record-detail { margin: 0 34px 8px 2px; line-height: 1.4; }
+.record-zoom { display: block; max-width: 100%; margin: 0 auto; border-radius: 8px; background: #05070a; }
+.record-foot { display: flex; gap: 14px; align-items: flex-end; margin-top: 10px; }
+.record-foot .hint { flex: 1; margin: 0; font-size: 12px; line-height: 1.4; }
+.record-actions { display: flex; gap: 10px; flex: none; }

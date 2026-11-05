@@ -1,0 +1,328 @@
+diff --git a/jackal/config/README.md b/jackal/config/README.md
+index 8d345c4..c5ed395 100644
+--- a/jackal/config/README.md
++++ b/jackal/config/README.md
+@@ -83,10 +83,10 @@ The rest is the fit behind it, which the camera page reads back to draw and to c
+ `desk_to_pixel` is `true_to_pixel` with `desk_to_true` applied to x and y, scaled. The library's `Camera` refuses a
+ frame of another size (`check_frame()`).
+ 
+-The camera's millimetres are the cubes' 40 mm. The arm is tied to the camera by a turn and a shift, least squares,
+-its millimetres taken as real: CALIBRATE's over its three cubes, a refinement's over its points. The turn and shift
+-are in `true_to_pixel`, the mirror in `desk_to_true`; `arm_stretch` is how the arm's x, y measure against the
+-camera's.
++The camera's shape is the cubes' 40 mm; its scale is the arm's. The arm is tied to the camera by a turn, a shift
++and one scale, least squares, its millimetres taken as real: CALIBRATE's over its three cubes, a refinement's over
++its points. The turn and shift are in `true_to_pixel`, the mirror and the scale in `desk_to_true` (z takes the scale
++too); `arm_stretch` is how the arm's x, y measure against the camera's.
+ A refinement fits the whole camera again -- focal length, principal point, where it stands and which way it
+ looks -- to the points' pictures alone, every point's cube 40 mm, then lays the arm on them. The three cubes take
+ part as points 1 to 3, unless forgotten; their own calibration is only where the fit starts.
+diff --git a/jackal/src/applib/camera/fit.py b/jackal/src/applib/camera/fit.py
+index 28b04cb..3afe476 100644
+--- a/jackal/src/applib/camera/fit.py
++++ b/jackal/src/applib/camera/fit.py
+@@ -9,11 +9,15 @@ fix a square-pixel camera: focal length, principal point and pose, in true
+ millimetres, the cubes' 40 mm its ruler. While the camera is fitted, a turn, a
+ shift and a stretch from the arm's points (six numbers, which three points fix
+ exactly) leave each cube wherever its shape puts it: the arm cannot pull the
+-camera. Then the arm is laid on the cubes as seen by a turn and a shift alone,
+-with the board's mirror (it negates x): the arm's millimetres are real ones, as
+-the library corrects the firmware's (`maxarm/raw.py`), so each cube keeps the
+-miss its reading has. The stretch is kept as the arm's measure against the
+-camera's millimetres (`arm_stretch`, `stretch_of()`): shown, not used.
++camera. Then the arm is laid on the cubes as seen by a turn, a shift and one
++scale, with the board's mirror (it negates x). The pictures fix the camera's
++shape but not its size well: the cubes' edges set the whole scene's scale, and
++cameras fitted to different cubes of one calibration have put it 1-2.5% apart.
++The arm's millimetres are real ones, as the library corrects the firmware's
++(`maxarm/raw.py`), so they set it: the camera's whole world, heights too, is
++measured in the arm's millimetres, and each cube keeps the miss its reading has.
++The stretch is kept as the arm's measure against the camera's millimetres
++(`arm_stretch`, `stretch_of()`): shown, not used.
+ 
+ 1. **Start.** For each naming of the blobs (`cubes.py`), and focal lengths across
+    any plausible lens, the camera that puts each cube's middle on its blob (P3P),
+@@ -23,10 +27,10 @@ camera's millimetres (`arm_stretch`, `stretch_of()`): shown, not used.
+ 3. **Edges.** Each visible edge of each cube moved onto the strongest colour edge
+    beside it (`edges.py`). An outline counts only where the cube's colour is on
+    its inner side: a shadow's edge, or the desk's grain, has the desk on both sides.
+-4. **The arm.** Laid on the cubes as seen by a turn and a shift, least squares
+-   (`link_arm()`): `desk_to_true` is the mirror, `true_to_pixel` the camera along
+-   the arm's x and y, and `desk_to_pixel` names the desk point the arm must be
+-   sent to.
++4. **The arm.** Laid on the cubes as seen by a turn, a shift and a scale, least
++   squares (`link_arm()`): `desk_to_true` is the mirror and the scale,
++   `true_to_pixel` the camera along the arm's x and y, and `desk_to_pixel` names
++   the desk point the arm must be sent to.
+ """
+ 
+ import math
+@@ -108,8 +112,8 @@ class Wireframe:
+ @dataclass
+ class CameraFit:
+     true_to_pixel: np.ndarray        # 3x4: true mm (x, y, z up) to pixels
+-    desk_to_true: np.ndarray         # 2x2: the arm's desk x, y to true x, y (z is the same): the board's mirror
+-                                     # and the arm's stretch
++    desk_to_true: np.ndarray         # 2x2: the arm's desk x, y to true x, y: the board's mirror and the scale; z
++                                     # takes the scale too (`scale`)
+     cubes: Dict[str, dict]           # colour: desk x, y, the cube's turn, degrees, and the pixel under its centre
+     frame_size: Tuple[int, int]
+     edge_px: Tuple[float, float]     # how far the cubes' edges sit from the frame's: median, 90%
+@@ -129,7 +133,7 @@ class CameraFit:
+     def desk_to_pixel(self) -> np.ndarray:
+         """3x4: desk (x, y, z) to pixels, the arm placed on the desk as fitted."""
+         lift = np.eye(4)
+-        lift[:2, :2] = self.desk_to_true
++        lift[:2, :2], lift[2, 2] = self.desk_to_true, self.scale
+         matrix = self.true_to_pixel @ lift
+         return matrix / np.linalg.norm(matrix[2, :3])
+ 
+@@ -141,6 +145,11 @@ class CameraFit:
+         shares = np.array([[1 / width, 0.0, 0.5 / width], [0.0, 1 / height, 0.5 / height], [0.0, 0.0, 1.0]])
+         return shares @ self.desk_to_pixel
+ 
++    @property
++    def scale(self) -> float:
++        """The camera's millimetres in the arm's: how long a desk mm is in true mm, across the desk and up."""
++        return float(math.sqrt(abs(np.linalg.det(self.desk_to_true))))
++
+     @property
+     def measured_stretch(self) -> np.ndarray:
+         """How the arm's x and y measure against the camera's millimetres: `arm_stretch`, or for a file written
+@@ -151,7 +160,7 @@ class CameraFit:
+     def camera_position(self) -> np.ndarray:
+         """Where the camera stands, in desk mm."""
+         true = camera_position(self.true_to_pixel)
+-        return np.array([*np.linalg.solve(self.desk_to_true, true[:2]), true[2]])
++        return np.array([*np.linalg.solve(self.desk_to_true, true[:2]), true[2] / self.scale])
+ 
+     @property
+     def focal(self) -> float:
+@@ -214,14 +223,18 @@ def _with_pixel(cube: dict, true_to_pixel: np.ndarray, desk_to_true: np.ndarray)
+ 
+ 
+ def link_arm(desk: np.ndarray, true: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+-    """The turn and shift that lay the arm's desk x, y rows best on the `true` rows, least squares: true = turn @
+-    desk_to_true @ desk + shift, `desk_to_true` the board's mirror alone. The arm's millimetres are taken as real
+-    ones (the library makes them so, `maxarm/raw.py`), so no stretch hides a reading's miss. Two rows fix it."""
++    """The turn, shift and scale that lay the arm's desk x, y rows best on the `true` rows, least squares: true =
++    turn @ desk_to_true @ desk + shift, `desk_to_true` the board's mirror times the scale. The arm's millimetres are
++    real ones (the library makes them so, `maxarm/raw.py`) and the camera's scale the least sure thing about it, so
++    the arm sets the scale; one number, the same every way, so no stretch hides a reading's miss. Two rows fix it."""
+     desk = np.asarray(desk, float) @ HANDEDNESS.T
+     true = np.asarray(true, float)
+-    left, _, right = np.linalg.svd((desk - desk.mean(0)).T @ (true - true.mean(0)))
+-    turn = (left @ np.diag([1.0, np.sign(np.linalg.det(left @ right))]) @ right).T
+-    return turn, true.mean(0) - turn @ desk.mean(0), HANDEDNESS.copy()
++    desk_centred, true_centred = desk - desk.mean(0), true - true.mean(0)
++    left, spread, right = np.linalg.svd(desk_centred.T @ true_centred)
++    sign = np.diag([1.0, np.sign(np.linalg.det(left @ right))])
++    turn = (left @ sign @ right).T
++    scale = float(np.trace(np.diag(spread) @ sign) / np.sum(desk_centred ** 2))
++    return turn, true.mean(0) - scale * turn @ desk.mean(0), scale * HANDEDNESS
+ 
+ 
+ def measured_stretch(desk: np.ndarray, true: np.ndarray) -> np.ndarray:
+@@ -321,8 +334,8 @@ def _corners(params: np.ndarray, points: Points) -> List[np.ndarray]:
+ 
+ def _result(params: np.ndarray, points: Points, frame: np.ndarray, distances: np.ndarray,
+             found: Optional[list] = None) -> CameraFit:
+-    """The camera as fitted, the arm laid on the cubes it saw by a turn and a shift (step 4), the fit's own stretch
+-    kept as the arm's measure; with the edges `found` round each cube."""
++    """The camera as fitted, the arm laid on the cubes it saw by a turn, a shift and a scale (step 4), the fit's own
++    stretch kept as the arm's measure; with the edges `found` round each cube."""
+     true_to_pixel, centres = _pinhole(params).matrix, _centres(params, points)
+     pixels = project(true_to_pixel, np.array([(*centre, 0.0) for centre in centres]))
+     cubes_seen = {colour: {"x": float(points[colour][0]), "y": float(points[colour][1]),
+diff --git a/jackal/src/applib/camera/locate.py b/jackal/src/applib/camera/locate.py
+index d4bc802..e258e65 100644
+--- a/jackal/src/applib/camera/locate.py
++++ b/jackal/src/applib/camera/locate.py
+@@ -157,7 +157,7 @@ def _found(fit: CameraFit, matrix: np.ndarray, params: np.ndarray, overlap: floa
+            distances: np.ndarray, found: tuple) -> FoundCube:
+     to_desk = np.linalg.inv(fit.desk_to_true)
+     true = cube_corners(params[:2], params[2])
+-    corners = np.column_stack((true[:, :2] @ to_desk.T, true[:, 2]))
++    corners = np.column_stack((true[:, :2] @ to_desk.T, true[:, 2] / fit.scale))
+     x, y = to_desk @ params[:2]
+     side = corners[1] - corners[0]
+     seen = visible_edges(params[:2], params[2], camera_position(matrix))
+diff --git a/jackal/src/applib/camera/store.py b/jackal/src/applib/camera/store.py
+index 6569224..0bf4a47 100644
+--- a/jackal/src/applib/camera/store.py
++++ b/jackal/src/applib/camera/store.py
+@@ -204,10 +204,11 @@ def save_camera(config_dir: Path, fit: CameraFit, lens: Optional[dict] = None) -
+                   "Fitted by calibration/, the camera page, to the three 40 mm cubes in camera-frame.png, "
+                   "standing where camera-points.json says: true_to_pixel is the camera alone, in true mm (the "
+                   "cubes' 40 mm its ruler), turned and shifted along the arm's x and y; desk_to_true takes the "
+-                  "arm's x, y to true mm: the board's mirror. The arm is laid on the cubes the camera saw by a "
+-                  "turn and a shift, least squares, its millimetres taken as real ones; arm_stretch is the "
+-                  "stretch a turn, shift and stretch would take, the arm's measure against the camera's, shown, "
+-                  "not used. desk_to_pixel is the two together. `refined`, if there, says the camera was fitted again, all "
++                  "arm's x, y to true mm: the board's mirror and a scale, which z takes too. The arm is laid on "
++                  "the cubes the camera saw by a turn, a shift and that scale, least squares, its millimetres "
++                  "taken as real ones: they set the camera's scale; arm_stretch is the stretch a turn, shift and "
++                  "stretch would take, the arm's measure against the camera's, shown, not used. desk_to_pixel is "
++                  "the two together. `refined`, if there, says the camera was fitted again, all "
+                   "of it, to the pictures of the points in camera-refine-points.json, and the arm laid on them "
+                   "all, least squares; `cubes_alone` keeps the two matrices as the cubes alone gave them. `lens` "
+                   "is the camera it was calibrated with, as it calls itself, and the focus it "
+@@ -300,7 +301,12 @@ def describe_fit(fit: CameraFit) -> str:
+                f"; the arm's readings {', '.join(f'{fit.cube_off_mm(colour):.1f}' for colour in fit.cubes)} mm "
+                f"from its cubes")
+     return (f"{fit.frame_size[0]} x {fit.frame_size[1]}, cube edges within {fit.edge_px[0]:.1f} px; "
+-            f"{describe_stretch(fit.measured_stretch)}{refined}")
++            f"{describe_stretch(fit.measured_stretch)}; {describe_scale(fit)}{refined}")
++
++
++def describe_scale(fit: CameraFit) -> str:
++    """The scale the arm's millimetres gave the camera, in words."""
++    return f"the arm's millimetres set the camera's scale, {100 * (fit.scale - 1):+.1f}% on its cubes'"
+ 
+ 
+ def describe_stretch(desk_to_true: np.ndarray) -> str:
+diff --git a/jackal/src/calibration/README.md b/jackal/src/calibration/README.md
+index 10b1b22..849d2bf 100644
+--- a/jackal/src/calibration/README.md
++++ b/jackal/src/calibration/README.md
+@@ -132,11 +132,12 @@ desk's, as measured in the same frame, that are whole and cube-shaped; red is th
+ can look as green as the green cube, so which blobs are the cubes, and green from blue, is settled by where the
+ arm says each cube stands: only the right ones fit a camera. A camera with square pixels is then fitted to every
+ visible edge of the three 40 mm cubes, each turned however it was set down: the cubes' 40 mm are its ruler. The
+-arm is then laid on the cubes as seen by a turn and a shift, least squares: its millimetres, as the library
+-corrects the firmware's, are real ones, so each cube keeps the miss its reading has, and the page's line gives
+-them. The stretch a turn, shift and stretch would take is how the arm's x and y measure against the camera's
+-millimetres: information, not used. A pixel names the desk point the arm must be sent to. The arm
+-should be out of the picture, as CALIBRATE leaves it; lens distortion is not modelled.
++arm is then laid on the cubes as seen by a turn, a shift and one scale, least squares: its millimetres, as the
++library corrects the firmware's, are real ones, and set the camera's scale, the one thing the cubes' edges fix
++loosely; each cube keeps the miss its reading has, and the page's line gives them. The stretch a turn, shift and
++stretch would take is how the arm's x and y measure against the camera's millimetres: information, not used. A
++pixel names the desk point the arm must be sent to. The arm should be out of the picture, as CALIBRATE leaves it;
++lens distortion is not modelled (fitted to the points' edges it changes nothing, STATUS-jackal §11).
+ 
+ **The live view** is the camera at its full size, the size every calibration is fitted at, only while a page is
+ open and in sight, or a snapshot wants it. QUALITY or FPS, on the camera page, is which of the camera's modes:
+@@ -206,7 +207,7 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
+    view furthest from every point so far. Each point says how far the arm's
+    reading is from the cube as the camera sees it, across the desk (*XY*), and how far from 40 mm tall the camera
+    sees the cube (*Z*, + taller): through the three cubes' calibration, *off at CALIBRATE* -- for its three
+-   cubes the miss its turn and shift leave, for a later point how well CALIBRATE foresaw it -- and through the one
++   cubes the miss its turn, shift and scale leave, for a later point how well CALIBRATE foresaw it -- and through the one
+    SAVE would write, *after SAVE*: the point left out, how far its reading is from where the others put it; in the
+    live view the point's dot is that place, its ring the cube. Green within 1.5 mm, yellow within 2.5, red beyond; the point's circle on the grid
+    takes the colour of its XY, as on the desk page. One point far off while the others are not: in XY the cup was
+@@ -249,8 +250,9 @@ camera, those edges make a cube standing somewhere on the desk: moved and turned
+ edges lie along them. **The camera** -- focal length, principal point (held loosely to the frame's middle), where
+ it stands and which way it looks -- is fitted to the pictures alone: every point's cube a 40 mm cube, wherever its
+ edges put it, as CALIBRATE fits its three, the cubes' points 1 to 3 among them until forgotten. The arm has no say
+-in it. **The arm** is then laid on the cubes as that camera sees them by a turn and a shift, the least squares of
+-how far each reading is from its cube, its millimetres taken as real: a point's XY is its reading against where
++in it. **The arm** is then laid on the cubes as that camera sees them by a turn, a shift and one scale, the least
++squares of how far each reading is from its cube, its millimetres taken as real and setting the camera's scale,
++which the pictures fix loosely: a point's XY is its reading against where
+ the others put it, the point left out, and the stretch a turn, shift and stretch would take is the arm's measure
+ against the camera's, shown, not used. Z is the cube's height through the camera, made free: a
+ picture's own check. A point kept before the edges were has only the pixel under the cube's centre, as the camera
+diff --git a/jackal/src/calibration/camera/refine.py b/jackal/src/calibration/camera/refine.py
+index 508e0b6..650ebbd 100644
+--- a/jackal/src/calibration/camera/refine.py
++++ b/jackal/src/calibration/camera/refine.py
+@@ -14,10 +14,11 @@ makes two things of the points, apart:
+    the one through which all their edges lie best along those found, each cube
+    wherever its edges put it: as CALIBRATE fits three cubes, all the points'.
+    The arm has no say in it; the camera's millimetres are the cubes'.
+-2. **The arm**, laid on what the camera sees: a turn and a shift
++2. **The arm**, laid on what the camera sees: a turn, a shift and a scale
+    (`fit.link_arm()`), the least squares over the points of how far each arm
+    reading is from its cube as the camera sees it. The arm's millimetres are
+-   real ones (`maxarm/raw.py` makes them so), so no stretch takes up a point's
++   real ones (`maxarm/raw.py` makes them so) and set the camera's scale, which
++   the cubes' edges fix least well; one number, so no stretch takes up a point's
+    miss: two points fix the arm, and from the third on each can disagree. How
+    far a reading is from where the others put it, the point left out
+    (`left_out()`), is its miss: the cup off the cube's centre, the reading off,
+@@ -35,7 +36,7 @@ a focal length far from it is refused against. A point from before the edges
+ were kept has only the pixel under the cube's centre, as the camera of its day
+ saw it: it counts for the arm, not the camera, and has no height.
+ 
+-`camera.json` keeps its form: `desk_to_true` is the board's mirror,
++`camera.json` keeps its form: `desk_to_true` is the board's mirror and the scale,
+ `true_to_pixel` the camera along the arm's x and y, `arm_stretch` the measure. Points are the
+ frame's pixels and edges, which no refinement changes, so a calibration refined
+ again is refined from the same points.
+@@ -133,8 +134,8 @@ def refine(fit: CameraFit, points: Sequence[Sighting]) -> CameraFit:
+ 
+ def left_out(fit: CameraFit, points: Sequence[Sighting]) -> List[Optional[np.ndarray]]:
+     """For each point, where the others put its reading: true x, y through `fit`'s camera, the arm laid on the rest
+-    alone by a turn and a shift. Its distance from the point's cube as the camera sees it is the point's miss. None
+-    each with fewer than three points."""
++    alone by a turn, a shift and a scale. Its distance from the point's cube as the camera sees it is the point's
++    miss. None each with fewer than three points."""
+     if len(points) < 3:
+         return [None] * len(points)
+     seen = [_seen(in_frame(fit.true_to_pixel, fit.frame_size, point), point) for point in points]
+@@ -203,9 +204,9 @@ def _camera(alone: CameraFit, points: Sequence[Sighting]) -> np.ndarray:
+ 
+ 
+ def _laid(alone: CameraFit, true_to_pixel: np.ndarray, points: Sequence[Sighting]) -> CameraFit:
+-    """The camera with the arm laid on it: the turn and shift that put each point's arm reading nearest its cube as
+-    the camera sees it, least squares over the points (`fit.link_arm()`); the stretch a turn, shift and stretch would
+-    take, kept as the arm's measure, and checked."""
++    """The camera with the arm laid on it: the turn, shift and scale that put each point's arm reading nearest its
++    cube as the camera sees it, least squares over the points (`fit.link_arm()`); the stretch a turn, shift and
++    stretch would take, kept as the arm's measure, and checked."""
+     seen = [_seen(in_frame(true_to_pixel, alone.frame_size, point), point) for point in points]
+     desk = [(point.x, point.y) for point in points]
+     try:
+diff --git a/jackal/src/calibration/tests/api.py b/jackal/src/calibration/tests/api.py
+index f301521..90e3621 100644
+--- a/jackal/src/calibration/tests/api.py
++++ b/jackal/src/calibration/tests/api.py
+@@ -238,7 +238,8 @@ class TestsSession:
+         offs += (f"; their cubes' tops {heights[0]:.1f} mm from {CUBE_MM:.0f} typically, {heights[1]:.1f} at worst"
+                  if heights else "")
+         return (f"config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the saved one did, "
+-                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}")
++                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}; "
++                f"{store.describe_scale(refined)}")
+ 
+     def _keep(self, points: List[RefinePoint]) -> None:
+         """The points, now and on file. Hold the lock."""
+diff --git a/jackal/src/calibration/tests/refine.py b/jackal/src/calibration/tests/refine.py
+index 571b92b..6b05a6d 100644
+--- a/jackal/src/calibration/tests/refine.py
++++ b/jackal/src/calibration/tests/refine.py
+@@ -90,8 +90,8 @@ def _rounded(off: Optional[Off]) -> Optional[float]:
+ def _summary(fit: CameraFit, trial: CameraFit, rows: List[dict]) -> dict:
+     """After SAVE: how far off the points are across the desk, and their cubes' tops from 40 mm, typically and at
+     worst (None with none); how far it moves the desk, in reach and in view; how the arm measures against the
+-    camera (the least and most a distance is stretched, and how far off square); and whether it is the cubes' own
+-    calibration put back."""
++    camera (the least and most a distance is stretched, how far off square, and the scale the arm set); and whether
++    it is the cubes' own calibration put back."""
+     offs = [row["off"]["after"] for row in rows]
+     heights = [abs(row["height"]["after"]) for row in rows if row["height"]["after"] is not None]
+     typical, worst = check.difference_mm(fit, trial)
+@@ -99,5 +99,6 @@ def _summary(fit: CameraFit, trial: CameraFit, rows: List[dict]) -> dict:
+     return {"off_mm": [float(np.median(offs)), max(offs)] if offs else None,
+             "height_mm": [float(np.median(heights)), max(heights)] if heights else None,
+             "change_mm": [round(typical, 2), round(worst, 2)] if math.isfinite(worst) else None,
+-            "arm": {"stretch": [round(low, 4), round(high, 4)], "skew_deg": round(skew, 2)},
++            "arm": {"stretch": [round(low, 4), round(high, 4)], "skew_deg": round(skew, 2),
++                    "scale": round(trial.scale, 4)},
+             "is_cubes_alone": trial.refined is None}
+diff --git a/jackal/web/tests/refine.js b/jackal/web/tests/refine.js
+index b95ad64..843ee55 100644
+--- a/jackal/web/tests/refine.js
++++ b/jackal/web/tests/refine.js
+@@ -69,7 +69,8 @@ function armLine(arm) {
+     : high <= 0 ? `${fmt(-high, 1)} to ${fmt(-low, 1)}% shorter`
+       : `${fmt(-low, 1)}% shorter to ${fmt(high, 1)}% longer`;
+   return `<span class="note">The camera measures the arm's distances ${apart}, its x and y ${fmt(arm.skew_deg, 1)}
+-    deg off square.</span>`;
++    deg off square. The arm's millimetres set the camera's scale: ${fmt(100 * (arm.scale - 1), 1, true)}% on its
++    cubes'.</span>`;
+ }
+ 
+ export function savedLine(refine) {

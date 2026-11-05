@@ -1,8 +1,8 @@
 """The check image: a frame with the calibration drawn on it, to see by eye whether it sits right.
 
-- The cubes, where the calibration has them: their visible edges, thin, in pink,
-  so the cube's own edge shows beside them; the edges their faces hide, and an X
-  across each one's bottom under its centre, fainter. On a frame taken later, a
+- The cubes, where the calibration sees them: their visible edges, a pixel wide,
+  yellow and half see-through, so the cube's own edge shows beside them; the edges
+  their faces hide, and an X across each one's bottom under its centre, fainter. On a frame taken later, a
   cube standing anywhere else, or a camera nudged since, shows as the outline off
   its cube.
 - The arm's base: its four suction cups, 40 mm across on a 120 mm square round
@@ -30,20 +30,20 @@ from applib.camera.cubes import COLOURS, Blob, is_warm
 from applib.camera.fit import CameraFit
 from applib.camera.model import project
 
-PINK = (255, 0, 255)                    # BGR, as OpenCV draws: nothing on a desk or a cube is this colour
+YELLOW = (63, 210, 255)                 # BGR, as OpenCV draws: every cube's wireframe, as the overlay draws it
+PINK = (255, 0, 255)                    # the blobs that could have been cubes, when no calibration comes of a frame
 ORANGE = (0, 165, 255)
 RED = (0, 0, 255)
 CYAN = (255, 255, 0)
 WHITE = (255, 255, 255)
-OUTLINE_OPACITY = 0.7                   # the cubes' outlines, a pixel wide: the cube's own edge shows beside them,
-                                        # and they show on the red cube
-HIDDEN_OPACITY = 0.35                   # the edges a cube hides, and the X under its centre: there, not in the way
+OUTLINE_OPACITY = 0.5                   # the cubes' outlines, a pixel wide: the cube's own edge shows beside them
+HIDDEN_OPACITY = 0.25                   # the edges a cube hides, and the X under its centre: there, not in the way
 DOT_STEP_MM = 50
 LABEL_STEP_MM = 100
 # The MaxArm's base: a suction cup at each corner of a square round the arm's axis, its sides along the arm's x and y.
 BASE_CUP_SPACING_MM = 120.0
 BASE_CUP_RADIUS_MM = 20.0
-LEGEND = (f"pink: the cubes as fitted, fainter where hidden, X under the centre   cyan: the base's suction cups   "
+LEGEND = (f"yellow: the cubes as seen, fainter where hidden, X under the centre   cyan: the base's suction cups   "
           f"orange, red: the reach on the desk, {REACH_MIN_MM:.0f} and {REACH_MAX_MM:.0f} mm   "
           f"dots: every {DOT_STEP_MM} mm")
 
@@ -65,7 +65,7 @@ def draw(frame: np.ndarray, fit: CameraFit, caption: Sequence[str]) -> np.ndarra
                            (OUTLINE_OPACITY, [cube.seen_lines for cube in wireframes])):
         drawn = image.copy()
         for start, end in (pair for cube in lines for pair in cube):
-            cv2.line(drawn, _pixel(start), _pixel(end), PINK, 1, cv2.LINE_AA)
+            cv2.line(drawn, _pixel(start), _pixel(end), YELLOW, 1, cv2.LINE_AA)
         image = cv2.addWeighted(drawn, opacity, image, 1 - opacity, 0)
     _caption(image, caption)
     _caption(image, [LEGEND], at_bottom=True)

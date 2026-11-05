@@ -95,9 +95,9 @@ button tells the same story as this section, for whoever is at the arm; the firs
 4. **CALIBRATE**, once all three are recorded: the arm goes home, out of the picture, five fresh frames of the live
    view, at the camera's full size, are averaged -- under 2 s -- and the camera is fitted to the cubes in them,
    about 2 s more. `config/camera.json` is written, with the frame beside it as
-   `config/camera-frame.png`, and the check image shows the fit: the cubes' outlines in faint pink -- fainter
-   still the edges their faces hide, and an X across each one's bottom, crossing under its centre, a pixel wide so
-   that the cube's own edge shows -- the arm's
+   `config/camera-frame.png`, and the check image shows the fit: the cubes' outlines, yellow and half see-through
+   -- fainter still the edges their faces hide, and an X across each one's bottom, crossing under its centre, a
+   pixel wide so that the cube's own edge shows -- the arm's
    suction cups in cyan where the calibration puts them, a dot every 50 mm of desk, and the reach. If the cubes
    cannot all be found, or do not stand where the arm recorded them, nothing is written, and the check image shows
    what was found.
@@ -131,11 +131,14 @@ another camera, light or desk needs nothing retuned. The cubes are the blobs who
 desk's, as measured in the same frame, that are whole and cube-shaped; red is the warm one. The arm's green base
 can look as green as the green cube, so which blobs are the cubes, and green from blue, is settled by where the
 arm says each cube stands: only the right ones fit a camera. A camera with square pixels is then fitted to every
-visible edge of the three 40 mm cubes, each turned however it was set down: the cubes' 40 mm are its ruler. The
-arm is then laid on the cubes as seen by a turn and a shift, least squares: its millimetres, as the library
-corrects the firmware's, are real ones, so each cube keeps the miss its reading has, and the page's line gives
-them. The stretch a turn, shift and stretch would take is how the arm's x and y measure against the camera's
-millimetres: information, not used. A pixel names the desk point the arm must be sent to. The arm
+visible edge of the three 40 mm cubes, each turned however it was set down, first each cube wherever its shape
+puts it -- which blob is which, and a camera near enough -- then again with each cube where the arm read the cup
+over it: the arm's millimetres, as the library corrects the firmware's, are real ones, and its distances between
+the cubes are the camera's measure, which a cube's small picture fixes only loosely; the cubes' 40 mm give their
+shape. Each cube is then drawn where its own edges put it through that camera, and the page's line gives how far
+each arm reading is from it. The stretch a turn, shift and stretch would take between the two is how the arm's x
+and y measure against the camera's: information, not used. A pixel names the desk point the arm must be sent to.
+The arm
 should be out of the picture, as CALIBRATE leaves it; lens distortion is not modelled.
 
 **The live view** is the camera at its full size, the size every calibration is fitted at, only while a page is
@@ -176,9 +179,10 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
 1. **FIND RED CUBE**, a helper. Set the red cube down anywhere in view. The arm parks the way CALIBRATE parks it,
    out of the picture; the camera finds the red cube in the live view and the arm comes over it at 54 mm over the
    desk, then slowly down to 42: 2 mm over its top. The cup should be centred on it. The live view shows the cube
-   as found -- its edges thin pink, fainter where hidden, an X under its centre -- and its desk x and y on its top;
-   the grid shows its footprint. Once the arm is down its servos are read: on the cube's top a small dot where the
-   arm was sent, and the cup's 21 mm rim, yellow, where the servos say it is, both drawn on the top's plane so that
+   as found -- its edges thin, yellow and half see-through, fainter where hidden, an X under its centre -- and its
+   desk x and y on its top; the grid shows its footprint. Once the arm is down its servos are read: on the cube's
+   top a small dot where the arm was sent, and the cup's 21 mm rim, green, where the servos say it is, both drawn on
+   the top's plane so that
    the gap between them is the arm's own miss; the label adds it, X and Y, and so does the line under the camera.
    It only brings the cup **near** the cube: align the cube under the cup before RECORD POINT, which keeps where
    the arm is, not where the cube was found. Wherever the camera is way off, the grid and the arrows are the way
@@ -201,7 +205,12 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
    towards the camera, click the grid where it stands -- or FIND RED CUBE -- align the cube under the cup with the
    arrows, as on the camera page, and **RECORD POINT**: where the servos say the cup is, read afresh; then the arm
    parks and the camera's snapshot, at full size, sees where the cube stands. A numbered
-   point on the grid and in the table: `config/camera-refine-points.json`. Again in a new place, ten times or more,
+   point on the grid and in the table: `config/camera-refine-points.json`. A dialog then shows the snapshot zoomed
+   in on the cube: the cube as found, yellow, and the edges in the picture it was fitted to, cyan; on its top a
+   yellow dot over its centre and a green one where the arm read the cup. **REDO** looks for the cube again in the
+   same snapshot, its contrast, gamma and sharpness tweaked at random, with the same reading -- the servos' from
+   before the arm parked -- and the point takes the cube found; **UNDO** forgets the point; **KEEP**, Esc or ×
+   keep it. Again in a new place, ten times or more,
    spread over where pieces will go -- the dashed circle on the grid and in the live view is the place in reach and in
    view furthest from every point so far. Each point says how far the arm's
    reading is from the cube as the camera sees it, across the desk (*XY*), and how far from 40 mm tall the camera
@@ -212,7 +221,7 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
    takes the colour of its XY, as on the desk page. One point far off while the others are not: in XY the cup was
    off the cube's centre or its edges were found wrong, in Z the snapshot's edges were not all the cube's; forget
    it and record it again. **SAVE CALIBRATION**, from four points on, writes `camera.json` with the camera fitted
-   to the points' pictures and the arm laid on them, and redraws the camera page's check image with it, on the
+   with every point's cube where the arm read it, and redraws the camera page's check image with it, on the
    calibration's own frame; its line says how the camera measures the arm's distances. With no points left, it
    puts back the three cubes' own calibration.
 4. **DESK GRID**, a switch beside GUIDES, off unless turned on: desk space itself drawn on the desk over the live
@@ -229,9 +238,10 @@ once FIND RED CUBE or ARM TO DESK has brought the cup down (below). Every rim is
 | DESK GRID              | desk space every 10 mm drawn on the desk over the live view, or not (off at first)    |
 | FIND RED CUBE          | park the arm, find the red cube in the live view, come over it at 54 and down to 42   |
 | CLICK THE DESK         | the live view full size: a click sends the arm over the desk there, down to 2 mm      |
-| RECORD POINT           | keep where the arm says the cup is, park the arm, see the cube in the snapshot        |
+| RECORD POINT           | keep where the arm says the cup is, park the arm, see the cube in the snapshot; then  |
+|                        | the snapshot zoomed in on the cube, and UNDO, REDO (look again, tweaked), KEEP        |
 | ×, CLEAR               | forget a point; all of them                                                           |
-| SAVE CALIBRATION       | `camera.json`: the camera from the points' pictures, the arm laid on all the points   |
+| SAVE CALIBRATION       | `camera.json`: the camera fitted with every point's cube where the arm read it        |
 
 **How the red cube is found** (`applib/camera/locate.py`; the arm brought over it, `applib/redcube.py`; drawn,
 `applib/overlay/cube.py`, as the app's `find-cube` finds and draws it). The camera is the calibration's, held still:
@@ -243,16 +253,15 @@ cover -- a red sheet on the desk, a cube on its side or on another -- is refused
 calibration's own size; a smaller one would do, the camera scaled to it, but one of another shape is refused.
 
 **How the points refine the calibration** (`camera/refine.py`, `applib/camera/sighting.py`). The three cubes put the
-camera roughly in place; the points then make it, in two parts kept apart. A point is where the arm said the cup
-was and the edges found round the cube in the snapshot -- the frame's own, so they hold for any camera. Through a
-camera, those edges make a cube standing somewhere on the desk: moved and turned, its base on the desk, until its
-edges lie along them. **The camera** -- focal length, principal point (held loosely to the frame's middle), where
-it stands and which way it looks -- is fitted to the pictures alone: every point's cube a 40 mm cube, wherever its
-edges put it, as CALIBRATE fits its three, the cubes' points 1 to 3 among them until forgotten. The arm has no say
-in it. **The arm** is then laid on the cubes as that camera sees them by a turn and a shift, the least squares of
-how far each reading is from its cube, its millimetres taken as real: a point's XY is its reading against where
-the others put it, the point left out, and the stretch a turn, shift and stretch would take is the arm's measure
-against the camera's, shown, not used. Z is the cube's height through the camera, made free: a
+camera roughly in place; the points then make it. A point is where the arm said the cup was and the edges found
+round the cube in the snapshot -- the frame's own, so they hold for any camera. **The camera** -- focal length,
+principal point (held loosely to the frame's middle), where it stands and which way it looks -- is fitted with
+every point's cube, 40 mm, standing where the arm read the cup over it, its millimetres real ones, turned as its
+edges say, the cubes' points 1 to 3 among them until forgotten: the arm's distances between the points are the
+camera's measure, the cubes' 40 mm their shape. No turn or shift lies between the arm and the camera. A point's XY
+is its cube, placed where its own edges put it through the camera the other points make, against its reading: the
+point left out. The stretch a turn, shift and stretch would take between the readings and the cubes as seen is the
+arm's measure against the camera's, shown, and checked. Z is the cube's height through the camera, made free: a
 picture's own check. A point kept before the edges were has only the pixel under the cube's centre, as the camera
 of its day saw it: it counts for the arm, not for the camera, and has no Z. The cubes' own calibration is only
 where the fit starts. Points all in one corner do not fix a camera: SAVE refuses one whose focal length is more

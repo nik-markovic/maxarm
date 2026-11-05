@@ -12,10 +12,15 @@ page's (`/api/camera/jump`, `/api/camera/move`): over the cubes, then down.
 |                            |      | height: over it, then down to 2 mm over the desk                       |
 | `POST /api/tests/record`   |      | keep where the servos say the cup is, over the red cube; park the arm  |
 |                            |      | and see where the cube stands in the snapshot: a point                 |
+| `POST /api/tests/redo`     |      | the last point's cube looked for again in its snapshot, the picture    |
+|                            |      | tweaked; the same reading                                              |
+| `POST /api/tests/undo`     |      | forget the last point                                                  |
 | `POST /api/tests/forget`   | id   | forget a point                                                         |
 | `POST /api/tests/clear`    |      | forget every point                                                     |
 | `POST /api/tests/save`     |      | refine `camera.json` with the points (`camera/refine.py`)              |
 | `GET /api/tests/found.png` | w, s | the red cube found, drawn for a picture `w` px wide at pixel ratio `s` |
+| `GET /api/tests/record.png`| w, h,| the last point's snapshot zoomed in on its cube, as large as fits `w` |
+|                            | s    | x `h` px at pixel ratio `s`; the cube as found                         |
 
 The page is there only with a camera calibration, `camera.json` as the camera
 page's CALIBRATE writes it; the state says why not, if not. It also carries the
@@ -37,10 +42,11 @@ notch -- parks the arm first: straight across from there strains it (the owner's
 """
 
 import math
+import random
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -50,7 +56,7 @@ from maxarm.geometry import Position
 from applib.camera import store
 from applib.camera.feed import Feed
 from applib.camera.fit import CameraFit
-from applib.camera.locate import SAME_SHAPE
+from applib.camera.locate import SAME_SHAPE, FoundCube
 from applib.camera.model import CUBE_MM
 from applib.camera.store import RefinePoint
 from applib.motion import OVER_CUBES_MM, Motion
@@ -61,7 +67,7 @@ from camera.refine import off_by
 from common.server import BadRequest, Server, number
 from common.worker import Refused, Worker
 
-from . import refine
+from . import record, refine
 
 # ARM TO DESK comes over the point clicked 14 mm over the desk, then down to 2 (the owner's, PILOT-impala).
 TOUCH_OVER_MM = 14.0
@@ -82,6 +88,8 @@ class TestsSession:
         self.cube = RedCube(feed)
         self.lock = threading.Lock()
         self.points: List[RefinePoint] = []        # read with each new camera.json
+        self.kept: Optional[record.Kept] = None     # the last point recorded, while REDO or UNDO may change it
+        self.rng = random.Random()
         self._version = 0                           # counts the points' changes
         self._loaded: Tuple[Optional[int], Optional[CameraFit]] = (None, None)
         self._described: Tuple[Optional[tuple], Optional[dict]] = (None, None)
@@ -93,9 +101,11 @@ class TestsSession:
             "touch": {"over": TOUCH_OVER_MM, "down": TOUCH_MM, "cup_radius": CUP_RADIUS_MM},
             "refine": {"min": refine.MIN_POINTS, "suggested": refine.SUGGESTED_POINTS, "off": refine.OFF_MM}}})
         for name, handler in (("find-red", self.find_red), ("touch", self.touch), ("record", self.record),
-                              ("forget", self.forget), ("clear", self.clear), ("save", self.save)):
+                              ("redo", self.redo), ("undo", self.undo), ("forget", self.forget),
+                              ("clear", self.clear), ("save", self.save)):
             server.post(f"/api/tests/{name}", handler)
         server.get_bytes("/api/tests/found.png", self.found_image)
+        server.get_bytes("/api/tests/record.png", self.record_image)
 
     # --- the tests --------------------------------------------------------
 
@@ -181,21 +191,60 @@ class TestsSession:
             found = self.cube.look(fit, frame)
         except Refused as reason:
             raise Refused(f"the arm is parked and nothing is recorded: {reason}") from None
-        size = (frame.shape[1], frame.shape[0])
-        off = math.dist((found.x, found.y), here[:2])
-        if off > MAX_OFF_MM:
-            raise Refused(f"the camera sees the red cube {off:.0f} mm from where the arm said the cup was: it was "
-                          f"not under the cup. Nothing is recorded")
+        _check_under_cup(found, here, "Nothing is recorded")
         with self.lock:
-            point = RefinePoint(max((point.id for point in self.points), default=0) + 1, *map(_tidy, here),
-                                sent=list(map(_tidy, sent)), pixel=[round(value, 3) for value in found.pixel],
-                                frame_size=list(size), taken=time.strftime("%d %b %H:%M:%S"),
-                                turn_deg=round(found.true_turn_deg, 4), edges=store.edges_to_json(found.edges))
+            point = _point(max((point.id for point in self.points), default=0) + 1, here, sent, frame, found,
+                           time.strftime("%d %b %H:%M:%S"))
             self._keep(self.points + [point])
-        seen = off_by(fit, point.sighting)
-        return (f"point {point.id}: the arm said ({point.x:.1f}, {point.y:.1f}); the camera, through the saved "
-                f"calibration, sees the cube {seen.across:.1f} mm from there, its top {seen.height:+.1f} mm from "
-                f"{CUBE_MM:.0f}")
+        detail = _described(fit, point)
+        self.kept = record.Kept(point.id, tuple(here), list(sent), frame, found, fit, detail=detail,
+                                 stamp=time.time_ns())
+        return detail
+
+    def redo(self, body: dict) -> dict:
+        return self.worker.run("tests-redo", "REDO: the last point's cube looked for again in its snapshot",
+                               self._redo, uses_arm=False)
+
+    def _redo(self, motion: Motion) -> str:
+        """The last point's cube looked for again in the same snapshot, the picture tweaked, with the same reading: the
+        servos' from before the arm parked. The point keeps its number; its cube is the one found now."""
+        fit, kept = self._usable(), self.kept
+        if kept is None:
+            raise Refused("there is no point just recorded to look at again")
+        tweak = record.Tweak.random(self.rng)
+        try:
+            found = self.cube.look(fit, tweak.applied(kept.frame))
+        except Refused as reason:
+            raise Refused(f"{tweak.describe()}: {reason}; point {kept.id} is as it was") from None
+        _check_under_cup(found, kept.here, f"point {kept.id} is as it was")
+        with self.lock:
+            index = next((index for index, point in enumerate(self.points) if point.id == kept.id), None)
+            if index is None:
+                raise Refused(f"point {kept.id} is forgotten")
+            point = _point(kept.id, kept.here, kept.sent, kept.frame, found, self.points[index].taken)
+            self._keep([*self.points[:index], point, *self.points[index + 1:]])
+        detail = f"{_described(fit, point)}; looked for with {tweak.describe()}"
+        self.kept = kept.looked_again(found, fit, tweak, detail)
+        return detail
+
+    def undo(self, body: dict) -> dict:
+        kept = self.kept
+        if kept is None:
+            raise BadRequest("there is no point just recorded to forget")
+        return self.forget({"id": kept.id})
+
+    def record_image(self, query: dict):
+        fit, _ = self._calibration()
+        kept = self.kept
+        if fit is None or kept is None:
+            return None
+        try:
+            width, height = int(query.get("w", 800)), int(query.get("h", 600))
+            scale = float(query.get("s", 1.0))
+        except ValueError:
+            return None
+        return record.zoomed(kept, max(64, min(width, 4096)), max(64, min(height, 4096)),
+                             max(0.25, min(scale, 8.0))), "image/png"
 
     def forget(self, body: dict) -> dict:
         point_id = int(number(body, "id"))
@@ -241,10 +290,12 @@ class TestsSession:
                 f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}")
 
     def _keep(self, points: List[RefinePoint]) -> None:
-        """The points, now and on file. Hold the lock."""
+        """The points, now and on file; the last point recorded forgotten with its point. Hold the lock."""
         store.save_refine_points(self.config_dir, points)
         self.points = points
         self._version += 1
+        if self.kept is not None and all(point.id != self.kept.id for point in points):
+            self.kept = None
 
     # --- for the page -----------------------------------------------------
 
@@ -258,6 +309,7 @@ class TestsSession:
                 "desk_to_view": fit.desk_to_shares.tolist() if fit else None,
                 "desk_to_true": fit.desk_to_true.tolist() if fit else None,
                 "found": self.cube.found,
+                "last": self.kept.to_json() if self.kept else None,
                 "refine": self._refinement(fit) if fit else None,
             },
             "unavailable": {"tests": problem} if problem else {},
@@ -302,6 +354,29 @@ class TestsSession:
             return None
         return (f"the live view is {size[0]} x {size[1]}, the calibration {width} x {height}: not the same "
                 f"picture, so the tests cannot use it")
+
+
+def _check_under_cup(found: FoundCube, here: Sequence[float], otherwise: str) -> None:
+    """Refused if the camera sees the red cube further than half a cube from where the arm said the cup was."""
+    off = math.dist((found.x, found.y), here[:2])
+    if off > MAX_OFF_MM:
+        raise Refused(f"the camera sees the red cube {off:.0f} mm from where the arm said the cup was: it was "
+                      f"not under the cup. {otherwise}")
+
+
+def _point(point_id: int, here: Sequence[float], sent: Sequence[float], frame: np.ndarray, found: FoundCube,
+           taken: str) -> RefinePoint:
+    """A point: where the servos said the cup was, and the red cube as found in the snapshot `frame`."""
+    return RefinePoint(point_id, *map(_tidy, here[:3]), sent=list(map(_tidy, sent)),
+                       pixel=[round(value, 3) for value in found.pixel], frame_size=[frame.shape[1], frame.shape[0]],
+                       taken=taken, turn_deg=round(found.true_turn_deg, 4), edges=store.edges_to_json(found.edges))
+
+
+def _described(fit: CameraFit, point: RefinePoint) -> str:
+    seen = off_by(fit, point.sighting)
+    return (f"point {point.id}: the arm said ({point.x:.1f}, {point.y:.1f}); the camera, through the saved "
+            f"calibration, sees the cube {seen.across:.1f} mm from there, its top {seen.height:+.1f} mm from "
+            f"{CUBE_MM:.0f}")
 
 
 def _tidy(value: float) -> float:

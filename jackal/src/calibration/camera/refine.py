@@ -2,28 +2,25 @@
 
     points = [Sighting(x, y, pixel, frame_size, turn_deg, edges), ...]   # sighting.py
     refined = refine(fit, points)            # fit: the saved calibration, store.load_camera()
-    off = off_by(refined, point)             # how far its reading is from where the points put it; how tall it looks
+    off = off_by(refined, point)             # how far its reading is from its cube as seen; how tall it looks
 
 A point pairs where the arm says the cup is, over the cube's centre, with the
-edges found round the cube in the snapshot (`sighting.py`). SAVE CALIBRATION
-makes two things of the points, apart:
+edges found round the cube in the snapshot (`sighting.py`). SAVE CALIBRATION fits
+the camera to all of them at once: each point's cube, 40 mm, stands where the arm
+read the cup over it -- the board's mirror taken out, the arm's millimetres real
+ones, as `maxarm/raw.py` makes them -- turned as its edges say, and the camera --
+focal length, principal point (held loosely to the frame's middle, as `fit.py`
+holds it), where it stands and which way it looks -- is the one through which all
+their edges lie best along those found. The cubes' 40 mm give their shape, the
+arm's distances between the points the camera's measure, which a cube's small
+picture fixes only loosely. No turn or shift lies between the arm and the camera.
 
-1. **The camera**, from the pictures alone. Every point's cube is a 40 mm cube,
-   and the camera -- focal length, principal point (held loosely to the frame's
-   middle, as `fit.py` holds it), where it stands and which way it looks -- is
-   the one through which all their edges lie best along those found, each cube
-   wherever its edges put it: as CALIBRATE fits three cubes, all the points'.
-   The arm has no say in it; the camera's millimetres are the cubes'.
-2. **The arm**, laid on what the camera sees: a turn and a shift
-   (`fit.link_arm()`), the least squares over the points of how far each arm
-   reading is from its cube as the camera sees it. The arm's millimetres are
-   real ones (`maxarm/raw.py` makes them so), so no stretch takes up a point's
-   miss: two points fix the arm, and from the third on each can disagree. How
-   far a reading is from where the others put it, the point left out
-   (`left_out()`), is its miss: the cup off the cube's centre, the reading off,
-   or the cube's edges not found right. The stretch a turn, shift and stretch
-   would take is kept as the arm's measure against the camera's (`arm_stretch`),
-   shown, not used.
+A point's miss is how far its reading is from its cube as the camera sees it,
+placed where its own edges put it, through the camera the other points make
+(`left_out()`): the cup off the cube's centre, the reading off, or the cube's
+edges not found right. The stretch a turn, shift and stretch would take between
+the readings and the cubes as seen is kept as the arm's measure (`arm_stretch`):
+shown, and checked.
 
 A point's height (Z) is the camera's alone: how far from 40 mm tall its cube
 looks, its base on the desk. One far off while the others are not says its
@@ -32,8 +29,8 @@ edges were not all the cube's: a bad snapshot.
 The three cubes are points themselves, the first three, until forgotten; their
 own calibration (`cubes_alone`) is only where the camera's fit starts, and what
 a focal length far from it is refused against. A point from before the edges
-were kept has only the pixel under the cube's centre, as the camera of its day
-saw it: it counts for the arm, not the camera, and has no height.
+were kept has only the pixel under the cube's centre: it does not shape the
+camera, and has no height.
 
 `camera.json` keeps its form: `desk_to_true` is the board's mirror,
 `true_to_pixel` the camera along the arm's x and y, `arm_stretch` the measure. Points are the
@@ -44,13 +41,13 @@ again is refined from the same points.
 import dataclasses
 import math
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
 
-from applib.camera.fit import (CENTRE_SPREAD, EDGE_HUBER_PX, STEPS, CameraFit, laid_along_arm, link_arm,
-                               measured_stretch, stretch_problem)
+from applib.camera.fit import (CENTRE_SPREAD, EDGE_HUBER_PX, HANDEDNESS, STEPS, CameraFit, arm_measure,
+                               stretch_problem)
 from applib.camera.model import CUBE_MM, Pinhole, least_squares
 from applib.camera.sighting import STEPS as CUBE_STEPS
 from applib.camera.sighting import Sighting, in_frame, measure, misses, on_desk, place, start
@@ -58,11 +55,16 @@ from applib.camera.sighting import Sighting, in_frame, measure, misses, on_desk,
 # The camera's numbers: focal length, principal point, rotation, shift; fit.py's steps for them.
 CAMERA_STEPS = STEPS[:9]
 ITERATIONS = 100
+# A point left out: the camera without it starts from the one all the points make and moves little, so it is fitted
+# this many steps, not to the last digit: the page works the points out again whenever one changes.
+LEFT_OUT_ITERATIONS = 12
+# Gauss-Newton steps a cube is turned by through each camera tried.
+TURN_STEPS = 2
 # The points' camera may be this much longer or shorter in focal length than the cubes' before it is refused: points
 # all in one corner of the desk, or along one line, do not fix a camera.
 MAX_FOCAL_CHANGE = 0.15
 # Points with edges the camera is fitted again from, at the least: three cubes fix it, as CALIBRATE's do. With fewer,
-# the cubes' own camera is kept and only the arm laid again.
+# the cubes' own camera is kept.
 MIN_CUBES = 3
 
 
@@ -110,16 +112,23 @@ def seen_true(fit: CameraFit, point: Sighting) -> np.ndarray:
 
 
 def refine(fit: CameraFit, points: Sequence[Sighting]) -> CameraFit:
-    """The camera fitted to `points`' pictures, started from `fit`'s three cubes' calibration, and the arm laid on
-    all the points. With no points, the three cubes' own calibration. Raises PointsDoNotFit if the points do not
-    fix a camera, or do not lay the arm."""
+    """The camera fitted with every point's cube where the arm read it, started from `fit`'s three cubes'
+    calibration. With no points, the three cubes' own calibration. Raises PointsDoNotFit if the points do not fix a
+    camera, or the cubes as it sees them do not stand where the arm read them."""
+    return refine_and_leave_out(fit, points)[0]
+
+
+def refine_and_leave_out(fit: CameraFit,
+                         points: Sequence[Sighting]) -> Tuple[CameraFit, List[Optional[np.ndarray]]]:
+    """`refine()`, and each point's reading as the camera the other points make has it (`left_out()`)."""
     alone = fit.cube_fit()
     if not points:
-        return alone
-    refined = _laid(alone, _camera(alone, points), points)
+        return alone, []
+    refined = _calibration(alone, _camera(alone, points), points)
+    put = left_out(refined, points)
     offs = [off_by(refined, point) for point in points]
     across = [off.across if others is None else float(math.dist(others, refined.desk_to_true @ off.seen))
-              for off, others in zip(offs, left_out(refined, points))]       # each from where the others put it
+              for off, others in zip(offs, put)]                     # each through the others' camera
     heights = [abs(off.height) for off in offs if off.height is not None]
     summary = {"points": len(points), "off_mm": [round(float(np.median(across)), 2), round(max(across), 2)]}
     if heights:
@@ -128,22 +137,33 @@ def refine(fit: CameraFit, points: Sequence[Sighting]) -> CameraFit:
     return dataclasses.replace(refined, refined=summary,
                                cubes_alone={"true_to_pixel": alone.true_to_pixel.tolist(),
                                             "desk_to_true": alone.desk_to_true.tolist(), **stretch,
-                                            "cubes": alone.cubes})
+                                            "cubes": alone.cubes}), put
 
 
 def left_out(fit: CameraFit, points: Sequence[Sighting]) -> List[Optional[np.ndarray]]:
-    """For each point, where the others put its reading: true x, y through `fit`'s camera, the arm laid on the rest
-    alone by a turn and a shift. Its distance from the point's cube as the camera sees it is the point's miss. None
-    each with fewer than three points."""
+    """For each point, its reading as the camera the other points make has it against its cube: true x, y, so placed
+    by the cube as `fit`'s camera sees it that its distance from there is the point's miss -- its cube, placed where
+    its own edges put it through the others' camera, fitted again from `fit`'s, against where the arm read it. A point
+    that does not shape the camera has its reading itself. None each with fewer than three points."""
     if len(points) < 3:
         return [None] * len(points)
-    seen = [_seen(in_frame(fit.true_to_pixel, fit.frame_size, point), point) for point in points]
-    desk = [(point.x, point.y) for point in points]
-    put = []
-    for index in range(len(points)):
-        rest = [other for other in range(len(points)) if other != index]
-        turn, shift, desk_to_true = link_arm([desk[other] for other in rest], [seen[other] for other in rest])
-        put.append(turn @ desk_to_true @ np.asarray(desk[index]) + shift)
+    readings = [HANDEDNESS @ np.array([point.x, point.y]) for point in points]
+    shaping = [index for index, point in enumerate(points) if point.edges is not None]
+    if len(shaping) <= MIN_CUBES:                     # no camera made by the points, or none without one of them
+        return readings
+    numbers = _numbers(fit.true_to_pixel)
+    put = list(readings)
+    for index in shaping:
+        point = points[index]
+        on_arm = _OnArm(fit.frame_size, [points[other] for other in shaping if other != index], fit.true_to_pixel)
+        try:
+            others = least_squares(on_arm.residuals, numbers, CAMERA_STEPS, huber=EDGE_HUBER_PX,
+                                   iterations=LEFT_OUT_ITERATIONS, derivatives=on_arm.derivatives)[0]
+        except np.linalg.LinAlgError:
+            continue                                  # the others alone do not fix a camera: its reading itself
+        apart = _seen(in_frame(_pinhole(others).matrix, fit.frame_size, point), point)
+        seen = _seen(in_frame(fit.true_to_pixel, fit.frame_size, point), point)
+        put[index] = seen - (apart - readings[index])
     return put
 
 
@@ -154,45 +174,79 @@ def _seen(matrix: np.ndarray, point: Sighting) -> np.ndarray:
     return place(matrix, point, start(matrix, point)[:3])[:2]
 
 
-def _camera(alone: CameraFit, points: Sequence[Sighting]) -> np.ndarray:
-    """The camera, true mm, through which every point's cube, 40 mm, lies best along the edges found round it, each
-    cube wherever its edges put it: the pictures alone. Fewer than MIN_CUBES points with edges: the cubes' own.
+class _OnArm:
+    """The points' cubes where the arm read them, each turned as its edges say, through a camera's numbers: their
+    edges' misses, and how those move with the numbers. Each cube is turned afresh through each camera tried,
+    starting from its last turn."""
 
-    The fit steps through the camera's numbers alone: each cube is placed afresh through each camera tried, starting
-    from where it was last, and its edges' misses move with the camera as far as its own move cannot undo
-    (`_edge_moves()`).
-    """
+    def __init__(self, frame_size: Tuple[int, int], points: Sequence[Sighting], first: np.ndarray) -> None:
+        self.frame_size = tuple(frame_size)
+        self.points = list(points)
+        self.centres = [HANDEDNESS @ np.array([point.x, point.y]) for point in self.points]
+        self.turns = [float(start(in_frame(first, self.frame_size, point), point)[2]) for point in self.points]
+        self.middle = np.array(self.frame_size, float) / 2
+        self.spread = CENTRE_SPREAD * self.frame_size[0]
+
+    def residuals(self, numbers: np.ndarray) -> np.ndarray:
+        return np.concatenate([*self.blocks(numbers), self.held(numbers)])
+
+    def derivatives(self, numbers: np.ndarray) -> np.ndarray:
+        return np.vstack([*self.rows(numbers), self.held_rows(len(numbers))])
+
+    def blocks(self, numbers: np.ndarray) -> List[np.ndarray]:
+        """Each point's edge misses, its cube turned afresh."""
+        self._turn(numbers)
+        return [misses(self._view(numbers, point), point, self._cube(index))
+                for index, point in enumerate(self.points)]
+
+    def rows(self, numbers: np.ndarray) -> List[np.ndarray]:
+        """How each point's misses move with the camera's numbers, its cube turned afresh: a block each."""
+        self._turn(numbers)
+        return [_edge_moves(lambda trial, point=point: self._view(trial, point), numbers, point, self._cube(index))
+                for index, point in enumerate(self.points)]
+
+    def held(self, numbers: np.ndarray) -> np.ndarray:
+        """The principal point, held loosely to the frame's middle."""
+        return (numbers[1:3] - self.middle) / self.spread
+
+    def held_rows(self, count: int) -> np.ndarray:
+        rows = np.zeros((2, count))
+        rows[0, 1] = rows[1, 2] = 1 / self.spread
+        return rows
+
+    def _view(self, numbers: np.ndarray, point: Sighting) -> np.ndarray:
+        return in_frame(_pinhole(numbers).matrix, self.frame_size, point)
+
+    def _cube(self, index: int, turn: Optional[float] = None) -> np.ndarray:
+        """The cube's numbers as `misses()` takes them: where it stands, its turn, its height."""
+        return np.array([*self.centres[index], self.turns[index] if turn is None else turn, CUBE_MM])
+
+    def _turn(self, numbers: np.ndarray) -> None:
+        """Each cube turned through the camera: Gauss-Newton steps from its last turn, its edges weighted as the
+        fit weights them. A camera tried moves little from the last, and the turn with it."""
+        step = CUBE_STEPS[2]
+        for index, point in enumerate(self.points):
+            matrix = self._view(numbers, point)
+            turn = self.turns[index]
+            for _ in range(TURN_STEPS):
+                now = misses(matrix, point, self._cube(index, turn))
+                slope = (misses(matrix, point, self._cube(index, turn + step)) - now) / step
+                weights = np.where(np.abs(now) <= EDGE_HUBER_PX, 1.0, EDGE_HUBER_PX / np.maximum(np.abs(now), 1e-12))
+                turn -= float((weights * slope) @ now / max(float((weights * slope) @ slope), 1e-12))
+            self.turns[index] = turn
+
+
+def _camera(alone: CameraFit, points: Sequence[Sighting]) -> np.ndarray:
+    """The camera, true mm, through which every point's cube, 40 mm, standing where the arm read it, lies best along
+    the edges found round it. Fewer than MIN_CUBES points with edges: the cubes' own."""
     seen = [point for point in points if point.edges is not None]
     if len(seen) < MIN_CUBES:
         return alone.true_to_pixel
     first = _numbers(alone.true_to_pixel)
-    width, height = alone.frame_size
-    middle = np.array([width / 2, height / 2])
-    cubes = [start(in_frame(alone.true_to_pixel, alone.frame_size, point), point)[:3] for point in seen]
-
-    def view(numbers: np.ndarray, point: Sighting) -> np.ndarray:
-        return in_frame(_pinhole(numbers).matrix, alone.frame_size, point)
-
-    def placed(numbers: np.ndarray) -> None:
-        for index, point in enumerate(seen):
-            cubes[index] = place(view(numbers, point), point, cubes[index])
-
-    def residuals(numbers: np.ndarray) -> np.ndarray:
-        placed(numbers)
-        parts = [misses(view(numbers, point), point, np.append(cube, CUBE_MM)) for point, cube in zip(seen, cubes)]
-        parts.append((numbers[1:3] - middle) / (CENTRE_SPREAD * width))
-        return np.concatenate(parts)
-
-    def derivatives(numbers: np.ndarray) -> np.ndarray:
-        placed(numbers)
-        rows = [_edge_moves(lambda trial: view(trial, point), numbers, point, cube) for point, cube in zip(seen, cubes)]
-        held = np.zeros((2, len(numbers)))
-        held[0, 1] = held[1, 2] = 1 / (CENTRE_SPREAD * width)
-        return np.vstack([*rows, held])
-
+    on_arm = _OnArm(alone.frame_size, seen, alone.true_to_pixel)
     try:
-        numbers = least_squares(residuals, first, CAMERA_STEPS, huber=EDGE_HUBER_PX, iterations=ITERATIONS,
-                                derivatives=derivatives)[0]
+        numbers = least_squares(on_arm.residuals, first, CAMERA_STEPS, huber=EDGE_HUBER_PX, iterations=ITERATIONS,
+                                derivatives=on_arm.derivatives)[0]
     except np.linalg.LinAlgError:
         numbers = np.full(len(first), np.nan)                     # refused below
     camera = _pinhole(numbers)
@@ -202,44 +256,37 @@ def _camera(alone: CameraFit, points: Sequence[Sighting]) -> np.ndarray:
     return camera.matrix
 
 
-def _laid(alone: CameraFit, true_to_pixel: np.ndarray, points: Sequence[Sighting]) -> CameraFit:
-    """The camera with the arm laid on it: the turn and shift that put each point's arm reading nearest its cube as
-    the camera sees it, least squares over the points (`fit.link_arm()`); the stretch a turn, shift and stretch would
-    take, kept as the arm's measure, and checked."""
+def _calibration(alone: CameraFit, true_to_pixel: np.ndarray, points: Sequence[Sighting]) -> CameraFit:
+    """The camera along the arm's x and y, as fitted; the stretch a turn, shift and stretch would take between the
+    readings and the cubes as the camera sees them kept as the arm's measure, and checked."""
     seen = [_seen(in_frame(true_to_pixel, alone.frame_size, point), point) for point in points]
-    desk = [(point.x, point.y) for point in points]
-    try:
-        turn, shift, desk_to_true = link_arm(desk, seen)
-        stretch = measured_stretch(desk, seen)
-    except (ValueError, np.linalg.LinAlgError):
-        raise PointsDoNotFit("the points do not lay the arm on the camera: spread them over the desk, not along a "
-                             "line") from None
-    problem = stretch_problem(stretch)
+    stretch = arm_measure([(point.x, point.y) for point in points], seen)
+    problem = ("as the camera sees them the arm's points are laid mirrored, or along a line" if stretch is None
+               else stretch_problem(stretch))
     if problem:
-        raise PointsDoNotFit(f"the points do not lay the arm on the camera: {problem}. Forget the points far off "
+        raise PointsDoNotFit(f"the points do not stand where the arm read them: {problem}. Forget the points far off "
                              f"and record them again")
-    camera, cubes = laid_along_arm(true_to_pixel, alone.cubes, turn, shift)
-    return CameraFit(camera, desk_to_true, cubes, alone.frame_size, alone.edge_px, alone.edges_used,
+    return CameraFit(true_to_pixel, HANDEDNESS.copy(), alone.cubes, alone.frame_size, alone.edge_px, alone.edges_used,
                      arm_stretch=stretch)
 
 
 def _edge_moves(camera: Callable[[np.ndarray], np.ndarray], numbers: np.ndarray, point: Sighting,
                 cube: np.ndarray) -> np.ndarray:
-    """How the point's edge misses move with each of the camera's numbers, the cube placed afresh: a column each.
+    """How the point's edge misses move with each of the camera's numbers, the cube turned afresh: a column each.
 
-    The cube placed is where its edges miss those found least. Nudge a number of the camera and the misses move
-    (`by_camera`); the cube placed then moves as far as undoes what it can of that (`by_cube`), each edge weighted
-    as the placing weights it; what is left is the camera's.
+    The cube stands where the arm read it, turned as its edges miss those found least. Nudge a number of the camera
+    and the misses move (`by_camera`); the cube turned then undoes what it can of that (`by_turn`), each edge weighted
+    as the turning weights it; what is left is the camera's.
     """
-    def edge_misses(camera_numbers: np.ndarray, cube_numbers: np.ndarray) -> np.ndarray:
-        return misses(camera(camera_numbers), point, np.append(cube_numbers, CUBE_MM))
+    def edge_misses(camera_numbers: np.ndarray, turn: float) -> np.ndarray:
+        return misses(camera(camera_numbers), point, np.array([cube[0], cube[1], turn, CUBE_MM]))
 
-    now = edge_misses(numbers, cube)
+    now = edge_misses(numbers, cube[2])
     weights = np.where(np.abs(now) <= EDGE_HUBER_PX, 1.0, EDGE_HUBER_PX / np.maximum(np.abs(now), 1e-12))[:, None]
-    by_cube = _differences(lambda trial: edge_misses(numbers, trial), cube, CUBE_STEPS[:3])
-    by_camera = _differences(lambda trial: edge_misses(trial, cube), numbers, CAMERA_STEPS)
-    moves = -np.linalg.lstsq(by_cube.T @ (weights * by_cube), by_cube.T @ (weights * by_camera), rcond=None)[0]
-    return by_camera + by_cube @ moves
+    by_turn = ((edge_misses(numbers, cube[2] + CUBE_STEPS[2]) - now) / CUBE_STEPS[2])[:, None]
+    by_camera = _differences(lambda trial: edge_misses(trial, cube[2]), numbers, CAMERA_STEPS)
+    moves = -np.linalg.lstsq(by_turn.T @ (weights * by_turn), by_turn.T @ (weights * by_camera), rcond=None)[0]
+    return by_camera + by_turn @ moves
 
 
 def _differences(function: Callable[[np.ndarray], np.ndarray], at: np.ndarray, steps: np.ndarray) -> np.ndarray:

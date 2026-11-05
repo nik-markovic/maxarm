@@ -25,6 +25,10 @@ import { LiveMarks } from './view.js';
 const SAME_MM = 0.005;
 // Further than this from where it was sent, desk mm across, and the arm has landed off (the owner's).
 const LANDED_OFF_MM = 0.5;
+// RECORD POINT's dialog: the window's height less this is what it may take (the backdrop's padding round it, and a
+// little to spare); its picture is never smaller than this, CSS px.
+const DIALOG_MARGIN_PX = 56;
+const RECORD_MIN_PX = 200;
 // The arm is at the point clicked if it was sent this near it, desk mm: the app's rounding of the point allows for it.
 const AT_POINT_MM = 0.05;
 const SCREEN = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -346,6 +350,56 @@ function openFull() {
   render();
 }
 
+// RECORD POINT's dialog: the snapshot zoomed in on the cube as the camera found it, as large as fits the window with
+// the rest of the dialog. REDO looks for the cube again in the same snapshot, the picture tweaked, with the same reading
+// -- the servos' from before the arm parked; UNDO forgets the point; KEEP, Esc or × keep it.
+function openRecordDialog(reply) {
+  const last = reply.state && reply.state.tests ? reply.state.tests.last : null;
+  if (!last) return;
+  const modal = openModal('record');
+  modal.body.innerHTML = `<p class="record-detail"></p>
+    <img class="record-zoom" alt="">
+    <div class="record-foot">
+      <p class="hint">Yellow: the cube as found, fainter where hidden. Cyan: the picture's edges it was fitted to. On
+        its top, yellow: its centre; green: where the arm read the cup. <b>REDO</b> looks again, the picture tweaked;
+        <b>UNDO</b> forgets the point.</p>
+      <div class="record-actions">
+        <button class="btn ghost" data-act="undo">UNDO</button>
+        <button class="btn" data-act="redo">↻ REDO</button>
+        <button class="btn primary" data-act="keep">KEEP</button>
+      </div>
+    </div>`;
+  const image = modal.body.querySelector('.record-zoom');
+  const text = modal.body.querySelector('.record-detail');
+  const buttons = [...modal.body.querySelectorAll('.record-actions button')];
+  const ratio = window.devicePixelRatio || 1;
+  image.addEventListener('load', () => { image.style.width = `${image.naturalWidth / ratio}px`; });
+  const shown = (kept, note) => {
+    text.textContent = note || kept.detail;
+    const dialog = image.closest('.modal');
+    const room = window.innerHeight - DIALOG_MARGIN_PX - (dialog.offsetHeight - image.offsetHeight);
+    const width = Math.round(modal.body.clientWidth * ratio);
+    const height = Math.round(Math.max(RECORD_MIN_PX, room) * ratio);
+    image.src = `/api/tests/record.png?w=${width}&h=${height}&s=${ratio}&k=${kept.stamp}`;
+  };
+  const act = (name) => modal.body.querySelector(`[data-act="${name}"]`);
+  shown(last);
+  act('keep').addEventListener('click', modal.close);
+  act('undo').addEventListener('click', async () => {
+    buttons.forEach((button) => { button.disabled = true; });
+    await command('tests/undo', {}, 'UNDO');
+    modal.close();
+  });
+  act('redo').addEventListener('click', async () => {
+    buttons.forEach((button) => { button.disabled = true; });
+    const again = await command('tests/redo', {}, 'REDO');
+    const kept = again.state && again.state.tests ? again.state.tests.last : null;
+    if (kept) shown(kept, again.status === 'done' ? '' : `REDO: ${again.detail || again.status}`);
+    else modal.close();
+    buttons.forEach((button) => { button.disabled = false; });
+  });
+}
+
 // --- wiring ----------------------------------------------------------------------------------------
 
 $('steps').innerHTML = STEPS.map((step) => `<button>${step}</button>`).join('');
@@ -379,7 +433,10 @@ $('desk-grid').addEventListener('change', () => {
 });
 for (const id of ['find-icon', 'find-head-icon']) $(id).innerHTML = cubeIcon('red');
 $('find').addEventListener('click', findRedCube);
-$('record').addEventListener('click', () => command('tests/record', {}, 'RECORD POINT'));
+$('record').addEventListener('click', async () => {
+  const reply = await command('tests/record', {}, 'RECORD POINT');
+  if (reply.status === 'done') openRecordDialog(reply);
+});
 $('save').addEventListener('click', () => command('tests/save', {}, 'SAVE CALIBRATION'));
 $('clear').addEventListener('click', clearPoints);
 for (const button of document.querySelectorAll('[data-help]')) {

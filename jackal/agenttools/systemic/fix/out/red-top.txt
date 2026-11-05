@@ -1,0 +1,18 @@
+book 40.0 mm, f 1781:
+  red top: [24, 24, 21, 22] edge points on its far, right, near and left sides; corners px [[2051, 661], [2152, 716], [2140, 901], [2032, 850]]
+  red top in the book's plane: sides 40.04, 39.85, 41.76, 39.21 mm; diagonals 57.11, 56.63 (a 40 mm square: 56.57); corners 91.2, 91.3, 87.9, 89.7 deg
+     each side against a 40 mm square, + outside: far -0.24 mm, right +0.42 mm, near (top|side) -0.27 mm, left +0.46 mm
+  blue: bottom edges seen [(0, 1), (0, 3)], upright outlines [(1, 5), (3, 7)]
+  blue base in the book's plane: its two seen bottom sides 39.11 and 39.26 mm, at 90.4 deg (the corners where the upright outlines meet them)
+book 39.8 mm:
+  red top: [24, 24, 21, 22] edge points on its far, right, near and left sides; corners px [[2051, 661], [2152, 716], [2140, 901], [2032, 850]]
+  red top in the book's plane: sides 40.04, 39.85, 41.76, 39.21 mm; diagonals 57.11, 56.63 (a 40 mm square: 56.57); corners 91.2, 91.3, 87.9, 89.7 deg
+     each side against a 40 mm square, + outside: far -0.24 mm, right +0.42 mm, near (top|side) -0.27 mm, left +0.46 mm
+  blue: bottom edges seen [(0, 1), (0, 3)], upright outlines [(1, 5), (3, 7)]
+  blue base in the book's plane: its two seen bottom sides 39.11 and 39.24 mm, at 90.5 deg (the corners where the upright outlines meet them)
+book 40.2 mm:
+  red top: [24, 24, 21, 22] edge points on its far, right, near and left sides; corners px [[2051, 661], [2152, 716], [2140, 901], [2032, 850]]
+  red top in the book's plane: sides 40.04, 39.85, 41.76, 39.21 mm; diagonals 57.11, 56.63 (a 40 mm square: 56.57); corners 91.2, 91.3, 87.9, 89.7 deg
+     each side against a 40 mm square, + outside: far -0.24 mm, right +0.42 mm, near (top|side) -0.27 mm, left +0.46 mm
+  blue: bottom edges seen [(0, 1), (0, 3)], upright outlines [(1, 5), (3, 7)]
+  blue base in the book's plane: its two seen bottom sides 39.07 and 39.24 mm, at 90.5 deg (the corners where the upright outlines meet them)

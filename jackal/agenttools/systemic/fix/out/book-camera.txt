@@ -1,0 +1,11 @@
+flips [-1.0, -1.0, -1.0]
+book 40.0 mm, middle held          f  1781.0, centre (1237.7,  750.1), lens  230.4 up, looks 53.72 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.107/0.30, book 0.100/0.26
+book 40.0 mm, middle free          f  1780.8, centre (1237.6,  750.1), lens  230.4 up, looks 53.72 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.108/0.30, book 0.100/0.26
+book 39.8 mm, middle held          f  1772.1, centre (1231.3,  750.8), lens  229.3 up, looks 53.93 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.107/0.30, book 0.100/0.26
+book 39.8 mm, middle free          f  1771.9, centre (1231.1,  750.8), lens  229.3 up, looks 53.93 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.108/0.30, book 0.100/0.26
+book 40.2 mm, middle held          f  1789.9, centre (1244.2,  749.4), lens  231.6 up, looks 53.51 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.107/0.30, book 0.100/0.26
+book 40.2 mm, middle free          f  1789.7, centre (1244.1,  749.4), lens  231.6 up, looks 53.51 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.108/0.30, book 0.100/0.26
+book 40.1 mm, middle held          f  1785.4, centre (1241.0,  749.7), lens  231.0 up, looks 53.62 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.107/0.30, book 0.100/0.26
+book 40.1 mm, middle free          f  1785.3, centre (1240.9,  749.8), lens  231.0 up, looks 53.62 deg down | sheets mm typ/95%: left 0.090/0.32, right 0.108/0.30, book 0.100/0.26
+book 40.0 mm, tilt free, held      f  1826.0, centre (1273.8,  748.0), lens  237.0 up, looks 52.87 deg down | sheets mm typ/95%: left 0.089/0.32, right 0.094/0.25, book 0.101/0.26, book tilt -0.23/-0.23 deg
+book 40.0 mm, tilt free, free      f  1825.8, centre (1273.7,  748.0), lens  237.0 up, looks 52.88 deg down | sheets mm typ/95%: left 0.089/0.32, right 0.093/0.25, book 0.101/0.26, book tilt -0.23/-0.23 deg
