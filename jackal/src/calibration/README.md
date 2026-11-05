@@ -29,7 +29,7 @@ run beside it. Ctrl-C holds the arm where it is and closes the port.
 It finds where the desk is under the arm, as a plane, and writes it to `config/desk.json`.
 
 1. **Touch the desk.** Click the grid to send the arm over a point. Bring the cup down with the height slider beside
-   the grid, then Z+ and Z−, until it sits snug on the desk -- with SUCTION on it should seal. Wait for *arm says*
+   the grid, then Z+ and Z−, until it sits snug on the desk; then SUCTION on should say SEALED. Wait for *arm says*
    to finish reading (it spins, greyed, for a few seconds); RECORD TOUCH POINT then keeps where the servos say the
    cup is, which is not always where it was sent.
 2. **Spread the points.** At least three, spanning 200 mm in X and 150 in Y, and not in a row. Each point shows how
@@ -59,6 +59,7 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 | X fine, Y fine, nudge pad | offsets of up to a grid step, 1 mm at a time. The pad follows the view's turn   |
 | TRUE / RAW                | arm z as the library has it, or the firmware's own; the ? says why they differ  |
 | Cup                       | the cup's servo, -90 to 90                                                      |
+| Suction                   | the pump; on, it says SEALED, LOOSE or UNCERTAIN (only just touching), until a move |
 | RECORD TOUCH POINT        | keeps where the servos say the cup is, read afresh; the target beside it        |
 | *arm* in the table        | back to the point in arm space: up, over, slowly down                           |
 | RESET                     | stop, let go, lift clear of the desk and the cubes, home with the cup centred   |

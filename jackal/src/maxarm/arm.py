@@ -28,10 +28,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-from . import geometry, nozzle, raw
+from . import geometry, nozzle, raw, seal
 from .geometry import Position
 from .path import CLEARANCE_MARGIN_MM, CROSSING_MM, Planner, Refused
 from .protocol import IS_TRACED, ProtocolError, ReplProtocol, trace_note
+from .seal import SealState
 from .spaces import CONFIG_DIR, Space, Spaces, angle_from_desk, angle_to_desk
 from .transport import DEVICE, SerialTransport
 from .tunable import tunable
@@ -49,10 +50,10 @@ MOVE_RESOLUTION_MM = 0.01
 # move longer than that goes faster rather than being garbled.
 MOVE_MAX_MS = 30000
 
-# The pump is a physical thing and the board reports nothing about it, so a grip
-# and a release are waits. A release is longer: the board vents the cup for 1 s
-# and then shuts the valve, and lifting before the residual vacuum bleeds away
-# brings the piece up with the cup.
+# A grip and a release are waits, the servos and the supply read all through them
+# (`seal.py`). A release is longer: the board vents the cup for 1 s and then shuts
+# the valve, and lifting before the residual vacuum bleeds away brings the piece
+# up with the cup.
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
 SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 
@@ -141,6 +142,10 @@ class MaxArm:
         self._is_frozen = False
         self._travel_ended = 0.0                       # time.monotonic() when the last command's travel was over
         self._settled: Optional[Pulses] = None         # where a precise move ended, its servos' mean, until a command
+        self._supply_off: Optional[float] = None       # the supply where the arm stands, the pump off (`seal.py`)
+        self._rest_z: Optional[float] = None           # and the cup's height read with it
+        self._seal: Optional[Tuple[SealState, Optional[float], Optional[float]]] = None   # since the pump went on
+        self._suction_off_at = 0.0                     # time.monotonic() when the pump last went off
 
     # --- session ----------------------------------------------------------
 
@@ -156,6 +161,7 @@ class MaxArm:
         self._servo_deg, self._is_suction_on, self._held = 0.0, False, None
         self._is_connected, self._is_frozen = True, False
         self._travel_ended, self._settled = time.monotonic(), None
+        self._supply_off, self._rest_z, self._seal = None, None, None
         self._abort.clear()
 
     def disconnect(self) -> None:
@@ -290,7 +296,19 @@ class MaxArm:
         self._require_connection()
         self._held = None
         stopped = self._switch_suction(is_on)
-        return stopped if stopped is not None else self._result(MoveStatus.DONE)
+        if stopped is not None:
+            return stopped
+        return self._result(MoveStatus.DONE, seal.describe(*self._seal) if self._seal else "")
+
+    def get_seal(self) -> Optional[SealState]:
+        """Whether the cup sealed when the pump last went on: by how far the pump pulled the supply down, and
+        whether the seal pulled the arm down (`seal.py`). None while the pump is off, and once the arm has moved."""
+        return self._seal[0] if self._seal else None
+
+    def get_seal_measures(self) -> Tuple[Optional[float], Optional[float]]:
+        """What `get_seal()` was judged by: the pump's dip, in the supply pin's counts, and how far the cup pulled
+        the arm down, mm. None for each not read, or as there."""
+        return (self._seal[1], self._seal[2]) if self._seal else (None, None)
 
     def stop(self) -> None:
         """Stop what is running: a leg is held where it has got to, a wait is cut short.
@@ -367,18 +385,19 @@ class MaxArm:
         reads: list = []
         half = PRECISE_STEADY_HALF_S
         while not self._abort.is_set():
-            pulses = self._protocol.read_pulses()
+            pulses, supply = self._protocol.read_pulses_and_supply()
             now = time.monotonic()
             if pulses is not None:
-                reads.append((now, pulses))
-            recent = [read for when, read in reads if when > now - half]
-            before = [read for when, read in reads if now - 2 * half < when <= now - half]
+                reads.append((now, pulses, supply))
+            recent = [read for read in reads if read[0] > now - half]
+            before = [read for read in reads if now - 2 * half < read[0] <= now - half]
             since = now - self._travel_ended
             if since >= PRECISE_STEADY_FROM_S and len(recent) >= 3 and len(before) >= 3 and all(
-                    abs(late - early) <= PRECISE_STEADY_PULSES for late, early in zip(_mean(recent), _mean(before))):
-                return _mean(before + recent)
+                    abs(late - early) <= PRECISE_STEADY_PULSES
+                    for late, early in zip(_mean(_pulses_of(recent)), _mean(_pulses_of(before)))):
+                return self._kept(before + recent)
             if since >= PRECISE_SETTLE_MAX_S:
-                return _mean(before + recent) if before + recent else (reads[-1][1] if reads else None)
+                return self._kept(before + recent) if before + recent else (reads[-1][1] if reads else None)
         return None
 
     def _read_steady(self) -> Optional[Pulses]:
@@ -388,12 +407,22 @@ class MaxArm:
             return self._steady()
         reads, started = [], time.monotonic()
         while not reads or time.monotonic() - started < PRECISE_STEADY_HALF_S:
-            pulses = self._protocol.read_pulses()
+            pulses, supply = self._protocol.read_pulses_and_supply()
             if pulses is not None:
-                reads.append(pulses)
+                reads.append((time.monotonic(), pulses, supply))
             elif time.monotonic() - started >= PRECISE_SETTLE_MAX_S:
                 return None
-        return _mean(reads)
+        return self._kept(reads)
+
+    def _kept(self, reads) -> Pulses:
+        """The servos' mean over `reads`, each (when, pulses, supply); with the pump off, the supply and the cup's
+        height over their last PRECISE_STEADY_HALF_S are kept as where the arm stands, to judge a seal against."""
+        latest = [read for read in reads if read[0] >= reads[-1][0] - PRECISE_STEADY_HALF_S]
+        if not self._is_suction_on and latest[0][0] - self._suction_off_at >= seal.VENT_S:
+            level = seal.level([supply for _, _, supply in latest])
+            if level is not None:
+                self._supply_off, self._rest_z = level, _position_of(_mean(_pulses_of(latest)))[2]
+        return _mean(_pulses_of(reads))
 
     def _drive(self, point: Position, speed_mm_s: float,
                servo: Optional[float]) -> Optional[MoveResult]:
@@ -417,6 +446,7 @@ class MaxArm:
             return self._halt()
         if move_ms or turn_ms:
             self._travel_ended, self._settled = time.monotonic(), None
+            self._supply_off, self._rest_z, self._seal = None, None, None
         return None
 
     def _grab(self, point: Position, angle: Optional[float], servo: float) -> MoveResult:
@@ -489,12 +519,43 @@ class MaxArm:
         if self._abort.is_set():
             return self._result(MoveStatus.STOPPED)
         before = self._protocol.read_position() if IS_TRACED else None
+        if is_on and self._supply_off is None and self._protocol.has_supply and not self._is_suction_on:
+            self._read_steady()                     # nothing read since the arm last moved: the level, pump off
+        was_on = self._is_suction_on
         self._protocol.set_suction(is_on)
         self._is_suction_on = is_on
-        is_waited = self._wait(SUCTION_GRAB_MS if is_on else SUCTION_RELEASE_MS)
+        if is_on:
+            is_waited, supply, height = self._read_for(SUCTION_GRAB_MS, seal.PUMP_START_S)
+            if not was_on:
+                pulled = self._rest_z - height if self._rest_z is not None and height is not None else None
+                self._seal = seal.judge(self._supply_off, supply, pulled)
+                if IS_TRACED:
+                    trace_note(seal.describe(*self._seal))
+        else:
+            self._seal, self._suction_off_at = None, time.monotonic()
+            settled_from = max(seal.VENT_S, SUCTION_RELEASE_MS / 1000.0 - PRECISE_STEADY_HALF_S)
+            is_waited, self._supply_off, self._rest_z = self._read_for(SUCTION_RELEASE_MS, settled_from)
         if before is not None:
             _trace_cup_pull(is_on, before, self._protocol.read_position())
         return None if is_waited else self._result(MoveStatus.STOPPED)
+
+    def _read_for(self, milliseconds: float, from_s: float) -> Tuple[bool, Optional[float], Optional[float]]:
+        """Wait, the servos and the supply read all the while: whether it waited it out, unless stop(), and the
+        supply and the cup's height over the reads from `from_s` on. Just a wait on a board that cannot read its
+        supply."""
+        if not self._protocol.has_supply:
+            return self._wait(milliseconds), None, None
+        started = time.monotonic()
+        deadline, supplies, heights = started + milliseconds / 1000.0, [], []
+        while time.monotonic() < deadline:
+            if self._abort.is_set():
+                return False, None, None
+            pulses, supply = self._protocol.read_pulses_and_supply()
+            if time.monotonic() - started >= from_s:
+                supplies.append(supply)
+                if pulses is not None:
+                    heights.append(_position_of(pulses)[2])
+        return True, seal.level(supplies), seal.level(heights)
 
     # --- heights and angles -----------------------------------------------
 
@@ -612,6 +673,10 @@ def _turned_off(point: Position, miss: Tuple[float, float], turn_deg: float) -> 
     turn = math.radians(turn_deg)
     return (point[0] + miss[0] * math.cos(turn) - miss[1] * math.sin(turn),
             point[1] + miss[0] * math.sin(turn) + miss[1] * math.cos(turn), point[2])
+
+
+def _pulses_of(reads) -> list:
+    return [pulses for _, pulses, _ in reads]
 
 
 def _mean(reads) -> Pulses:

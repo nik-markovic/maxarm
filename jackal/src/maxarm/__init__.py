@@ -13,6 +13,7 @@
 | ----------- | -------------------------------------------------------------- |
 | `arm`       | `MaxArm`: moves, grab and drop, and how long each one takes    |
 | `nozzle`    | the cup's turn: which way it faces, and how long turning takes |
+| `seal`      | whether the cup sealed, from the supply the pump runs off      |
 | `path`      | the limits, and the path round them -- arithmetic, no board    |
 | `spaces`    | coordinate spaces, and the calibration file behind each one    |
 | `geometry`  | the firmware's kinematics, host-side                           |
@@ -28,10 +29,11 @@ the direction; the library corrects them at the board (`raw.py`).
 
 from .arm import MaxArm, MoveResult, MoveStatus, MoveType, NotConnectedError
 from .protocol import BoardNotReadyError, ProtocolError
+from .seal import SealState
 from .spaces import Camera, Space, Spaces
 from .transport import TransportError
 
 __all__ = [
     "BoardNotReadyError", "Camera", "MaxArm", "MoveResult", "MoveStatus", "MoveType",
-    "NotConnectedError", "ProtocolError", "Space", "Spaces", "TransportError",
+    "NotConnectedError", "ProtocolError", "SealState", "Space", "Spaces", "TransportError",
 ]

@@ -166,6 +166,15 @@ class Motion:
         self.is_suction_on = is_on
         return result
 
+    def seal(self) -> Optional[dict]:
+        """Whether the cup sealed when the pump went on, and what told it (`maxarm/seal.py`): the pump's dip, and
+        how far the cup pulled the arm down. None while the pump is off, or once the arm has moved."""
+        state = self.arm.get_seal()
+        if state is None:
+            return None
+        dip, pulled = self.arm.get_seal_measures()
+        return {"state": state.value, "dip": dip, "pulled": pulled}
+
     def carry(self, start: Position, end: Position, angle: Optional[float], facing: Optional[float],
               clearance: float) -> MoveResult:
         """A piece picked up and set down, in desk space (`MaxArm.carry()`), with `clearance` kept on the way.

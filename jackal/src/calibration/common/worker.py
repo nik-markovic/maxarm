@@ -123,6 +123,7 @@ class Worker:
             "is_reading": motion.is_measured_stale and motion.is_connected,
             "cup": motion.cup,
             "suction": motion.is_suction_on,
+            "seal": motion.seal(),
             "last": dict(self.last),
         }
 

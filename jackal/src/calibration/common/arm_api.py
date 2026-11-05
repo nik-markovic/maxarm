@@ -6,7 +6,7 @@
 | `POST /api/move`    | x, y, z | straight there, corrected; a newer move replaces a waiting one |
 | `POST /api/jump`    | x, y    | over to x, y at a safe height, and stay at that height     |
 | `POST /api/cup`     | angle   | the cup's servo, -90 to 90 degrees                         |
-| `POST /api/suction` | on      | the pump on or off, waited out                             |
+| `POST /api/suction` | on      | the pump on or off, waited out; on, whether the cup sealed |
 | `POST /api/reset`   |         | stop everything, let go, lift clear and go home            |
 | `GET /api/limits`   |         | reach, the base, the heights: for drawing and the sliders  |
 | `GET /api/state`    |         | connection, what is running, where the arm was sent and is |

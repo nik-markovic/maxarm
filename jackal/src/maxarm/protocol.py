@@ -58,6 +58,15 @@ SERVO_VOLTAGE_MIN_MV = 6000
 
 READ_PULSES = "[bus_servo.get_position(i) for i in (1, 2, 3)]"
 
+# The barrel jack's supply, which the servos and the pump run off, reaches ESP32 pin 39 through a 30k/10k divider
+# (`ADC_BAT` on the board's schematic); the firmware never reads it. A position read takes this many of the pin's
+# samples too, in the same round trip: their sum, 0 to 4095 each. A new ADC object starts at its narrowest range,
+# so the expression widens it every time. Nothing is bound on the board.
+SUPPLY_SAMPLES = 100
+READ_SUPPLY = ("(lambda adc: (adc.atten(ADC.ATTN_11DB), adc.width(ADC.WIDTH_12BIT),"
+               f" sum([adc.read() for _ in range({SUPPLY_SAMPLES})]))[2])(ADC(Pin(39)))")
+READ_PULSES_AND_SUPPLY = f"({READ_PULSES}, {READ_SUPPLY})"
+
 BOARD_CHECK = (
     "([n in globals() for n in ('arm', 'bus_servo', 'nozzle', 'time', 'gc')],"
     " arm.read_position(), bus_servo.get_position({absent}), bus_servo.get_vin(1))"
@@ -97,6 +106,7 @@ class ReplProtocol:
 
     def __init__(self, transport: SerialTransport) -> None:
         self.transport = transport
+        self.has_supply = False         # whether this board reads its supply (`READ_SUPPLY`): found at check_board()
 
     # --- session ----------------------------------------------------------
 
@@ -114,6 +124,7 @@ class ReplProtocol:
         for attempt in range(1, BOARD_CHECK_ATTEMPTS + 1):
             reason, is_transient = self._board_problem()
             if reason is None:
+                self.has_supply = self._can_read_supply()
                 return
             if not is_transient:
                 raise BoardNotReadyError(reason)
@@ -140,6 +151,13 @@ class ReplProtocol:
                     "USB powers the ESP32 but not the servos -- check the barrel jack and its "
                     "switch.", True)
         return (None, False)
+
+    def _can_read_supply(self) -> bool:
+        """A board without the pin, or firmware without `ADC`, still drives the arm: its reads are positions only."""
+        try:
+            return isinstance(self.evaluate(READ_SUPPLY), int)
+        except ProtocolError:
+            return False
 
     def disconnect(self) -> None:
         if not self.transport.is_open:
@@ -261,10 +279,18 @@ class ReplProtocol:
 
     def read_pulses(self) -> Optional[Tuple[int, int, int]]:
         """The three servos' own positions, in pulses. None if the bus dropped one."""
-        reply = self.evaluate(READ_PULSES)
-        if not isinstance(reply, list) or any(value is False or value is None for value in reply):
-            return None
-        return tuple(reply)
+        return _pulses(self.evaluate(READ_PULSES))
+
+    def read_pulses_and_supply(self) -> Tuple[Optional[Tuple[int, int, int]], Optional[float]]:
+        """`read_pulses()`, and the supply on pin 39 as the mean of its samples, in one round trip. The supply is
+        None on a board that cannot read it."""
+        if not self.has_supply:
+            return self.read_pulses(), None
+        reply = self.evaluate(READ_PULSES_AND_SUPPLY)
+        if not isinstance(reply, tuple) or len(reply) != 2:
+            return None, None
+        pulses, total = reply
+        return _pulses(pulses), total / SUPPLY_SAMPLES if isinstance(total, int) else None
 
     def read_position(self) -> Optional[Position]:
         """Where the servos say the tip is, true. None if the bus dropped a read.
@@ -275,6 +301,12 @@ class ReplProtocol:
         read up to 1 mm out.
         """
         return _true_position(self.read_pulses())
+
+
+def _pulses(reply) -> Optional[Tuple[int, int, int]]:
+    if not isinstance(reply, list) or any(value is False or value is None for value in reply):
+        return None
+    return tuple(reply)
 
 
 def _true_position(pulses: Optional[Tuple[float, float, float]]) -> Optional[Position]:

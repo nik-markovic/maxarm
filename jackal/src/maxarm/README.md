@@ -26,6 +26,7 @@ arm.set_suction(True)                  # by hand, for a job grab() and drop() do
 
 arm.can_reach(x, y, z)                 # arithmetic: works before connect()
 arm.get_position()                     # where the servos say the arm is: their reads' mean once steady
+arm.get_seal()                         # SEALED, LOOSE or UNCERTAIN when the pump last went on; None once moved
 arm.stop()                             # safe from a signal handler
 arm.stop_on_ctrl_c()                   # Ctrl-C holds the arm for the rest of the run
 ```
@@ -126,6 +127,14 @@ Seven values answer to the environment, each one `MAXARM_` and the constant's na
 | `MAXARM_SUCTION_RELEASE_MS`   | 3000           | the wait for a release                          |
 | `MAXARM_BASE_LIMIT_HALF_MM`   | 70             | the arm-base limit's half-width                 |
 | `MAXARM_BASE_LIMIT_HEIGHT_MM` | 200            | its height                                      |
+
+**The seal** is told by the supply the servos and the pump run off, which every position read samples too, in the
+same round trip (`seal.py`). The pump drawing air pulls the supply down; sealed, it hardly does. So the supply where
+the arm stands with the pump off -- the reads that end a PRECISE move, or the end of a release -- is set against
+the reads in the grip's 1.5 s, from 0.75 s on: the pump's dip. The servos pull on the supply too, so a move ends
+the verdict; and a seal pulls the cup down (it is a bellows), which servos holding it short of a target above
+strain against, so a cup pulled down 0.5 mm is sealed whatever the dip. A board that cannot read the supply gives
+UNKNOWN; nothing else changes.
 
 `MAXARM_TRACE=1` prints every expression sent to the board, with its answer and timing, on stderr.
 Everything else is a constant in the module that uses it, with where it came from written above it.

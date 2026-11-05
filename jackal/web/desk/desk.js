@@ -20,6 +20,14 @@ const SAME_MM = 0.005;
 // higher, without end. The desk is at about 44 under most arms, so the slider is yellow from 44 down to 42, and
 // red below.
 const HEIGHT = { top: 80, bottom: 40, safe: 120, lower: 2, higher: 20, caution: 44, danger: 42 };
+// Whether the cup sealed when the pump went on (maxarm/seal.py), shown while it is on. Not known once the arm has
+// moved: the servos pull on the supply the seal is told by.
+const SEAL = {
+  sealed: ['SEALED', 'ok', 'the cup is stuck to what is under it'],
+  loose: ['LOOSE', 'warn', 'the cup draws air: nothing is sealed'],
+  uncertain: ['UNCERTAIN', 'bad', 'between sealed and loose: the cup may be only just touching'],
+  unknown: ['UNKNOWN', 'bad', 'the arm\'s supply could not be read'],
+};
 const OFFSETS = {
   fit: 'the plane fitted through the points', saved: 'the saved desk.json', default: 'the default desk',
 };
@@ -206,8 +214,25 @@ function renderControls() {
     $('suction').checked = state.suction;
   }
   $('cup-out').textContent = `${fmt(Number($('cup').value), 0, true)}°`;
+  renderSeal();
   $('record').disabled = isReading();
   $('save').disabled = isReading();
+}
+
+function renderSeal() {
+  const line = $('seal-line');
+  if (!state || !state.suction) {
+    line.innerHTML = '';
+  } else if (!state.seal) {
+    line.innerHTML = '<span class="hint">Seal not known: the arm has moved since the pump went on. Suction off and on '
+      + 'again to check.</span>';
+  } else {
+    const [word, kind, meaning] = SEAL[state.seal.state];
+    const { dip, pulled } = state.seal;
+    const told = [dip === null ? '' : `pump dip ${fmt(dip, 1)}`,
+      pulled === null ? '' : `pulled down ${fmt(pulled, 1)} mm`].filter(Boolean).join(', ');
+    line.innerHTML = `<span class="chip ${kind}" title="${told}">${word}</span><span class="hint">${meaning}</span>`;
+  }
 }
 
 function renderReadout() {
