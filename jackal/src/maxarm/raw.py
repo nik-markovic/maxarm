@@ -3,22 +3,25 @@
 
 The firmware's kinematics gets heights wrong in two ways that every MaxArm
 shares. A flat desk reads higher near the base than at full reach: 50 at 100
-mm from the base axis, 42 at 260. And anything above the desk reads too
+mm from the base axis, 42 at 260, and not along a straight line: it waves a
+little from ring to ring out from the base. And anything above the desk reads too
 tall, the more the higher it is and the further out: a 120 mm stack of cubes,
 3.4 mm at 207 mm out. It gets x and y wrong too: the cup is further out than
 it says, most on the desk, and the base points a little off, by an amount that
 changes over its turn. The library corrects every target before it is sent
 and every reading after it is read:
 
-    true z = raw z + 0.05 x (reach - 207) - (h / 120)^2 x (3.4 + 0.0126 x (reach - 207))
+    true z = raw z + 0.05 x (reach - 207) + wave(reach) - (h / 120)^2 x (3.4 + 0.0126 x (reach - 207))
     true reach = reach + 6.26 - 0.110 x min(h, 44)
     true bearing = bearing - 1.36 x sin 2b + 0.33 x (cos 2b - 1), in degrees
 
     reach = sqrt(x^2 + y^2), the firmware's, mm;  h = true z - 44, the height above the desk, 0 below it;
-    b = bearing = the firmware's direction from the base axis: 0 straight out (-y), positive toward +x
+    b = bearing = the firmware's direction from the base axis: 0 straight out (-y), positive toward +x;
+    wave(reach) = DESK_WAVE_MM, straight between its rows, held beyond its ends
 
-On the desk h is 0, and true and raw z agree 207 mm out, where the desk reads
-44. Straight out, true and raw point the same way. A target's raw position
+The desk is at true z 44: a little under the highest height at which the cup
+still seals on it, so that a cup sent there seals. Straight out, true and raw
+point the same way. A target's raw position
 follows from its true one directly but for the bearing, which a few rounds
 find; a reading's true z is the formula solved for it.
 
@@ -33,9 +36,12 @@ from typing import Tuple
 from .geometry import Position
 
 # On the desk, true z is raw z plus this much per mm of reach past LEVEL_REACH_MM,
-# where the two agree.
 TRUE_Z_PER_MM_OF_REACH = 0.05
 LEVEL_REACH_MM = 207.0
+# plus this, by the firmware's reach: the desk found by the cup's seal ring by ring, 0.5 mm under the highest height
+# the cup seals at (STATUS-jackal §15; agenttools/true-z/fit-desk.py prints it).
+DESK_WAVE_MM = ((109.5, -0.53), (125.1, +0.15), (139.4, +0.13), (155.5, +0.12), (169.8, +0.16), (185.1, -0.18),
+                (199.8, -0.71), (214.7, -0.20), (229.3, -0.21), (244.7, +0.03), (259.6, -0.96))
 # Above it, raw z reads too tall with the square of the height over the desk:
 # by TALL_AT_STACK_MM at STACK_MM up and LEVEL_REACH_MM out, more further out.
 DESK_Z_MM = 44.0                   # heights are counted from the desk under an ideally placed arm
@@ -71,8 +77,9 @@ def raw_position(true: Position) -> Position:
     x, y, z = true
     height = max(z - DESK_Z_MM, 0.0)
     x, y = _raw_xy(x, y, height)
-    out = math.hypot(x, y) - LEVEL_REACH_MM
-    return (x, y, z - TRUE_Z_PER_MM_OF_REACH * out + _too_tall_per_mm2(out) * height ** 2)
+    reach = math.hypot(x, y)
+    out = reach - LEVEL_REACH_MM
+    return (x, y, z - TRUE_Z_PER_MM_OF_REACH * out - _wave(reach) + _too_tall_per_mm2(out) * height ** 2)
 
 
 def true_position(raw: Position) -> Position:
@@ -80,8 +87,9 @@ def true_position(raw: Position) -> Position:
     if _is_raw:
         return raw
     x, y, z = raw
-    out = math.hypot(x, y) - LEVEL_REACH_MM
-    by_reach = z + TRUE_Z_PER_MM_OF_REACH * out - DESK_Z_MM
+    reach = math.hypot(x, y)
+    out = reach - LEVEL_REACH_MM
+    by_reach = z + TRUE_Z_PER_MM_OF_REACH * out + _wave(reach) - DESK_Z_MM
     if by_reach <= 0.0:
         height = by_reach
     else:
@@ -94,6 +102,16 @@ def describe(true: Position) -> str:
     x, y, z = true
     raw_x, raw_y, raw_z = raw_position(true)
     return f"({x:.1f}, {y:.1f}, {z:.1f} [raw {raw_x:.1f}, {raw_y:.1f}, {raw_z:.1f}])"
+
+
+def _wave(reach: float) -> float:
+    """DESK_WAVE_MM at a firmware reach: straight between its rows, held beyond its ends."""
+    if reach <= DESK_WAVE_MM[0][0]:
+        return DESK_WAVE_MM[0][1]
+    for (near, near_mm), (far, far_mm) in zip(DESK_WAVE_MM, DESK_WAVE_MM[1:]):
+        if reach <= far:
+            return near_mm + (far_mm - near_mm) * (reach - near) / (far - near)
+    return DESK_WAVE_MM[-1][1]
 
 
 def _too_tall_per_mm2(out: float) -> float:

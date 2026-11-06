@@ -1,0 +1,17 @@
+54 points to do, about 54 minutes. Connecting: the arm homes.
+  1/54 ref 1        seals up to 44.54 (raw 45.64), not at 44.55; 8 tries
+  2/54 r115 b+0     seals up to 44.90 (raw 49.72), not at 44.71 -- a seal read over a miss; 9 tries
+  3/54 r130 b+13    seals up to 44.56 (raw 48.63), not at 44.51 -- a seal read over a miss; 5 tries
+  4/54 r130 b-13    seals up to 44.57 (raw 48.65), not at 44.62; 6 tries
+  5/54 r145 b-24    seals up to 44.39 (raw 47.72), not at 44.49; 4 tries
+  6/54 r145 b+0     seals up to 44.55 (raw 47.85), not at 44.63; 7 tries
+  7/54 r145 b+24    seals up to 44.52 (raw 47.83), not at 44.62; 4 tries
+  8/54 r160 b+54    seals up to 44.39 (raw 46.93), not at 44.52; 6 tries
+  9/54 r160 b+32    seals up to 44.16 (raw 46.74), not at 44.37; 10 tries
+ 10/54 r160 b+11    seals up to 44.21 (raw 46.78), not at 44.32; 6 tries
+ 11/54 r160 b-11    seals up to 44.65 (raw 47.22), not at 44.63 -- a seal read over a miss; 4 tries
+ 12/54 ref 2        seals up to 45.46 (raw 46.57), not at 45.39 -- a seal read over a miss; 4 tries
+ 13/54 r160 b-32    seals up to 44.59 (raw 47.17), not at 44.72; 10 tries
+
+  stopping: the arm holds where it is and lets go of the desk; Ctrl-C again to quit
+stopped; what was found is in /var/b/shared/work/maxarm/jackal/agenttools/true-z/desk-seal.jsonl. Run again to go on.

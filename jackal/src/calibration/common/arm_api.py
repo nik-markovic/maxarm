@@ -67,7 +67,7 @@ def limits() -> dict:
         "hover": {space.value: height for space, height in HOVER_MM.items()},
         "true_z": {"per_mm_of_reach": raw.TRUE_Z_PER_MM_OF_REACH, "level_reach": raw.LEVEL_REACH_MM,
                    "desk_z": raw.DESK_Z_MM, "stack": raw.STACK_MM, "tall_at_stack": raw.TALL_AT_STACK_MM,
-                   "tall_per_mm_of_reach": raw.TALL_PER_MM_OF_REACH},
+                   "tall_per_mm_of_reach": raw.TALL_PER_MM_OF_REACH, "desk_wave": raw.DESK_WAVE_MM},
         "true_xy": {"reach_at_desk": raw.REACH_AT_DESK_MM, "reach_less_per_mm": raw.REACH_LESS_PER_MM,
                     "reach_top": raw.REACH_TOP_MM, "wave_sin": raw.WAVE_SIN_DEG, "wave_cos": raw.WAVE_COS_DEG,
                     "bearing_rounds": raw.BEARING_ROUNDS},

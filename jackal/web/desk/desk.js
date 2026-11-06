@@ -61,6 +61,17 @@ accepted = controls();
 const TRUE_Z = limits.true_z;
 const TRUE_XY = limits.true_xy;
 const tooTallPerMm2 = (out) => (TRUE_Z.tall_at_stack + TRUE_Z.tall_per_mm_of_reach * out) / TRUE_Z.stack ** 2;
+// The desk's wave by the firmware's reach: straight between the table's rows, held beyond its ends.
+function deskWave(reach) {
+  const rows = TRUE_Z.desk_wave;
+  if (reach <= rows[0][0]) return rows[0][1];
+  for (let row = 1; row < rows.length; row += 1) {
+    const [near, nearMm] = rows[row - 1];
+    const [far, farMm] = rows[row];
+    if (reach <= far) return nearMm + ((farMm - nearMm) * (reach - near)) / (far - near);
+  }
+  return rows[rows.length - 1][1];
+}
 const furtherOut = (height) => TRUE_XY.reach_at_desk
   - TRUE_XY.reach_less_per_mm * Math.min(Math.max(height, 0), TRUE_XY.reach_top);
 const furtherRound = (bearing) => (Math.PI / 180)
@@ -75,7 +86,8 @@ function rawPoint([x, y, z]) {
   for (let round = 0; round < TRUE_XY.bearing_rounds; round += 1) rawBearing = bearing - furtherRound(rawBearing);
   const [rawX, rawY] = reach === 0 ? [x, y] : fromPolar(Math.max(reach - furtherOut(height), 0), rawBearing);
   const out = Math.hypot(rawX, rawY) - TRUE_Z.level_reach;
-  return [rawX, rawY, z - TRUE_Z.per_mm_of_reach * out + tooTallPerMm2(out) * height ** 2];
+  return [rawX, rawY, z - TRUE_Z.per_mm_of_reach * out - deskWave(Math.hypot(rawX, rawY))
+    + tooTallPerMm2(out) * height ** 2];
 }
 // The true z of a raw z typed in, with the true x and y held: raw z is tried and corrected until it is the one typed.
 function trueZ(x, y, z) {
@@ -383,17 +395,19 @@ const { reach_at_desk: outAtDesk, reach_less_per_mm: outLess, reach_top: outTop,
 $('heights-tip').innerHTML = `<b>True</b> is where the cup really is. <b>Raw</b> is the arm firmware's own
   numbers, which are off. Heights: on the desk the firmware's depends on the distance from the base: 100 mm out it
   says ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm
-  ${fmt(perMm * (limits.reach - level))} mm lower. Above the desk it reads too tall, the more the higher and the
+  ${fmt(perMm * (limits.reach - level))} mm lower, give or take up to a millimetre that waves from ring to ring out from
+  the base, measured by where the cup seals. Above the desk it reads too tall, the more the higher and the
   further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. Across: the cup is ${fmt(outAtDesk)} mm further
   out than the firmware says on the desk, less higher up, and the base points up to about
   ${fmt(Math.abs(waveSin) + Math.abs(waveCos))}° off, by an amount that changes over its turn. The library corrects
   every position it sends and reads:
-  <code>true z = raw z + ${perMm} × (reach − ${level}) − (h / ${stack})² × (${tall} + ${TRUE_Z.tall_per_mm_of_reach}
-  × (reach − ${level}))</code>
+  <code>true z = raw z + ${perMm} × (reach − ${level}) + wave(reach) − (h / ${stack})² × (${tall}
+  + ${TRUE_Z.tall_per_mm_of_reach} × (reach − ${level}))</code>
   <code>true reach = reach + ${outAtDesk} − ${outLess} × min(h, ${outTop})</code>
   <code>true bearing = bearing ${waveSin < 0 ? '−' : '+'} ${Math.abs(waveSin)} × sin 2b + ${waveCos} × (cos 2b − 1)</code>
   h is the height above the desk, true z − ${deskZ}; reach and bearing b are the firmware's, b in degrees from
-  straight out. RAW only changes the numbers shown: the arm moves the same, and touch points, offsets and SAVE always
+  straight out; wave(reach) runs from ${fmt(Math.min(...TRUE_Z.desk_wave.map((row) => row[1])))} to
+  ${fmt(Math.max(...TRUE_Z.desk_wave.map((row) => row[1])))} mm. RAW only changes the numbers shown: the arm moves the same, and touch points, offsets and SAVE always
   use true positions.`;
 
 $('cup').min = -limits.cup;
