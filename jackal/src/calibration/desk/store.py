@@ -69,14 +69,16 @@ def save_points(config_dir: Path, points: List[Point], next_id: int) -> None:
 
 
 def save_desk(config_dir: Path, plane: Plane, points: List[Point]) -> None:
-    """Write `desk.json`, keeping the one it replaces as `desk-previous.json`."""
+    """Write `desk.json`, keeping the one it replaces as `desk-previous.json`. No points: the level desk."""
+    source = (f"Fitted by calibration/desk through the {len(points)} touch points below, as the servos read them "
+              "(arm x, y, true z)." if points else
+              "The level desk, saved by calibration/desk with no touch points: confirmed on the desk page that "
+              "the true z formula alone puts the desk right.")
     _write(config_dir / DESK_FILE, {
         "about": ("desk space to arm space: arm [x, y, z, 1] = desk_to_arm @ desk [x, y, z, 1]. Arm z is true "
                   "z, the firmware's corrected by the library. Desk space is millimetres, z the height above "
                   "the desk (0: the cup snug on it). A plane: arm x and y are desk x and y, and the surface is "
-                  f"at arm z = {plane.tilt_x:.6f} x + {plane.tilt_y:.6f} y + {plane.offset:.3f}. Fitted by "
-                  f"calibration/desk through the {len(points)} touch points below, as the servos read them "
-                  "(arm x, y, true z)."),
+                  f"at arm z = {plane.tilt_x:.6f} x + {plane.tilt_y:.6f} y + {plane.offset:.3f}. {source}"),
         "desk_to_arm": plane.desk_to_arm(),
         "points": [[round(value, 2) for value in point.target] for point in points],
     }, keep=config_dir / PREVIOUS_FILE)
@@ -93,6 +95,9 @@ def describe_desk(config_dir: Path) -> dict:
         return {"exists": False, "summary": f"fitted to raw heights ({saved}): not used; SAVE it again"}
     if "points" not in content:
         return {"exists": True, "summary": f"an older calibration, not a plane fit ({saved})"}
+    if not content["points"]:
+        return {"exists": True, "summary": f"the level desk at true z {content['desk_to_arm'][2][3]:.0f}, "
+                                           f"no touch points, saved {saved}"}
     return {"exists": True, "summary": f"a plane through {len(content['points'])} touch points, saved {saved}"}
 
 

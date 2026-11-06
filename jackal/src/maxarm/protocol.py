@@ -261,9 +261,21 @@ class ReplProtocol:
         `nozzle`, as (angle, duration_ms), turns the cup in the same round trip,
         so the two start together. True is not a promise -- servo 2 can clamp
         silently -- which is why targets are checked with `geometry` first.
+
+        The command is not the raw target itself but half a pulse past it on every
+        servo (`geometry.nearest_step_command()`), so that the firmware's cut to whole
+        pulses lands on the nearest one rather than the one below. The target stays
+        `position` everywhere else; the trace shows the servos' pulses and the
+        whole ones they are given.
         """
-        trace_note(f"to {raw.describe(position)}")
-        x, y, z = raw.raw_position(position)
+        target = raw.raw_position(position)
+        if IS_TRACED and geometry.limit_reason(target) is None:
+            exact = " ".join(f"{pulse:.2f}" for pulse in geometry.deg_to_pulse(geometry.inverse(target)))
+            given = " ".join(str(pulse) for pulse in geometry.commanded_pulses(target))
+            trace_note(f"to {raw.describe(position)}, servos {exact} -> {given}")
+        elif IS_TRACED:
+            trace_note(f"to {raw.describe(position)}")
+        x, y, z = geometry.nearest_step_command(target)
         command = f"arm.set_position(({x:.2f}, {y:.2f}, {z:.2f}), {int(duration_ms)})"
         if nozzle is not None:
             command = f"({_set_angle(*nozzle)}, {command})[1]"

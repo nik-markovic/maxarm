@@ -10,6 +10,7 @@ Points are recorded in arm space, with no calibration in the way
 | `POST /api/desk/delete`      | id            | forget one point                                     |
 | `POST /api/desk/clear`       |               | forget them all                                      |
 | `POST /api/desk/save`        |               | fit the plane and write `desk.json`                  |
+| `POST /api/desk/save-level`  |               | with no points, write the default desk: level, at 44 |
 | `POST /api/desk/visit`       | id            | back to a point in arm space, from above             |
 | `POST /api/desk/test-point`  | id, height    | over a point in desk space, at a height of 0 to 4 mm |
 | `POST /api/desk/test-height` | height        | the height of the point test in progress             |
@@ -67,9 +68,9 @@ class DeskSession:
             "deviation": plane.DEVIATION_LIMITS_MM, "test_height": TEST_HEIGHT_MAX_MM,
             "default_z": DEFAULT_DESK_Z_MM}})
         for name, handler in (("record", self.record), ("delete", self.delete), ("clear", self.clear),
-                              ("save", self.save), ("visit", self.visit), ("test-point", self.test_point),
-                              ("test-height", self.test_height), ("test-input", self.test_input),
-                              ("move", self.move)):
+                              ("save", self.save), ("save-level", self.save_level), ("visit", self.visit),
+                              ("test-point", self.test_point), ("test-height", self.test_height),
+                              ("test-input", self.test_input), ("move", self.move)):
             server.post(f"/api/desk/{name}", handler)
 
     # --- the points -------------------------------------------------------
@@ -120,6 +121,20 @@ class DeskSession:
         self.saved = store.describe_desk(self.config_dir)
         self.glide_from = -1
         return f"desk.json saved: through {len(points)} points, the plane tilted {fitted.tilt_deg:.2f} deg"
+
+    def save_level(self, body: dict) -> dict:
+        return self.worker.run("save-level", "saving the level desk", self._save_level, uses_arm=False)
+
+    def _save_level(self, motion: Motion) -> str:
+        """The default desk written out, when true z alone already finds the desk: only with no points."""
+        with self.lock:
+            if self.points:
+                raise Refused(f"there are {len(self.points)} touch points: SAVE them, or CLEAR them first")
+            store.save_desk(self.config_dir, DEFAULT_DESK, [])
+        motion.reload()
+        self.saved = store.describe_desk(self.config_dir)
+        self.glide_from = -1
+        return f"desk.json saved: the level desk at true z {DEFAULT_DESK_Z_MM:.0f}, no touch points"
 
     # --- going to them ----------------------------------------------------
 

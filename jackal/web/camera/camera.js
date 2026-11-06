@@ -4,7 +4,7 @@
 // sets the calibration aside, after a warning.
 //
 // Everything is desk space: millimetres, z the height over the desk. The arm's target is the grid point last
-// clicked and the height column. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
+// clicked and the height column; a grid click comes down to the notch, 2 mm over a cube's top. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
 // target with it, and a move the arm refuses puts it back where the arm last went. The height column is shared
 // with the tests page (common/height.js).
 
@@ -100,8 +100,8 @@ function follow([x, y, z]) {
 const move = () => command('camera/move', { ...ui.target }, 'Move', { isRevertible: true });
 
 function jump(x, y) {
-  ui.target = { ...ui.target, x, y };
-  command('camera/jump', { x, y }, 'Over to the grid point', { isRevertible: true });
+  ui.target = { x, y, z: NOTCH };
+  command('camera/move', { ...ui.target }, 'Over to the grid point', { isRevertible: true });
 }
 
 // --- drawing it all --------------------------------------------------------------------------------

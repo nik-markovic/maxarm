@@ -14,8 +14,9 @@ What it reproduces is how this board misleads its driver:
   2. False when the IK will not solve -- printing to stdout first,
   3. True while servo 2 sits silently clamped and the arm does not move,
   4. Ctrl-D on an empty buffer is a soft reboot that re-homes the arm,
-  5. and, when asked (`deadband_mm`, `stop_short_mm`), the servos' deadband: a
-     target closer than the deadband is ignored, a farther one stopped short of.
+  5. when asked (`deadband_mm`, `stop_short_mm`), the servos' deadband: a
+     target closer than the deadband is ignored, a farther one stopped short of,
+  6. and each servo's pulse cut down to a whole one, as `set_servo_in_range()` does.
 
 Reachability uses the library's `geometry`. Everything the board is told lands in
 `FakeSerial.log`, in order: ("move", (x, y, z), ms), ("turn", angle, ms),
@@ -73,7 +74,8 @@ class FakeBoardArm:
             return False
         if self.is_frozen or reason in ("servo2_clamped", "servo3_clamped"):
             return True
-        self.position = self._settles_at((x, y, z))
+        whole = tuple(int(pulse) for pulse in geometry.deg_to_pulse(geometry.inverse((x, y, z))))
+        self.position = self._settles_at(geometry.forward(geometry.pulse_to_deg(whole)))
         return True
 
     def _settles_at(self, target: Position) -> Position:

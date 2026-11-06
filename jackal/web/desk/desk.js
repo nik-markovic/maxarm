@@ -291,8 +291,15 @@ function renderDesk() {
   const spread = desk.off[from];
   $('offsets').innerHTML = spread ? `<b>${fmt(spread.rms, 2)}</b> mm RMS, <b>${fmt(spread.worst, 2)}</b> at worst`
     : from === 'fit' && desk.fit ? 'a 4th point shows how well they agree' : '';
-  $('save-state').innerHTML = desk.save_problem ? `<span class="chip bad">not ready</span> ${desk.save_problem}`
-    : '<span class="chip ok">ready to save</span>';
+  const isLevel = desk.points.length === 0;
+  $('save').textContent = isLevel ? 'SAVE LEVEL DESK' : 'SAVE CALIBRATION';
+  $('save').title = isLevel ? `No touch points: write config/desk.json as the default desk, level at true z ${
+    fmt(limits.desk.default_z, 0)}` : 'Fit the plane and write config/desk.json';
+  $('save-state').innerHTML = isLevel
+    ? `<span class="chip">no points</span> the default desk, level at true z ${fmt(limits.desk.default_z, 0)}, `
+      + 'is saved after you confirm it; record touch points to fit a plane instead'
+    : desk.save_problem ? `<span class="chip bad">not ready</span> ${desk.save_problem}`
+      : '<span class="chip ok">ready to save</span>';
   const ignored = desk.saved.summary ? `config/desk.json ${desk.saved.summary}` : 'nothing saved yet';
   $('desk-file').textContent = desk.saved.exists ? `config/desk.json: ${desk.saved.summary}`
     : `the default desk, arm z ${fmt(limits.desk.default_z, 0)} and level: ${ignored}`;
@@ -446,7 +453,20 @@ for (const button of $('offsets-from').children) {
 }
 
 $('record').addEventListener('click', () => command('desk/record', {}, 'RECORD'));
-$('save').addEventListener('click', () => command('desk/save', {}, 'SAVE CALIBRATION'));
+$('save').addEventListener('click', () => {
+  if (!state) return;
+  if (state.desk.points.length) {
+    command('desk/save', {}, 'SAVE CALIBRATION');
+    return;
+  }
+  const z = limits.desk.default_z;
+  if (window.confirm('Save the level desk, with no touch points?\n\nPlease confirm that:\n'
+    + "- The arm's base suction cups are pressed fully against the desk.\n"
+    + `- At far reach, all around the desk, the cup grips the desk at a reported height of ${fmt(z, 0)} mm, `
+    + `but not at ${fmt(z + 1, 0)} mm (TRUE heights, not RAW).`)) {
+    command('desk/save-level', {}, 'SAVE LEVEL DESK');
+  }
+});
 $('clear').addEventListener('click', () => {
   const count = state ? state.desk.points.length : 0;
   if (count && window.confirm(`Forget all ${count} touch points?`)) command('desk/clear', {}, 'CLEAR');

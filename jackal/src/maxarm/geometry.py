@@ -123,6 +123,25 @@ def bearing_degrees(x: float, y: float) -> float:
     return math.degrees(math.atan2(x, -y))
 
 
+def nearest_step_command(position: Position) -> Position:
+    """The raw position to send so that each servo is given the whole pulse nearest to `position`'s.
+
+    The firmware cuts each servo's pulse down to a whole one (`int(p)` in `set_servo_in_range()`): 305.9 sent as it
+    is becomes 305. Sent half a pulse further, the cut becomes a rounding: 306. Only the command differs; the target,
+    and everything compared with it, stays `position`. A position the firmware would refuse or clamp is returned
+    unchanged, so that it still does.
+    """
+    if limit_reason(position) is not None:
+        return position
+    command = forward(pulse_to_deg(tuple(pulse + 0.5 for pulse in deg_to_pulse(inverse(position)))))
+    return command if limit_reason(command) is None else position
+
+
+def commanded_pulses(position: Position) -> Tuple[int, int, int]:
+    """The whole pulses the servos are given when a raw position within the limits is sent (`nearest_step_command()`)."""
+    return tuple(int(pulse + 0.5) for pulse in deg_to_pulse(inverse(position)))
+
+
 def limit_reason(position: Position) -> Optional[str]:
     """None if `set_position()` would really go there, else why it would not."""
     x, y, z = position

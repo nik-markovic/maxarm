@@ -41,6 +41,10 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
    library corrected heights is not used: SAVE again. `config/desk-points.json` keeps the points as the servos read
    them, raw, so a refined formula never changes a recorded touch; the page shows them true.
    The plane goes through every point in the list: delete touches on anything but the desk before saving.
+   **No points: SAVE LEVEL DESK.** The same button, with no points in the list, saves the default desk instead -- level,
+   arm z 44 -- once you confirm that the arm's base cups are pressed fully onto the desk and that, far out all round,
+   the cup grips the desk at a reported TRUE 44 but not at 45. When true z alone already finds the desk, this beats a
+   plane fitted through touches that are each a little off. One point in the list, and it is SAVE CALIBRATION again.
 4. **Try it.** *desk* in the table sends the cup over that point in desk space, at the point test height: 4 mm,
    down to 0. The first comes down from above, like `grab()`; the next ones glide, slowly and level, so the gap
    between cup and desk can be watched all the way. Any other move in between, and the next one comes from above
@@ -61,6 +65,7 @@ It finds where the desk is under the arm, as a plane, and writes it to `config/d
 | Cup                       | the cup's servo, -90 to 90                                                      |
 | Suction                   | the pump; on, it says SEALED, LOOSE or UNCERTAIN (only just touching), until a move |
 | RECORD TOUCH POINT        | keeps where the servos say the cup is, read afresh; the target beside it        |
+| SAVE LEVEL DESK           | with no points: `desk.json` as the default desk, level at 44, once confirmed    |
 | *arm* in the table        | back to the point in arm space: up, over, slowly down                           |
 | RESET                     | stop, let go, lift clear of the desk and the cubes, home with the cup centred   |
 
@@ -109,7 +114,7 @@ button tells the same story as this section, for whoever is at the arm; the firs
 
 | control                 | does                                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------------ |
-| grid click              | over to that grid point, 60 mm over the desk or higher: clear of the cubes           |
+| grid click              | over a grid point 60 mm up, then down to the notch, 42                               |
 | dashed squares          | where the cubes might go; solid where each was recorded, the cross where the cup was |
 | height slider           | 70 down to -2 mm over the desk, or further to take in the arm's height, after RESET  |
 |                         | say; yellow from the desk down 1 mm, red below                                       |
@@ -124,7 +129,7 @@ button tells the same story as this section, for whoever is at the arm; the firs
 
 **How it moves.** Desk space throughout, through the saved `desk.json` or the default desk. Below 60 mm over the
 desk every move is slow: the cubes are there. A grid click from lower goes slowly straight up first, fast across
-at 60, and stays there; a new height comes straight down, fast to 60 and slowly on, and ends *precise*. CALIBRATE,
+at 60, then down to the notch; a new height comes straight down, fast to 60 and slowly on, and ends *precise*. CALIBRATE,
 VALIDATE and RESET all park the same way: slowly up to 10 mm over the desk if lower, fast on up to 60, then home.
 
 **How the camera is fitted** (`applib/camera/cubes.py`, `fit.py`). Every decision is measured in the frame itself, so

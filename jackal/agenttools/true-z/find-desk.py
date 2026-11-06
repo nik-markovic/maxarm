@@ -176,8 +176,10 @@ def next_try(x: float, y: float, tries: List[Try], aimed: Counter, guess: float,
             return None
         aim = min(between)[2]
         command = tuple(round(pulse - short) for pulse, short in zip(aim, stop_short))
-        # The middle of the command's pulses: the firmware truncates its own to whole ones.
-        target = raw.true_position(geometry.forward(geometry.pulse_to_deg(tuple(pulse + 0.5 for pulse in command))))
+        # The command's whole pulses themselves: the library sends half a pulse past them, so that the firmware's
+        # cut to whole ones lands on them (`geometry.nearest_step_command()`). Adding the half here as well would
+        # land a whole pulse high.
+        target = raw.true_position(geometry.forward(geometry.pulse_to_deg(command)))
         return target, aim
     if sealed:
         sent = max(done.sent for done in tries) + UP_MM
@@ -209,8 +211,9 @@ def _to_segment(point: Tuple[float, float], start: Tuple[float, float], end: Tup
 
 
 def stop_short_of(entry: dict) -> Tuple[float, float, float]:
-    """Each servo's pulses read, less those it was commanded, for a try written to the file."""
-    commanded = [int(pulse) for pulse in pulses_of(tuple(entry["sent_raw"]))]
+    """Each servo's pulses read, less those it was commanded, for a try written to the file. Tries written before
+    6 Nov have no `commanded`: the firmware then cut the raw target's pulses down."""
+    commanded = entry.get("commanded") or [int(pulse) for pulse in pulses_of(tuple(entry["sent_raw"]))]
     return tuple(read - sent for read, sent in zip(pulses_of(tuple(entry["read_raw"])), commanded))
 
 
@@ -250,7 +253,9 @@ class Prober:
             tried, library = self.try_at(target, travel)
             tries.append(tried)
             entry = {"kind": "try", "point": label, "x": target[0], "y": target[1], "sent": target[2],
-                     "sent_raw": raw.raw_position(target), "aim": aim, "read": tried.read, "read_raw": tried.read_raw,
+                     "sent_raw": raw.raw_position(target),
+                     "commanded": geometry.commanded_pulses(raw.raw_position(target)),
+                     "aim": aim, "read": tried.read, "read_raw": tried.read_raw,
                      "state": tried.state.value, "library": library.value, "dip": tried.dip, "pulled": tried.pulled,
                      "time": time.time()}
             _write(entry)

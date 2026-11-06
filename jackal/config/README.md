@@ -37,7 +37,8 @@ desk_to_arm = [[1,      0,      0, 0     ],
                [0,      0,      0, 1     ]]
 ```
 
-The file also lists the touch points it was fitted through, in arm space; the library ignores them.
+The file also lists the touch points it was fitted through, in arm space; the library ignores them. With no points
+(SAVE LEVEL DESK) it is the default desk below, written out: `tilt_x` and `tilt_y` 0, `offset` 44.
 
 **Without one, the default desk is used:** arm z 44, level -- where the desk is under an ideally placed arm, in true
 z (`DEFAULT_DESK_Z_MM` in `maxarm/spaces.py`). Desk space works from the start; `desk.json` is for a desk that is not

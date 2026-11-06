@@ -3,7 +3,7 @@ cube's test in reverse, the points that make it better.
 
 Desk space, through the saved `desk.json` or the default desk, as on the camera
 page; the camera through `camera.json`. The arm's other moves are the camera
-page's (`/api/camera/jump`, `/api/camera/move`): over the cubes, then down.
+page's (`/api/camera/move`): over the cubes, then down.
 
 | request                    | body | does                                                                   |
 | -------------------------- | ---- | ---------------------------------------------------------------------- |

@@ -11,11 +11,12 @@
   Suggested locations are shown on the grid.
 - The red cube goes on the side closer to the camera. If the camera is directly in front of the arm, either side
   is OK.
-- Click on the grid to move the arm to where a cube will go. It comes over at a height you can slide a cube under.
+- Click on the grid to move the arm to where a cube will go. It comes down to the cube's notch, **42**, 2 mm over
+  a cube's top: slide the cube in under the cup.
 - Place each cube so that its top and two of its sides are clearly seen by the camera: roughly, a pointy edge
   points toward the camera.
-- Bring the cup down to the cube's notch, **42**, which is 2 mm over the cube's top: the button with the cube on
-  it beside the height slider, or drag the slider there and it snaps.
+- If the cup is higher, bring it down to the notch: the button with the cube on it beside the height slider, or
+  drag the slider there and it snaps.
 - Place the cube directly and evenly below the suction cup: the circle of the cup equally far from each edge of
   the cube. **This affects the accuracy of the calibration the most**: even a few millimetres of error can
   affect the application.

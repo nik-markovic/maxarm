@@ -7,7 +7,6 @@ stand on the desk while it is used, so the arm crosses over them
 
 | request                      | body    | does                                                          |
 | ---------------------------- | ------- | ------------------------------------------------------------- |
-| `POST /api/camera/jump`      | x, y    | over to x, y above the cubes, and stay at that height         |
 | `POST /api/camera/move`      | x, y, z | there, corrected; over the cubes first if x or y change       |
 | `POST /api/camera/record`    | colour  | keep where the servos say the cup is, as that cube's point    |
 | `POST /api/camera/forget`    | colour  | forget that cube's point                                      |
@@ -73,7 +72,7 @@ class CameraSession:
     def register(self, server: Server) -> None:
         server.add_state(self.state)
         server.add_limits(lambda: {"camera": {"cube": CUBE_MM, "notch": NOTCH_MM, "colours": list(COLOURS)}})
-        for name, handler in (("jump", self.jump), ("move", self.move), ("record", self.record),
+        for name, handler in (("move", self.move), ("record", self.record),
                               ("forget", self.forget), ("visit", self.visit), ("calibrate", self.calibrate),
                               ("validate", self.validate), ("view", self.view)):
             server.post(f"/api/camera/{name}", handler)
@@ -81,11 +80,6 @@ class CameraSession:
         server.get_bytes("/api/camera/check.jpg", self._check_image)
 
     # --- the arm ----------------------------------------------------------
-
-    def jump(self, body: dict) -> dict:
-        x, y = number(body, "x"), number(body, "y")
-        return self.worker.run("camera-jump", f"over to ({x:.1f}, {y:.1f}), above the cubes",
-                               lambda motion: motion.jump(Space.DESK, x, y, OVER_CUBES_MM), latest_only=True)
 
     def move(self, body: dict) -> dict:
         target = (number(body, "x"), number(body, "y"), number(body, "z"))
