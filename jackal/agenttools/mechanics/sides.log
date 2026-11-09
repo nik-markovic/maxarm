@@ -1,0 +1,91 @@
+sides: connecting, the arm homes; log /var/b/shared/work/maxarm/jackal/agenttools/mechanics/runs/sides-1109-123456.jsonl
+  1/88 r230 b+0 from higher pulses: base +0.00 pulses
+  2/88 r230 b+0 from lower pulses : base -0.56 pulses
+  3/88 r230 b+0 from higher pulses: base +0.00 pulses
+  4/88 r230 b+0 from lower pulses : base -0.11 pulses
+  5/88 r230 b+0 from higher pulses: base +0.00 pulses
+  6/88 r230 b+0 from lower pulses : base -0.22 pulses
+  7/88 r230 b+0 from higher pulses: base +0.00 pulses
+  8/88 r230 b+0 from lower pulses : base -0.33 pulses
+  9/88 r230 b+0 from higher pulses: base +0.00 pulses
+  10/88 r230 b+0 from lower pulses : base -0.67 pulses
+  11/88 r230 b+0 from higher pulses: base +0.00 pulses
+  12/88 r230 b+0 from lower pulses : base -0.11 pulses
+  13/88 r230 b+0 from higher pulses: base +0.00 pulses
+  14/88 r230 b+0 from lower pulses : base -0.11 pulses
+  15/88 r230 b+0 from higher pulses: base +0.56 pulses
+  16/88 r230 b+0 from lower pulses : base -0.11 pulses
+  17/88 r230 b+0 from higher pulses: base +0.00 pulses
+  18/88 r230 b+0 from lower pulses : base -0.11 pulses
+  19/88 r230 b+0 from higher pulses: base +0.00 pulses
+  20/88 r230 b+0 from lower pulses : base -0.11 pulses
+  21/88 r265 b+0 from higher pulses: base +0.00 pulses
+  22/88 r265 b+0 from lower pulses : base +0.00 pulses
+  23/88 r265 b+0 from higher pulses: base +1.00 pulses
+  24/88 r265 b+0 from lower pulses : base +0.00 pulses
+  25/88 r265 b+0 from higher pulses: base +1.00 pulses
+  26/88 r265 b+0 from lower pulses : base +0.00 pulses
+  27/88 r265 b+0 from higher pulses: base +1.00 pulses
+  28/88 r265 b+0 from lower pulses : base +0.00 pulses
+  29/88 r265 b+0 from higher pulses: base +1.00 pulses
+  30/88 r265 b+0 from lower pulses : base +0.00 pulses
+  31/88 r265 b+0 from higher pulses: base +1.00 pulses
+  32/88 r265 b+0 from lower pulses : base +0.22 pulses
+  33/88 r265 b+0 from higher pulses: base +0.00 pulses
+  34/88 r265 b+0 from lower pulses : base -0.22 pulses
+  35/88 r265 b+0 from higher pulses: base +0.00 pulses
+  36/88 r265 b+0 from lower pulses : base +0.00 pulses
+  37/88 r265 b+0 from higher pulses: base +0.00 pulses
+  38/88 r265 b+0 from lower pulses : base -0.11 pulses
+  39/88 r265 b+0 from higher pulses: base +0.00 pulses
+  40/88 r265 b+0 from lower pulses : base -0.56 pulses
+  41/88 r230 b-55 from higher pulses: base -0.11 pulses
+  42/88 r230 b-55 from lower pulses : base +0.70 pulses
+  43/88 r230 b-55 from higher pulses: base +0.00 pulses
+  44/88 r230 b-55 from lower pulses : base +0.11 pulses
+  45/88 r230 b-55 from higher pulses: base +0.16 pulses
+  46/88 r230 b-55 from lower pulses : base +1.23 pulses
+  47/88 r230 b-30 from higher pulses: base -1.28 pulses
+  48/88 r230 b-30 from lower pulses : base +0.39 pulses
+  49/88 r230 b-30 from higher pulses: base +0.06 pulses
+  50/88 r230 b-30 from lower pulses : base -0.05 pulses
+  51/88 r230 b-30 from higher pulses: base -1.28 pulses
+  52/88 r230 b-30 from lower pulses : base -0.16 pulses
+  53/88 r230 b+30 from higher pulses: base -0.55 pulses
+  54/88 r230 b+30 from lower pulses : base +0.45 pulses
+  55/88 r230 b+30 from higher pulses: base -0.22 pulses
+  56/88 r230 b+30 from lower pulses : base -0.33 pulses
+  57/88 r230 b+30 from higher pulses: base -0.55 pulses
+  58/88 r230 b+30 from lower pulses : base -0.47 pulses
+  59/88 r230 b+55 from higher pulses: base +0.62 pulses
+  60/88 r230 b+55 from lower pulses : base +1.18 pulses
+  61/88 r230 b+55 from higher pulses: base +0.04 pulses
+  62/88 r230 b+55 from lower pulses : base +1.62 pulses
+  63/88 r230 b+55 from higher pulses: base +0.40 pulses
+  64/88 r230 b+55 from lower pulses : base +1.29 pulses
+  65/88 r250 b-50 from higher pulses: base -0.22 pulses
+  66/88 r250 b-50 from lower pulses : base -0.22 pulses
+  67/88 r250 b-50 from higher pulses: base -0.22 pulses
+  68/88 r250 b-50 from lower pulses : base -0.55 pulses
+  69/88 r250 b-50 from higher pulses: base -0.22 pulses
+  70/88 r250 b-50 from lower pulses : base -0.22 pulses
+  71/88 r250 b+50 from higher pulses: base -0.35 pulses
+  72/88 r250 b+50 from lower pulses : base +0.66 pulses
+  73/88 r250 b+50 from higher pulses: base -1.46 pulses
+  74/88 r250 b+50 from lower pulses : base -0.35 pulses
+  75/88 r250 b+50 from higher pulses: base -0.91 pulses
+  76/88 r250 b+50 from lower pulses : base -0.46 pulses
+  77/88 r160 b-45 from higher pulses: base +0.26 pulses
+  78/88 r160 b-45 from lower pulses : base +0.26 pulses
+  79/88 r160 b-45 from higher pulses: base -0.41 pulses
+  80/88 r160 b-45 from lower pulses : base +0.26 pulses
+  81/88 r160 b-45 from higher pulses: base +0.15 pulses
+  82/88 r160 b-45 from lower pulses : base +0.93 pulses
+  83/88 r160 b+45 from higher pulses: base -0.39 pulses
+  84/88 r160 b+45 from lower pulses : base -0.39 pulses
+  85/88 r160 b+45 from higher pulses: base -0.61 pulses
+  86/88 r160 b+45 from lower pulses : base +0.17 pulses
+  87/88 r160 b+45 from higher pulses: base -0.39 pulses
+  88/88 r160 b+45 from lower pulses : base +0.39 pulses
+sides: done
+finished

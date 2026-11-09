@@ -2,7 +2,7 @@
 `find-cube`, the same way.
 
     cube = RedCube(feed)
-    cube.find(motion, fit)          # park, look, come over the cube at 54 mm and down to the notch, 42
+    cube.find(motion, fit)          # park, look, come over the cube at 54 mm and down to the notch, 41
     cube.found                      # what the overlay draws: overlay.draw_cube()
 
 The camera is the calibration's, held still (`camera/locate.py`). Once the arm
@@ -28,9 +28,10 @@ from .camera.locate import FoundCube, find_red_cube
 from .camera.model import CUBE_MM
 from .motion import Motion, Refused
 
-# Where the cup is lowered to over a cube, to centre the cube under it: 2 mm over its top (the owner's,
-# PILOT-impala). The camera page's too.
-NOTCH_MM = CUBE_MM + 2.0
+# Where the cup is lowered to over a cube, to centre the cube under it: 1 mm over its top, now that the cup lands
+# where it is sent -- close, but not pressing, so the cube can be moved by hand without moving the arm (the owner's,
+# 9 Nov; it was 2 mm over, PILOT-impala). The camera page's too.
+NOTCH_MM = CUBE_MM + 1.0
 # The cup comes over the cube 54 mm over the desk, 14 over its top, then down to the notch (the owner's).
 OVER_MM = 54.0
 
@@ -54,7 +55,7 @@ class RedCube:
             raise Refused(str(reason)) from None
         found = self.look(fit, frame)
         sent = (found.x, found.y, NOTCH_MM)
-        result = motion.approach(Space.DESK, sent, precise=True, hover=OVER_MM)
+        result = motion.down_to(Space.DESK, sent, hover=OVER_MM)
         if not result:
             return result
         motion.read()                               # where it landed, as its servos say: drawn there
@@ -69,7 +70,7 @@ class RedCube:
             missed = f"; the arm landed X {landed[0] - sent[0]:+.1f}, Y {landed[1] - sent[1]:+.1f} mm from there"
         return MoveResult(result.status, result.position,
                           f"the red cube stands at desk ({found.x:.1f}, {found.y:.1f}); the cup is "
-                          f"{NOTCH_MM - CUBE_MM:.0f} mm over its top{missed}")
+                          f"{NOTCH_MM - CUBE_MM:g} mm over its top{missed}")
 
     def look(self, fit: CameraFit, frame: np.ndarray) -> FoundCube:
         """The red cube in `frame`, kept to be drawn; `Refused` if it is not there."""

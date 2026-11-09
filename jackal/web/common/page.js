@@ -63,6 +63,7 @@ export function report(reply, what) {
   else if (reply.status === 'refused') toast(`${what} refused${detail}`, 'warn');
   else if (reply.status === 'stopped') toast(`${what} stopped${detail}`, 'warn');
   else if (reply.status === 'error') toast(`${what} failed${detail}`, 'bad');
+  else if (reply.status === 'not_gripped') toast(`${what}: the cup did not grip${detail}`, 'bad');
 }
 
 export function mountHeader(active) {

@@ -30,7 +30,7 @@ from applib.camera.feed import Feed
 from applib.camera.fit import CameraFit
 from applib.motion import Motion
 from applib.overlay import draw_tiles, inks, picture_layer
-from applib.settings import GRIP_RANGE_MM, Settings
+from applib.settings import GRIP_RANGE_MM, GRIP_STEP_MM, Settings
 from applib.tiles import TILE_HEIGHT_MM, TILE_MM, Tile
 from applib.tilework import DROP_MM, TileWork
 from common.server import BadRequest, Server, number
@@ -56,7 +56,7 @@ class TilesSession:
             "gap": areas.MIN_GAP_MM, "margin": areas.REACH_MARGIN_MM,
             "areas": [area.to_json() for area in (areas.PICKUP, areas.DROPOFF)],
             "word": {"arc": areas.WORD_ARC_MM, "gap": areas.WORD_GAP_MM, "most": areas.WORD_MAX_LETTERS,
-                     "readers": list(areas.READERS), "drop": DROP_MM, "grip_range": list(GRIP_RANGE_MM)},
+                     "readers": list(areas.READERS), "drop": DROP_MM, "grip_range": list(GRIP_RANGE_MM), "grip_step": GRIP_STEP_MM},
             "ink": inks.to_json()}})
         server.post("/api/tiles/locate", self.locate)
         server.post("/api/tiles/visit", self.visit)
@@ -87,7 +87,7 @@ class TilesSession:
 
     @staticmethod
     def _visit(motion: Motion, tile: Tile) -> MoveResult:
-        result = motion.approach(Space.DESK, (tile.x, tile.y, VISIT_MM), precise=True, hover=VISIT_OVER_MM)
+        result = motion.down_to(Space.DESK, (tile.x, tile.y, VISIT_MM), hover=VISIT_OVER_MM)
         if not result:
             return result
         return MoveResult(result.status, result.position,

@@ -2,7 +2,7 @@
 //
 // ARM TO DESK sends the arm to the point of the desk clicked in the live view, shown full size. The grid, the height
 // column and the arrows move the arm by hand, in desk space, with the camera page's moves; a grid click comes down to
-// the notch, 2 mm over a cube's top. FIND RED CUBE, a helper, parks the arm, finds the red cube in the live view, and
+// the notch, 1 mm over a cube's top. FIND RED CUBE, a helper, parks the arm, finds the red cube in the live view, and
 // brings the cup down over it. Over the live view: the reach, the arm, the cube found and where the arm landed over
 // it, the point clicked, drawn through the calibration; and, if asked, desk space itself every 10 mm.
 //
@@ -341,7 +341,7 @@ function openFull() {
     aspect: size[0] / size[1],
     title: 'ARM TO DESK',
     hint: `Click a point of the desk: the arm comes over it at ${fmt(TOUCH.over, 0)} mm, then down to
-      ${fmt(TOUCH.down, 0)} mm over the desk -- the desk, not the top of whatever stands there.`,
+      the desk itself -- the desk, not the top of whatever stands there.`,
     onPick: touch,
     onReset: async () => report(await api('reset', {}), 'RESET'),
     onClose: () => { connectFeed(); render(); },

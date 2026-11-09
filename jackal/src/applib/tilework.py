@@ -48,8 +48,12 @@ from .tiles import TILE_HEIGHT_MM, Tile, find_tiles
 COUNTED = (areas.Status.READY, areas.Status.TOO_CLOSE, areas.Status.ELSEWHERE, areas.Status.OUT_OF_REACH)
 # A detection offers this many letters for a word, at random from those on tiles ready to pick up.
 OFFERED_LETTERS = 5
-# Where the cup lets a tile go, desk mm: 3 mm over its top, 1 under a visit's 6 (the owner's, PILOT-hyena).
-DROP_MM = TILE_HEIGHT_MM + 3.0
+# Where the cup lets a tile go, desk mm: 2 mm over its top, where it let go while the library still sent the cup 1 mm
+# under the 3 mm over asked (the owner's, PILOT-hyena), so the tile falls no further than it did.
+DROP_MM = TILE_HEIGHT_MM + 2.0
+# A grip that does not seal is let go and tried again 0.5 mm deeper, down to this much under the grip height -- never
+# under the desk (`MaxArm.carry()`'s `retry_deeper_mm`).
+GRIP_RETRY_DEEPER_MM = 1.5
 # What is kept of a tile a word carried off, to draw where it was and how its letter lay: until the next detection.
 CARRIED_KEYS = ("n", "x", "y", "corners", "letter", "is_read", "upright")
 
@@ -102,7 +106,8 @@ class TileWork:
                     self._end("stopped", "RESET")
                     return MoveResult(MoveStatus.STOPPED, motion.position(Space.DESK), "RESET")
                 self._mark(index, "carrying")
-                result = motion.carry(step.start, step.end, step.upright, step.facing, word.CLEARANCE_MM)
+                retry = max(0.0, min(GRIP_RETRY_DEEPER_MM, step.start[2]))
+                result = motion.carry(step.start, step.end, step.upright, step.facing, word.CLEARANCE_MM, retry)
                 self._mark(index, "placed" if result else result.status.value, result.detail)
                 if not result:
                     detail = (f"letter {index + 1} of {len(steps)}, {step.letter} from tile {step.index + 1}: "

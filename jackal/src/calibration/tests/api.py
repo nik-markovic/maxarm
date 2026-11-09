@@ -9,7 +9,7 @@ page's (`/api/camera/move`): over the cubes, then down.
 | -------------------------- | ---- | ---------------------------------------------------------------------- |
 | `POST /api/tests/find-red` |      | park the arm, find the red cube in the live view, come down over it    |
 | `POST /api/tests/touch`    | u, v | the desk seen there in the live view, as shares of its width and       |
-|                            |      | height: over it, then down to 2 mm over the desk                       |
+|                            |      | height: over it, then down to the desk                                 |
 | `POST /api/tests/record`   |      | keep where the servos say the cup is, over the red cube; park the arm  |
 |                            |      | and see where the cube stands in the snapshot: a point                 |
 | `POST /api/tests/redo`     |      | the last point's cube looked for again in its snapshot, the picture    |
@@ -69,9 +69,13 @@ from common.worker import Refused, Worker
 
 from . import record, refine
 
-# ARM TO DESK comes over the point clicked 14 mm over the desk, then down to 2 (the owner's, PILOT-impala).
+# ARM TO DESK comes over the point clicked 14 mm over the desk (the owner's, PILOT-impala), then down to the desk
+# exactly, as the library lands (the owner's, 9 Nov; it was 2 mm over).
 TOUCH_OVER_MM = 14.0
-TOUCH_MM = 2.0
+TOUCH_MM = 0.0
+# RECORD POINT: the cup down on a cube's top may read up to this far under it -- the cup's give and the landing's own
+# spread.
+UNDER_TOP_MM = 2.0
 # The cup's skirt, its outside edge: 21 mm across (the owner's). The page draws it round the point clicked.
 CUP_RADIUS_MM = 10.5
 # RECORD POINT: further than half a cube from where the arm says the cup was, the cube was not under the cup.
@@ -141,7 +145,7 @@ class TestsSession:
         if (camera.matrix @ (x, y, 0.0, 1.0))[2] <= 0:
             return {"status": "refused", "detail": "that is not the desk: the view is above the horizon there"}
         outcome = self.worker.run(
-            "tests-touch", f"ARM TO DESK: over desk ({x:.1f}, {y:.1f}), down to {TOUCH_MM:.0f} mm",
+            "tests-touch", f"ARM TO DESK: over desk ({x:.1f}, {y:.1f}), down to {TOUCH_MM:g} mm",
             lambda motion: self._touch(motion, (x, y, TOUCH_MM)), latest_only=True)
         return {**outcome, "point": [round(x, 2), round(y, 2)]}
 
@@ -158,7 +162,7 @@ class TestsSession:
             parked = motion.reset()
             if not parked:
                 return parked
-        return motion.approach(Space.DESK, target, precise=True, hover=TOUCH_OVER_MM)
+        return motion.down_to(Space.DESK, target, hover=TOUCH_OVER_MM)
 
     def _snapshot(self) -> np.ndarray:
         try:
@@ -179,9 +183,9 @@ class TestsSession:
         if motion.measured is None:
             raise Refused("the servos did not answer a position read; RECORD POINT again")
         here = motion.spaces.convert(motion.measured, Space.ARM, Space.DESK)
-        if not CUBE_MM <= here[2] <= OVER_CUBES_MM:
+        if not CUBE_MM - UNDER_TOP_MM <= here[2] <= OVER_CUBES_MM:
             raise Refused(f"the cup is {here[2]:.0f} mm over the desk, not over a cube's top: FIND RED CUBE brings "
-                          f"it down to {NOTCH_MM:.0f} over the cube; centre the cube under it, then RECORD POINT")
+                          f"it down to {NOTCH_MM - CUBE_MM:g} mm over the cube's top; centre the cube under it, then RECORD POINT")
         sent = motion.position(Space.DESK)
         parked = motion.reset()                     # out of the picture
         if not parked:

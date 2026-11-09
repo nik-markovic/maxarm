@@ -1,7 +1,7 @@
 """The app's own settings, which the calibration app's pages and the /IOTCONNECT app share: `config/appcfg.json`.
 
     settings = Settings(CONFIG_DIR)
-    settings.get("grip_mm")                 # 1.0 until someone sets it
+    settings.get("grip_mm")                 # 2.0 until someone sets it
     settings.set(reader="left")             # written at once
     settings.to_json()                      # every setting, its value and its default, for a page
 
@@ -23,10 +23,12 @@ from . import areas
 
 APPCFG_FILE = "appcfg.json"
 
-# Where the cup grips a tile, desk mm: 1 mm under the 2 mm tile's top (the owner's, PILOT-hyena). It goes down to the
-# desk and up to a visit's height, 4 mm over the tile's top.
-GRIP_MM = 1.0
-GRIP_RANGE_MM = (0.0, 6.0)
+# Where the cup grips a tile, desk mm: on the 2 mm tile's top, a grip that does not seal tried again deeper
+# (`tilework.py`) (the owner's, 9 Nov). It goes down to the desk and up to a visit's height, 4 mm over the tile's top.
+GRIP_MM = 2.0
+# What the tiles page offers: 1 mm over a tile's top down to the desk, in GRIP_STEP_MM.
+GRIP_RANGE_MM = (0.0, 3.0)
+GRIP_STEP_MM = 0.5
 READER = "back"
 
 
@@ -44,6 +46,8 @@ def _grip(value: object) -> float:
         raise ValueError(f"the grip height is a number of mm, not {value!r}") from None
     if not GRIP_RANGE_MM[0] <= grip <= GRIP_RANGE_MM[1]:
         raise ValueError(f"the grip height goes from {GRIP_RANGE_MM[0]:g} to {GRIP_RANGE_MM[1]:g} mm, not {grip:g}")
+    if abs(grip / GRIP_STEP_MM - round(grip / GRIP_STEP_MM)) > 1e-6:
+        raise ValueError(f"the grip height goes in steps of {GRIP_STEP_MM:g} mm, not {grip:g}")
     return grip
 
 

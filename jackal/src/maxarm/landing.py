@@ -35,8 +35,11 @@ AIM_PAST_RISING = 2
 EXTRA_PULSES = ((120.0, 0.0, 3.1), (140.0, -0.25, 3.05), (160.0, -0.5, 2.9), (175.0, -0.5, 2.6),
                 (190.0, -0.5, 2.0), (205.0, -0.5, 2.0), (220.0, -0.5, 2.25), (235.0, -0.5, 2.1),
                 (250.0, -0.5, 2.0), (265.0, -0.5, 2.0))
-# A landing whose base settles further than this from the target's is lifted and made again, the same way.
-BASE_OFF_PULSES = 1.0
+# A landing is lifted and made again, once, the other way round, when its base settled further than RESETTLE_MM
+# sideways at the cup from the target and a whole pulse at least half a pulse nearer was there to be had: the base
+# stops on whole pulses, so nothing nearer than the nearest one is asked for (the owner's, 9 Nov).
+RESETTLE_MM = 0.75
+BASE_PULSE_DEG = 240.0 / 1000.0
 
 
 @dataclass(frozen=True)
@@ -49,8 +52,8 @@ class Landing:
 
 
 def plans(target: Position, travel_z: float) -> List[Landing]:
-    """The two ways down to `target` from arm z `travel_z`, the last turn with the base's pulses falling first: the
-    aim for a rising turn held on the centre line only. Empty if the firmware's kinematics cannot take the target."""
+    """The two ways down to `target` from arm z `travel_z`, the last turn with the base's pulses falling first.
+    Empty if the firmware's kinematics cannot take the target."""
     try:
         exact = _pulses(target)
         high = _pulses((target[0], target[1], travel_z))
@@ -66,6 +69,14 @@ def plans(target: Position, travel_z: float) -> List[Landing]:
                             down=_point((aimed, exact[1] + extra2, exact[2] + extra3)),
                             target=target, base=exact[0]))
     return ways
+
+
+def is_worth_again(way: Landing, base_read: float) -> bool:
+    """Whether a landing made `way` whose base reads `base_read` is to be made again (RESETTLE_MM)."""
+    off = abs(base_read - way.base)
+    nearest = abs(way.base - round(way.base))
+    sideways = off * math.radians(BASE_PULSE_DEG) * math.hypot(way.target[0], way.target[1])
+    return sideways > RESETTLE_MM and off - nearest >= 0.5
 
 
 def extra_pulses(reach: float) -> Tuple[float, float]:

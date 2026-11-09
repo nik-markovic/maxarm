@@ -9,7 +9,9 @@ finding the desk with it -- and the /IOTCONNECT app moves it the same way:
 - **jump**: over to another x, y -- slowly up to the hover height first if lower
   -- and stay at that height.
 - **approach**: a jump, then straight down onto the point. Not `grab()`'s
-  landing (`maxarm/landing.py`): no aim past, no press.
+  landing (`maxarm/landing.py`): no aim past, so the servos stop 1-3 mm short.
+- **down_to**: the library's landing (`MaxArm.down_to()`), crossing at the hover
+  height: down to exactly the point, aimed past what the servos fall short.
 - **glide**: slowly and level, in short legs, to watch the cup's height.
 - **carry**: a piece picked up and set down, as the library's `carry()` does it.
 
@@ -31,7 +33,7 @@ from typing import List, Optional, Tuple
 from maxarm import MaxArm, MoveResult, MoveStatus, MoveType, ProtocolError, Space, Spaces
 from maxarm.arm import home_position
 from maxarm.geometry import Position, bearing_degrees
-from maxarm.path import CROSSING_MM
+from maxarm.path import CLEARANCE_MARGIN_MM, CROSSING_MM
 from maxarm.spaces import DEFAULT_DESK_Z_MM
 
 # Above this nothing on the desk can be hit, so moves go fast; below it they go
@@ -140,6 +142,21 @@ class Motion:
                 return result
         return self.direct(space, target, precise, hover)
 
+    def down_to(self, space: Space, target: Position, hover: Optional[float] = None) -> MoveResult:
+        """Down to exactly `target` as the library lands (`MaxArm.down_to()`), read there as PRECISE is, crossing
+        at the hover height: the library's own travel height for the call, so that the arm goes straight to beside
+        the target, not over it first. Desk space: the hover is a height over the desk."""
+        if space is not Space.DESK:
+            raise ValueError("down_to() crosses at a height over the desk: desk space only")
+        self.use(space)
+        if self.stopping.is_set():
+            return MoveResult(MoveStatus.STOPPED, self.position(space), "RESET")
+        self.arm.set_clearance(max(0.0, _hover(space, hover) - target[2] - CLEARANCE_MARGIN_MM))
+        try:
+            return self._track(self.arm.down_to(*target))
+        finally:
+            self.arm.set_clearance(0.0)
+
     def glide(self, space: Space, target: Position) -> Optional[MoveResult]:
         """Slowly and level to `target`, precise there; None, with nothing sent, if a straight line cannot get there."""
         self.use(space)
@@ -176,20 +193,23 @@ class Motion:
         return {"state": state.value, "dip": dip, "pulled": pulled}
 
     def carry(self, start: Position, end: Position, angle: Optional[float], facing: Optional[float],
-              clearance: float) -> MoveResult:
-        """A piece picked up and set down, in desk space (`MaxArm.carry()`), with `clearance` kept on the way.
+              clearance: float, retry_deeper_mm: float = 0.0) -> MoveResult:
+        """A piece picked up and set down, in desk space (`MaxArm.carry()`), with `clearance` kept on the way;
+        a grip that does not seal tried again deeper, down to `retry_deeper_mm` under `start`.
 
         The clearance holds for this call only: the pages' other moves come down
-        to the desk. Until the piece is set down, RESET takes the pump to be on.
+        to the desk. Until the piece is set down, RESET takes the pump to be on;
+        after NOT_GRIPPED it is off.
         """
         self.use(Space.DESK)
         self.arm.set_clearance(clearance)
         self.is_suction_on = True
         try:
-            result = self._track(self.arm.carry(start, end, angle=angle, facing=facing))
+            result = self._track(self.arm.carry(start, end, angle=angle, facing=facing,
+                                                retry_deeper_mm=retry_deeper_mm))
         finally:
             self.arm.set_clearance(0.0)
-        self.is_suction_on = not result
+        self.is_suction_on = not result and result.status is not MoveStatus.NOT_GRIPPED
         return result
 
     def reset(self) -> MoveResult:

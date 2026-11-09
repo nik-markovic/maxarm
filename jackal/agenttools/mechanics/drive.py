@@ -21,6 +21,8 @@ lifted to TRAVEL_MM.
 - watch:   the owner at the desk, around the seal's edge: down until they say sealed, back out until loose.
 - edge:    the same with the library's verdict, no one at the desk, at the 5 Nov find-desk run's places;
            edge-sides at its places further round, out to 60 degrees; edge-line straight out, out and back.
+- sides:   the library's last base turn alone, no descent, at a few places, from each side in turn: whether both
+           aims bring the base onto the target.
 """
 
 import json
@@ -35,7 +37,7 @@ from typing import List, Optional, Tuple
 SRC = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(SRC))
 
-from maxarm import MaxArm, MoveType, Space, geometry, raw        # noqa: E402
+from maxarm import MaxArm, MoveType, Space, geometry, landing, raw        # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 STOP = HERE / "STOP"
@@ -434,6 +436,40 @@ def confirm(rig: Rig) -> None:
               if landed else f"  {number}/{len(trials)} {entry['label']}: no read", flush=True)
 
 
+# (reach, bearing, swings): an even count, as many from each side.
+SIDES_PLACES = ((230.0, 0.0, 20), (265.0, 0.0, 20), (230.0, -55.0, 6), (230.0, -30.0, 6), (230.0, 30.0, 6),
+                (230.0, 55.0, 6), (250.0, -50.0, 6), (250.0, 50.0, 6), (160.0, -45.0, 6), (160.0, 45.0, 6))
+SIDES_HEIGHT_MM = 20.0
+
+
+def sides(rig: Rig) -> None:
+    """The library's last base turn alone (`landing.plans()`), no descent, at SIDES_HEIGHT_MM: across to
+    APPROACH_PULSES beside the place, then turned onto it aimed past, from each side in turn; where the base
+    settled against the place's exact pulse."""
+    total = sum(n for *_, n in SIDES_PLACES)
+    number = 0
+    for r, b, count in SIDES_PLACES:
+        x, y = at(r, b)
+        label = f"r{r:.0f} b{b:+.0f}"
+        target = rig.arm_at_desk(x, y, SIDES_HEIGHT_MM)
+        ways = dict(zip((1, -1), landing.plans(target, target[2])))     # from higher pulses first, then lower
+        rig.travel(x, y, SIDES_HEIGHT_MM, label, height=SIDES_HEIGHT_MM)
+        for index in range(count):
+            number += 1
+            way = ways[1 if index % 2 == 0 else -1]
+            try:
+                turn = 1 if index % 2 == 0 else -1
+                rig.leg("approach", label, way.approach, FAST_MM_S, "approach", {"turn": turn})
+                entry = rig.leg("swing", label, way.over, FAST_MM_S, "turn", {"turn": turn, "exact_base": way.base})
+            except RuntimeError as problem:
+                print(f"  {number}/{total} {label}: skipped: {problem}", flush=True)
+                continue
+            settled = rig.settled_of(entry["reads"])
+            side = "from higher pulses" if turn == 1 else "from lower pulses "
+            print(f"  {number}/{total} {label} {side}: base {settled[0] - way.base:+.2f} pulses" if settled
+                  else f"  {number}/{total} {label}: no read", flush=True)
+
+
 SEAL_PLACES = ((160.0, 0.0), (220.0, 0.0), (265.0, 0.0))
 SEAL_FACES_MM = (1.0, 0.5, 0.0, -0.5, -1.0, -1.5, -2.0)
 
@@ -591,7 +627,7 @@ def edge(rig: Rig, chosen=EDGE_PLACES) -> None:
 
 
 PHASES = {"descent": descent, "small": small, "base": base, "sideways": sideways, "pickup": pickup, "tune": tune,
-          "confirm": confirm, "seal": seal, "watch": watch, "edge": edge,
+          "confirm": confirm, "sides": sides, "seal": seal, "watch": watch, "edge": edge,
           "edge-sides": lambda rig: edge(rig, EDGE_SIDE_PLACES), "edge-line": lambda rig: edge(rig, EDGE_LINE_PLACES)}
 
 

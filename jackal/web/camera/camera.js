@@ -4,7 +4,7 @@
 // sets the calibration aside, after a warning.
 //
 // Everything is desk space: millimetres, z the height over the desk. The arm's target is the grid point last
-// clicked and the height column; a grid click comes down to the notch, 2 mm over a cube's top. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
+// clicked and the height column; a grid click comes down to the notch, 1 mm over a cube's top. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
 // target with it, and a move the arm refuses puts it back where the arm last went. The height column is shared
 // with the tests page (common/height.js).
 

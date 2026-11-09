@@ -26,7 +26,7 @@ import signal
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -60,6 +60,19 @@ MOVE_MAX_MS = 30000
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
 SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 
+# grab()'s and carry()'s `retry_deeper_mm`: a grip that does not seal is let go and landed again `retry_step_mm`
+# deeper, RETRY_STEP_MM unless the caller says, up to the caller's limit, which may be at most RETRY_DEEPER_MAX_MM.
+# A step under RETRY_STEP_MIN_MM is refused: the servos would land the same, and the tries would be many.
+RETRY_STEP_MM = 0.5
+# Before a grip the cup's height is read until it has stopped creeping down: two GRIP_SETTLE_HALF_S of reads within
+# GRIP_SETTLED_MM of each other, at most GRIP_SETTLE_MAX_S. A late creep, up to ~0.7 mm after a landing reads steady
+# (6 Nov `descent` runs), would otherwise count as the seal pulling the cup down (`seal.PULLED_MM`).
+GRIP_SETTLE_HALF_S = 0.5
+GRIP_SETTLED_MM = 0.1
+GRIP_SETTLE_MAX_S = 1.5
+RETRY_STEP_MIN_MM = 0.1
+RETRY_DEEPER_MAX_MM = 2.0
+
 # Where the servos are, from their reads, which flicker by a pulse or more: once
 # they have stopped drifting -- from PRECISE_STEADY_FROM_S after the travel, the
 # mean of the last PRECISE_STEADY_HALF_S against that of the one before it, every
@@ -90,6 +103,7 @@ class MoveStatus(Enum):
     DONE = "done"
     REFUSED = "refused"      # nothing moved; `detail` says why
     STOPPED = "stopped"      # stop() or Ctrl-C
+    NOT_GRIPPED = "not_gripped"     # grab() or carry() with retry_deeper_mm: no seal down to the limit; let go, lifted
 
 
 @dataclass(frozen=True)
@@ -99,6 +113,9 @@ class MoveResult:
     status: MoveStatus
     position: Position       # where the arm was last sent, in the caller's space
     detail: str = ""
+    # grab() and carry(): how much deeper than asked the cup went for its grip, mm -- 0.0 on the first try, the
+    # sealed try's otherwise, the last try's if none sealed. None for the other calls.
+    deeper_mm: Optional[float] = None
 
     def __bool__(self) -> bool:
         return self.status is MoveStatus.DONE
@@ -228,7 +245,8 @@ class MaxArm:
         return self._move(self._space.to_desk(point), move_type, servo)
 
     def grab(self, x: float, y: float, height: float, *,
-             angle: Optional[float] = None) -> MoveResult:
+             angle: Optional[float] = None, retry_deeper_mm: float = 0.0,
+             retry_step_mm: float = RETRY_STEP_MM) -> MoveResult:
         """Pick up a piece, the cup brought down to (x, y, height) for the grip.
 
         `height` is where the cup is sent, exactly; nothing is added to it.
@@ -239,10 +257,20 @@ class MaxArm:
         so the piece hangs 5 mm above the clearance.
 
         `angle` says which way the piece faces; `drop()` turns it from there.
+
+        `retry_deeper_mm`, 0 to RETRY_DEEPER_MAX_MM (2 mm), else ValueError:
+        a grip whose seal reads LOOSE or UNCERTAIN (`get_seal()`) is let go,
+        lifted to the travel height and landed again `retry_step_mm` deeper
+        (0.5 mm unless given; RETRY_STEP_MIN_MM, 0.1, to 2 mm, else
+        ValueError), down to `height - retry_deeper_mm`. If none seals, the
+        cup is let go and lifted, and the result is NOT_GRIPPED. Either way the
+        result's `deeper_mm` says how much deeper than `height` the cup went.
+        At 0, the default, the grip is not checked.
         """
+        retry = _retry(retry_deeper_mm, retry_step_mm)
         self._begin()
         self._require_clearance("grab")
-        return self._grab((float(x), float(y), float(height)), angle, 0.0)
+        return self._grab((float(x), float(y), float(height)), angle, 0.0, *retry)
 
     def drop(self, x: float, y: float, height: float, *,
              angle: Optional[float] = None) -> MoveResult:
@@ -277,7 +305,8 @@ class MaxArm:
         return self._visit(target, self._travel_height(target, self._held.height if self._held else target[2]), None)
 
     def carry(self, start: Position, end: Position, *, angle: Optional[float] = None,
-              facing: Optional[float] = None) -> MoveResult:
+              facing: Optional[float] = None, retry_deeper_mm: float = 0.0,
+              retry_step_mm: float = RETRY_STEP_MM) -> MoveResult:
         """Pick up a piece, the cup brought down to `start`, and set it down, the cup brought down to `end`.
 
         `grab()`, then `drop()`: `start` and `end` are (x, y, height), and the
@@ -289,7 +318,11 @@ class MaxArm:
         cup by however far the grip missed its centre, read before the suction,
         and turns with the cup: the cup comes down that miss, turned as the
         piece has turned, off `end`, so that the piece's centre lands on it.
+
+        `retry_deeper_mm` and `retry_step_mm` are `grab()`'s, for the grip; nothing is set down
+        after NOT_GRIPPED. The result's `deeper_mm` is the grip's.
         """
+        retry = _retry(retry_deeper_mm, retry_step_mm)
         self._begin()
         self._require_clearance("carry")
         start, end = _point(start), _point(end)
@@ -298,10 +331,12 @@ class MaxArm:
         problem = self._visit_problem(end_desk, self._travel_height(end_desk, start_desk[2]), end_servo)
         if problem:
             return self._result(MoveStatus.REFUSED, f"it could not be set down there: {problem}")
-        result = self._grab(start, angle, servo)
+        result = self._grab(start, angle, servo, *retry)
         if not result:
             return result
-        return self._drop(end, facing, is_miss_carried=True)
+        dropped = self._drop(end, facing, is_miss_carried=True)
+        detail = "; ".join(text for text in (result.detail, dropped.detail) if text)
+        return replace(dropped, detail=detail, deeper_mm=result.deeper_mm)
 
     def home(self) -> MoveResult:
         """Back to the reset pose, by way of a move: from low down, it climbs first."""
@@ -446,6 +481,27 @@ class MaxArm:
                 self._supply_off, self._rest_z = level, _position_of(_mean(_pulses_of(latest)))[2]
         return _mean(_pulses_of(reads))
 
+    def _settle_height(self) -> None:
+        """Read on until the cup's height has stopped creeping (GRIP_SETTLE_*), and keep the last reads as where
+        the arm stands, pump off, for the seal to be judged against."""
+        reads: list = []
+        started, half = time.monotonic(), GRIP_SETTLE_HALF_S
+        while not self._abort.is_set():
+            pulses, supply = self._protocol.read_pulses_and_supply()
+            now = time.monotonic()
+            if pulses is not None:
+                reads.append((now, pulses, supply))
+            recent = [read for read in reads if read[0] > now - half]
+            before = [read for read in reads if now - 2 * half < read[0] <= now - half]
+            if len(recent) >= 3 and len(before) >= 3 and abs(
+                    _position_of(_mean(_pulses_of(recent)))[2]
+                    - _position_of(_mean(_pulses_of(before)))[2]) <= GRIP_SETTLED_MM:
+                break
+            if now - started >= GRIP_SETTLE_MAX_S:
+                break
+        if reads:
+            self._kept(reads)
+
     def _drive(self, point: Position, speed_mm_s: float,
                servo: Optional[float]) -> Optional[MoveResult]:
         """One leg, in arm space: one command, waited out. A result only if it went wrong."""
@@ -471,8 +527,10 @@ class MaxArm:
             self._supply_off, self._rest_z, self._seal = None, None, None
         return None
 
-    def _grab(self, point: Position, angle: Optional[float], servo: float) -> MoveResult:
-        """grab(), the cup turned to `servo` for the grip."""
+    def _grab(self, point: Position, angle: Optional[float], servo: float,
+              retry_deeper_mm: float = 0.0, retry_step_mm: float = RETRY_STEP_MM) -> MoveResult:
+        """grab(), the cup turned to `servo` for the grip; landed again `retry_step_mm` deeper while it does not
+        seal, down to `retry_deeper_mm` under `point`."""
         if self._is_suction_on:
             stopped = self._switch_suction(False)
             if stopped is not None:
@@ -480,15 +538,43 @@ class MaxArm:
         self._held = None
         target = self._space.to_desk(point)
         travel = self._travel_height(target, target[2])
-        result = self._visit(target, travel, servo)
-        if not result:
-            return result
-        landed = self._landed()                     # before the pump: the seal can pull the cup further off
-        stopped = self._switch_suction(True)
-        if stopped is not None:
-            return stopped
+        if retry_deeper_mm:
+            problem = self._visit_problem((target[0], target[1], target[2] - retry_deeper_mm), travel, servo)
+            if problem:
+                return self._result(MoveStatus.REFUSED, f"{retry_deeper_mm:g} mm deeper: {problem}")
+        deeper, tries, judged = 0.0, 1, []
+        while True:
+            result = self._visit((target[0], target[1], target[2] - deeper), travel, servo)
+            if not result:
+                return replace(result, deeper_mm=deeper)
+            landed = self._landed()                 # before the pump: the seal can pull the cup further off
+            self._settle_height()
+            stopped = self._switch_suction(True)
+            if stopped is not None:
+                return replace(stopped, deeper_mm=deeper)
+            state = self._seal[0] if self._seal else SealState.UNKNOWN
+            judged.append(_judged(deeper, self._seal))
+            if not retry_deeper_mm or state in (SealState.SEALED, SealState.UNKNOWN):
+                break
+            stopped = self._switch_suction(False)
+            if stopped is not None:
+                return replace(stopped, deeper_mm=deeper)
+            if deeper >= retry_deeper_mm:
+                lifted = self._move((target[0], target[1], travel), MoveType.SLOW)
+                if not lifted:
+                    return replace(lifted, deeper_mm=deeper)
+                return replace(self._result(MoveStatus.NOT_GRIPPED,
+                                            f"no seal down to {deeper:g} mm deeper than asked, {tries} tries: "
+                                            f"{'; '.join(judged)}; let go"), deeper_mm=deeper)
+            if IS_TRACED:
+                trace_note(f"grip {state.value} at {deeper:g} mm deeper than asked; landing again deeper")
+            deeper, tries = min(deeper + retry_step_mm, retry_deeper_mm), tries + 1
         self._held = self._hold(point, angle, landed)
-        return self._move((target[0], target[1], travel), MoveType.SLOW)
+        result = self._move((target[0], target[1], travel), MoveType.SLOW)
+        if result and tries > 1:
+            result = replace(result, detail=f"sealed {deeper:g} mm deeper than asked, on try {tries}: "
+                                            f"{'; '.join(judged)}")
+        return replace(result, deeper_mm=deeper)
 
     def _drop(self, point: Position, angle: Optional[float], is_miss_carried: bool = False) -> MoveResult:
         """drop(); carry()'s also brings the cup down off `point` by the grip's miss (`_release_at()`)."""
@@ -509,7 +595,9 @@ class MaxArm:
 
     def _visit(self, target: Position, travel: float, servo: Optional[float]) -> MoveResult:
         """Slowly up to `travel` if below it, then down onto `target` as `landing.py` comes down, and read there
-        as PRECISE is. A landing whose base settles more than BASE_OFF_PULSES off is lifted and made again, once."""
+        as PRECISE is. A landing whose base settled too far off to the side, with a nearer whole pulse to be had
+        (`landing.is_worth_again()`), is lifted and made again, once, the other way round where the planner allows:
+        other gear faces, another shortfall, not the same miss again."""
         problem = self._visit_problem(target, travel, servo)
         if problem:
             return self._result(MoveStatus.REFUSED, problem)
@@ -518,7 +606,8 @@ class MaxArm:
             result = self._move((here[0], here[1], travel), MoveType.SLOW)
             if not result:
                 return result
-        way = self._landings(target, travel)[0]
+        ways = self._landings(target, travel)
+        way = ways[0]
         for attempt in (1, 2):
             result = self._move(self._spaces.arm.to_desk(way.approach), MoveType.FAST, servo)
             if not result:
@@ -529,11 +618,12 @@ class MaxArm:
                 if failed is not None:
                     return failed
             result = self._land(self._spaces.arm.from_desk(target))
-            off = self._settled[0] - way.base if result and self._settled else 0.0
-            if abs(off) <= landing.BASE_OFF_PULSES or attempt == 2:
+            if attempt == 2 or not result or not self._settled or not landing.is_worth_again(way, self._settled[0]):
                 return result
             if IS_TRACED:
-                trace_note(f"landing: the base settled {off:+.1f} pulses off the target; lifting to land again")
+                trace_note(f"landing: the base settled {self._settled[0] - way.base:+.1f} pulses off the target; "
+                           f"lifting to land again the other way round")
+            way = ways[-1]
             result = self._move((target[0], target[1], travel), MoveType.SLOW)
             if not result:
                 return result
@@ -709,6 +799,26 @@ class MaxArm:
 def home_position() -> Position:
     """The reset pose, where every connect leaves the arm, in arm space."""
     return raw.true_position(geometry.HOME)
+
+
+def _judged(deeper: float, judged: Optional[tuple]) -> str:
+    """One grip try, as the result's detail tells it: how deep, the seal, and what it was judged by."""
+    if not judged:
+        return f"{deeper:g} mm: not judged"
+    state, dip, pulled = judged
+    measures = ", ".join(text for text in (f"dip {dip:.1f}" if dip is not None else "",
+                                           f"pulled {pulled:.2f} mm" if pulled is not None else "") if text)
+    return f"{deeper:g} mm: {state.value}" + (f" ({measures})" if measures else "")
+
+
+def _retry(deeper: float, step: float) -> Tuple[float, float]:
+    """grab()'s and carry()'s `retry_deeper_mm` and `retry_step_mm`, checked."""
+    deeper, step = float(deeper), float(step)
+    if not 0.0 <= deeper <= RETRY_DEEPER_MAX_MM:
+        raise ValueError(f"retry_deeper_mm goes from 0 to {RETRY_DEEPER_MAX_MM:g} mm, not {deeper:g}")
+    if not RETRY_STEP_MIN_MM <= step <= RETRY_DEEPER_MAX_MM:
+        raise ValueError(f"retry_step_mm goes from {RETRY_STEP_MIN_MM:g} to {RETRY_DEEPER_MAX_MM:g} mm, not {step:g}")
+    return deeper, step
 
 
 def _point(point: Position) -> Position:

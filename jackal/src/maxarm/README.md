@@ -22,6 +22,8 @@ arm.down_to(x, y, height)              # the cup down to exactly there, precisel
 arm.grab(x, y, height, angle=None)     # the cup down to exactly there, suction on, back up
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
 arm.carry(start, end, angle=None, facing=None)   # both, (x, y, height) each: any turn, checked first
+arm.carry(start, end, retry_deeper_mm=1.5)        # a grip that does not seal tried again, 0.5 mm deeper each time
+arm.carry(start, end, retry_deeper_mm=1.5, retry_step_mm=0.25)   # the same, 0.25 mm at a time
 arm.home()                             # the reset pose, by way of a move
 arm.set_suction(True)                  # by hand, for a job grab() and drop() do not fit
 
@@ -32,8 +34,10 @@ arm.stop()                             # safe from a signal handler
 arm.stop_on_ctrl_c()                   # Ctrl-C holds the arm for the rest of the run
 ```
 
-Every motion returns a `MoveResult`: `DONE`, `REFUSED` (nothing moved; `detail` says why) or `STOPPED`.
-It is falsy unless it is `DONE`.
+Every motion returns a `MoveResult`: `DONE`, `REFUSED` (nothing moved; `detail` says why), `STOPPED`, or for
+`grab()` and `carry()` with `retry_deeper_mm`, `NOT_GRIPPED` (no seal down to the limit; let go and lifted).
+It is falsy unless it is `DONE`. From `grab()` and `carry()` its `deeper_mm` says how much deeper than asked the cup
+went for the grip.
 `move()`, `down_to()`, `grab()`, `drop()`, `carry()` and `home()` all go through one internal move, which plans the whole path
 and checks every limit before anything is sent.
 
@@ -86,14 +90,17 @@ anything moves.
 lands (`landing.py`; the measurements behind
 it are in work/MAXARM_MECHANICS.md): slowly up to the travel height if below it, fast across to 20 base pulses beside
 the point (the side of higher pulses), the base turned onto it aimed past by what that turn falls short, then one slow command straight down,
-servos 2 and 3 aimed past by what a descent falls short; read there as PRECISE is. If
-the base settled more than a pulse off, it lifts and lands again, once. It stays down, suction as it was:
+servos 2 and 3 aimed past by what a descent falls short; read there as PRECISE is. If the base settled more than 0.75 mm to the side at the cup, and a whole pulse nearer the target was there to be had (the base stops on whole pulses, so nothing better is asked for), it lifts and lands again, once, from the other side: other gear faces, not the same miss again. It stays down, suction as it was:
 `get_position()` says where it came down. What it keeps as sent is the point given, never the aimed-past command.
 It is a move only: the suction, and how deep a grip should go, are not its business.
 
 **grab()** lets go of anything held, then: `down_to()` the height given, exactly, while the cup centres itself, suction on and
 waited for (1.5 s), slowly back up. The travel height is `clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its
 `angle` says which way the piece faces.
+
+`retry_deeper_mm` (`grab()` and `carry()`, 0 to 2 mm, more is a ValueError; 0 by default, the grip not checked): a
+grip whose seal reads loose or uncertain is let go, lifted, and landed again `retry_step_mm` deeper (0.5 mm unless
+given; 0.1 to 2 mm, else a ValueError), down to that much under the height given. The result's `deeper_mm` is the depth that sealed, or the last tried with `NOT_GRIPPED`.
 
 **drop()** is the same in reverse, `down_to()` the place: the piece is turned to `angle` on the way across, and the release is waited out
 (3 s, longer than a grip: the board vents the cup for a second and then shuts the valve) before the slow lift. The

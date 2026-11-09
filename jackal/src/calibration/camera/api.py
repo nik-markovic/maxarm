@@ -3,11 +3,11 @@
 The page works in desk space, through the saved `desk.json` or the library's
 default desk: what the calibration maps the camera onto. Three 40 mm cubes
 stand on the desk while it is used, so the arm crosses over them
-(`OVER_CUBES_MM`) and comes down onto one slowly, corrected at the end.
+(`OVER_CUBES_MM`) and comes down to the point as the library lands (`Motion.down_to()`).
 
 | request                      | body    | does                                                          |
 | ---------------------------- | ------- | ------------------------------------------------------------- |
-| `POST /api/camera/move`      | x, y, z | there, corrected; over the cubes first if x or y change       |
+| `POST /api/camera/move`      | x, y, z | there, landed; over the cubes first if x or y change          |
 | `POST /api/camera/record`    | colour  | keep where the servos say the cup is, as that cube's point    |
 | `POST /api/camera/forget`    | colour  | forget that cube's point                                      |
 | `POST /api/camera/visit`     | colour  | back to that cube's point, from above                         |
@@ -93,7 +93,7 @@ class CameraSession:
 
     @staticmethod
     def _approach(motion: Motion, target) -> MoveResult:
-        return motion.approach(Space.DESK, target, precise=True, hover=OVER_CUBES_MM)
+        return motion.down_to(Space.DESK, target, hover=OVER_CUBES_MM)
 
     # --- the points -------------------------------------------------------
 

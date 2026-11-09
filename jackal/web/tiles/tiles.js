@@ -167,6 +167,22 @@ function renderView() {
     + `${fmt(TILES.gap, 0)} mm apart.`;
 }
 
+// The grip's choices, highest first: desk heights over the desk, the plus written out; the tile's top and the desk
+// named.
+function gripChoices() {
+  const [low, high] = TILES.word.grip_range;
+  const step = TILES.word.grip_step;
+  const choices = [];
+  for (let count = Math.round((high - low) / step); count >= 0; count -= 1) {
+    const value = Math.round((low + count * step) * 10) / 10;
+    const over = Math.round((value - TILES.height) * 10) / 10;
+    const label = value === 0 ? '0 (desk)'
+      : `+${value.toFixed(1)} mm${over === 0 ? ' (tile top)' : over > 0 ? ` (${over.toFixed(1)} mm over the tile)` : ''}`;
+    choices.push([String(value), label]);
+  }
+  return choices;
+}
+
 // The grip box and the reader as the app's settings have them, the first time they come; after that, the page's.
 function renderSettings() {
   const { settings } = state;
@@ -199,7 +215,7 @@ function renderPage() {
     ui.offered = result.stamp;
   }
   $('word').disabled = Boolean(problem) || !result;
-  $('grip').disabled = $('word').disabled;
+  $('grip').disabled = Boolean(problem) || isBusy();          // a setting: not tied to a detection
   $('reader').disabled = Boolean(problem) || isBusy();
   $('place').disabled = Boolean(problem) || isBusy() || !result || !$('word').value.trim() || moved().size > 0
     || $('grip').value === '' || Number.isNaN(Number($('grip').value));
@@ -217,7 +233,7 @@ function wordLine(result, word) {
     return before + (result.on_offer ? `On the tiles ready to pick up: <b class="letters">${result.on_offer}</b> <span `
       + `class="note">· PLACE carries the letters typed, in order, to the arc ${fmt(TILES.word.arc, 0)} mm out, `
       + `${fmt(TILES.word.gap, 0)} mm apart, each letter turned for a reader ${READER_WORDS[$('reader').value]}; `
-      + `the cup grips at the height in the box and lets go at ${fmt(TILES.word.drop, 0)} mm</span>`
+      + `the cup grips at the height chosen in grip and lets go at ${fmt(TILES.word.drop, 0)} mm</span>`
       : '<span class="note">No letters on tiles ready to pick up: nothing for PLACE to carry.</span>');
   }
   if (word.status === 'placing') {
@@ -380,7 +396,7 @@ $('locate').addEventListener('click', locate);
 $('word').maxLength = TILES.word.most;
 $('reader').innerHTML = TILES.word.readers.map((reader) => `<option value="${reader}">${reader}</option>`).join('');
 $('reader').addEventListener('change', () => keep('reader', $('reader').value));
-[$('grip').min, $('grip').max] = TILES.word.grip_range;
+$('grip').innerHTML = gripChoices().map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
 $('grip').addEventListener('input', render);
 $('grip').addEventListener('change', () => {
   if ($('grip').value !== '' && !Number.isNaN(Number($('grip').value))) keep('grip_mm', Number($('grip').value));
