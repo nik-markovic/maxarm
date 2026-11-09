@@ -18,8 +18,8 @@ arm.move(x, y, z)                      # fast: 200 mm/s
 arm.move(x, y, z, MoveType.SLOW)       # 10 mm/s: nothing heavy gets yanked
 arm.move(x, y, z, MoveType.PRECISE)    # slow, then read until steady: where it is, not corrected
 arm.move(x, y, z, angle=30.0)          # and turn the cup -- or the piece it holds
-arm.down_to(x, y, height)              # the cup onto the face there, precisely, and stay: suction untouched
-arm.grab(x, y, height, angle=None)     # pick up the piece whose top face is there
+arm.down_to(x, y, height)              # the cup down to exactly there, precisely, and stay: suction untouched
+arm.grab(x, y, height, angle=None)     # the cup down to exactly there, suction on, back up
 arm.drop(x, y, height, angle=None)     # set the held piece down there, facing `angle`
 arm.carry(start, end, angle=None, facing=None)   # both, (x, y, height) each: any turn, checked first
 arm.home()                             # the reset pose, by way of a move
@@ -82,14 +82,16 @@ sent in the same round trip as the leg that crosses the desk, and the move waits
 swings 180 degrees in 1.2 s. The cup turns 90 degrees either way from centre; a turn beyond that is refused before
 anything moves.
 
-**down_to()** brings the cup down onto a face as precisely as the arm lands (`landing.py`; the measurements behind
+**down_to()** moves the cup down to the point given, exactly that height and never lower, as precisely as the arm
+lands (`landing.py`; the measurements behind
 it are in work/MAXARM_MECHANICS.md): slowly up to the travel height if below it, fast across to 20 base pulses beside
 the point (the side of higher pulses), the base turned onto it aimed past by what that turn falls short, then one slow command straight down,
-servos 2 and 3 aimed past by what a descent falls short, 1 mm into the cup's give; read there as PRECISE is. If
+servos 2 and 3 aimed past by what a descent falls short; read there as PRECISE is. If
 the base settled more than a pulse off, it lifts and lands again, once. It stays down, suction as it was:
-`get_position()` says where it came down. What it keeps as sent is the face, never the aimed-past command.
+`get_position()` says where it came down. What it keeps as sent is the point given, never the aimed-past command.
+It is a move only: the suction, and how deep a grip should go, are not its business.
 
-**grab()** lets go of anything held, then: `down_to()` the piece while the cup centres itself, suction on and
+**grab()** lets go of anything held, then: `down_to()` the height given, exactly, while the cup centres itself, suction on and
 waited for (1.5 s), slowly back up. The travel height is `clearance + height + 5 mm`, so the piece clears the clearance by 5 mm. Its
 `angle` says which way the piece faces.
 

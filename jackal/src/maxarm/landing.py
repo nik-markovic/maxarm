@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""How the cup comes down onto a piece, or sets one down: the base's last turn and the descent. No board.
+"""How the cup is brought down to a point as precisely as the arm lands: the base's last turn and the descent.
+No board.
 
 A servo stops short of a command, in the direction it was moving, by an amount set by the move: how far, which
 way, which servo (work/MAXARM_MECHANICS.md §4-7). A one-pulse correction is ignored. So a landing is made the same
@@ -10,8 +11,8 @@ way every time, and aimed past by what that way falls short:
 2. the base turned onto the target from there, aimed past it by AIM_PAST_* pulses;
 3. straight down in one slow command, servos 2 and 3 given EXTRA_PULSES -- by reach -- beyond the target's.
 
-The target is LAND_PRESS_MM under the face the cup lands on, into the cup's give, so that a landing a little high
-still touches. What the library keeps as sent is that target, never the aimed-past command.
+The target is the point asked for, its height included. What the library keeps as sent is that target, never the
+aimed-past command.
 
 Positions in and out are arm space, true (`raw.py`). The pulses are the firmware's, before its cut to whole ones
 (`geometry.nearest_step_command()` rounds them).
@@ -24,8 +25,6 @@ from typing import List, Tuple
 from . import geometry, raw
 from .geometry import Position
 
-# How far under the face the cup is sent: into the cup's give.
-LAND_PRESS_MM = 1.0
 # How far to one side of the target, in base pulses, the last turn starts: the same turn every time.
 APPROACH_PULSES = 20
 # How far past the target the base is aimed, in pulses: turning onto it with its pulses falling, and rising.
@@ -45,14 +44,13 @@ class Landing:
     approach: Position       # at the travel height, the base APPROACH_PULSES to one side
     over: Position           # at the travel height, the base aimed past the target
     down: Position           # what the descent is sent to: the target, servos 2 and 3 beyond it
-    target: Position         # where the cup is to end: LAND_PRESS_MM under the face
+    target: Position         # where the cup is to end: the point asked for
     base: float              # the target's exact base pulse
 
 
-def plans(face: Position, travel_z: float) -> List[Landing]:
-    """The two ways onto `face` at arm z `travel_z`, the last turn with the base's pulses falling first: the aim
-    for a rising turn held on the centre line only. Empty if the firmware's kinematics cannot take the target."""
-    target = (face[0], face[1], face[2] - LAND_PRESS_MM)
+def plans(target: Position, travel_z: float) -> List[Landing]:
+    """The two ways down to `target` from arm z `travel_z`, the last turn with the base's pulses falling first: the
+    aim for a rising turn held on the centre line only. Empty if the firmware's kinematics cannot take the target."""
     try:
         exact = _pulses(target)
         high = _pulses((target[0], target[1], travel_z))

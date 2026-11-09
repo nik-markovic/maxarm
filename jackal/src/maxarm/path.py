@@ -50,9 +50,9 @@ CORNER_SOLVE_STEPS = 20
 # A sideways shift smaller than this is not travelling across the desk: it is
 # below the arm's own accuracy.
 CROSSING_MM = 2.0
-# The lowest desk height a move may ask for. A little under the surface, as the
-# cup is a bellows that seals by being pressed. Far under it is a point given in
-# the wrong space -- desk heights passed as arm z, typically.
+# The lowest desk height a move may ask for. A little under the surface is the
+# caller's to ask for. Far under it is a point given in the wrong space -- desk
+# heights passed as arm z, typically.
 DESK_FLOOR_MM = -5.0
 
 

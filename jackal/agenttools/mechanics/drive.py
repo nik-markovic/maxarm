@@ -35,7 +35,7 @@ from typing import List, Optional, Tuple
 SRC = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(SRC))
 
-from maxarm import MaxArm, MoveType, Space, geometry, landing, raw        # noqa: E402
+from maxarm import MaxArm, MoveType, Space, geometry, raw        # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 STOP = HERE / "STOP"
@@ -412,7 +412,7 @@ def confirm(rig: Rig) -> None:
                  "landings": sum(1 for before, leg in zip(sent, sent[1:]) if leg[1][2] < before[1][2] - 5.0),
                  "time": time.time()}
         target = rig.arm._position
-        entry["target"] = (*rig.spaces.arm.to_desk(target)[:2], CONFIRM_FACE_MM - landing.LAND_PRESS_MM)
+        entry["target"] = (*rig.spaces.arm.to_desk(target)[:2], CONFIRM_FACE_MM)
         if settled:
             entry["landed"] = rig.spaces.arm.to_desk(rig.arm_of_pulses(settled))
             entry["exact_base"] = geometry.deg_to_pulse(geometry.inverse(raw.raw_position(target)))[0]

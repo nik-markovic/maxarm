@@ -8,7 +8,7 @@
     arm.grab(812.0, 640.0, 4.0, angle=12.0)
     arm.drop(1020.0, 700.0, 5.0, angle=0.0)
     arm.carry((812.0, 640.0, 4.0), (1020.0, 700.0, 5.0), angle=12.0, facing=180.0)   # both: any turn
-    arm.down_to(900.0, 660.0, 4.0)        # the cup onto that face, precisely, and stay there
+    arm.down_to(900.0, 660.0, 4.0)        # the cup down to exactly there, precisely, and stay there
 
 Every motion -- `move()`, `down_to()`, `grab()`, `drop()`, `carry()`, `home()` -- goes through
 `_move()`, which plans and checks the whole path (`path.py`) before anything
@@ -229,13 +229,13 @@ class MaxArm:
 
     def grab(self, x: float, y: float, height: float, *,
              angle: Optional[float] = None) -> MoveResult:
-        """Pick up the piece whose top face is at (x, y, height).
+        """Pick up a piece, the cup brought down to (x, y, height) for the grip.
 
+        `height` is where the cup is sent, exactly; nothing is added to it.
         Lets go of anything held, then: slowly up to the travel height if below
         it, fast across to beside the piece with the cup centring itself, the
-        base turned onto it, slowly straight down a little into the cup's give
-        (`landing.py`) and read there as PRECISE is, suction on and waited
-        for, slowly back up. The travel height is `clearance + height + 5 mm`,
+        base turned onto it, slowly straight down (`landing.py`) and read there
+        as PRECISE is, suction on and waited for, slowly back up. The travel height is `clearance + height + 5 mm`,
         so the piece hangs 5 mm above the clearance.
 
         `angle` says which way the piece faces; `drop()` turns it from there.
@@ -246,7 +246,7 @@ class MaxArm:
 
     def drop(self, x: float, y: float, height: float, *,
              angle: Optional[float] = None) -> MoveResult:
-        """Set the held piece down with its top face at (x, y, height), facing `angle`.
+        """Set the held piece down, the cup brought down to (x, y, height), facing `angle`.
 
         `grab()` in reverse: the piece is turned on the way across, and the
         release is waited out -- longer than a grip -- before the slow lift.
@@ -259,16 +259,17 @@ class MaxArm:
         return self._drop((float(x), float(y), float(height)), angle)
 
     def down_to(self, x: float, y: float, height: float) -> MoveResult:
-        """Bring the cup down onto the face at (x, y, height), as precisely as the arm lands, and stay there.
+        """Move the cup down to (x, y, height), as precisely as the arm lands, and stay there.
 
-        The way `grab()` and `drop()` come down (`landing.py`): slowly up to
-        the travel height if below it, fast across to beside the point, the
-        base turned onto it, slowly straight down a little into the cup's give,
-        and read there as PRECISE is. The suction is left as it is, and so is
-        anything held: its face is then the held piece's bottom, set down.
-        `get_position()` then says where the cup came down. The travel height
-        is `clearance + height + 5 mm`; with no clearance set, 5 mm over the
-        face. The cup is not turned: `grab()`, `drop()` and `carry()` do that.
+        A move and nothing more: `height` is where the cup is sent, exactly,
+        never lower. The suction is left as it is, on or off, and so is
+        anything held. It comes down the way `grab()` and `drop()` do
+        (`landing.py`): slowly up to the travel height if below it, fast across
+        to beside the point, the base turned onto it, slowly straight down, and
+        read there as PRECISE is. `get_position()` then says where the cup came
+        down. The travel height is `clearance + height + 5 mm`; with no
+        clearance set, 5 mm over the point. The cup is not turned: `grab()`,
+        `drop()` and `carry()` do that.
         """
         self._begin()
         self._require_connection()
@@ -277,7 +278,7 @@ class MaxArm:
 
     def carry(self, start: Position, end: Position, *, angle: Optional[float] = None,
               facing: Optional[float] = None) -> MoveResult:
-        """Pick up the piece whose top face is at `start`, and set it down with its top face at `end`.
+        """Pick up a piece, the cup brought down to `start`, and set it down, the cup brought down to `end`.
 
         `grab()`, then `drop()`: `start` and `end` are (x, y, height), and the
         drop is checked before the grip, so a refusal means nothing moved.
@@ -527,7 +528,7 @@ class MaxArm:
                 failed = self._drive(point, speed, None)
                 if failed is not None:
                     return failed
-            result = self._land(self._spaces.arm.from_desk(target))     # the face: the press is the move's
+            result = self._land(self._spaces.arm.from_desk(target))
             off = self._settled[0] - way.base if result and self._settled else 0.0
             if abs(off) <= landing.BASE_OFF_PULSES or attempt == 2:
                 return result
@@ -542,16 +543,16 @@ class MaxArm:
         problem = (self._planner.problem_with((target[0], target[1], travel)) or self._planner.problem_with(target)
                    or nozzle.problem_with(servo))
         if problem is None and not self._landings(target, travel):
-            problem = "the cup could not be brought down onto it from either side"
+            problem = "the cup could not be brought down to it from either side"
         return problem
 
     def _landings(self, target: Position, travel: float) -> list:
-        """The ways down onto the face at desk point `target` from `travel` (`landing.plans()`) whose every point
+        """The ways down to desk point `target` from `travel` (`landing.plans()`) whose every point
         the planner takes, the better first."""
         arm_space = self._spaces.arm
-        face = arm_space.from_desk(target)
+        arm_target = arm_space.from_desk(target)
         travel_z = arm_space.from_desk((target[0], target[1], travel))[2]
-        return [way for way in landing.plans(face, travel_z)
+        return [way for way in landing.plans(arm_target, travel_z)
                 if not any(self._planner.problem_with(arm_space.to_desk(point))
                            for point in (way.approach, way.over, way.down, way.target))]
 
