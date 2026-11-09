@@ -14,10 +14,18 @@ lifted to TRAVEL_MM.
 - base:    the base turned onto a place from each side, by 2 to 60 pulses, at 5 and 40 mm.
 - sideways: targets between the base's whole pulses, from each side, then down to 2 mm.
 - pickup:  pickups on the centre line: start height, extra pulses on servos 2 and 3, the base's side and aim varied.
+- tune:    pickups around the best guess of those extra pulses, by reach.
+- confirm: the library's own landing (`landing.py`, as grab() and drop() come down), no suction, across reach and
+           bearing.
+- seal:    down_to() faces stepping down 0.5 mm at three reaches, the pump on at each, until it seals.
+- watch:   the owner at the desk, around the seal's edge: down until they say sealed, back out until loose.
+- edge:    the same with the library's verdict, no one at the desk, at the 5 Nov find-desk run's places;
+           edge-sides at its places further round, out to 60 degrees; edge-line straight out, out and back.
 """
 
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -27,7 +35,7 @@ from typing import List, Optional, Tuple
 SRC = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(SRC))
 
-from maxarm import MaxArm, MoveType, Space, geometry, raw        # noqa: E402
+from maxarm import MaxArm, MoveType, Space, geometry, landing, raw        # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 STOP = HERE / "STOP"
@@ -365,7 +373,226 @@ def tune(rig: Rig) -> None:
         print(f"  {number}/{len(trials)} {label}", flush=True)
 
 
-PHASES = {"descent": descent, "small": small, "base": base, "sideways": sideways, "pickup": pickup, "tune": tune}
+CONFIRM_REACHES = tuple(float(r) for r in os.environ.get(
+    "CONFIRM_REACHES", "120 140 160 175 190 205 220 235 250 265").split())
+CONFIRM_BEARINGS = tuple(float(b) for b in os.environ.get("CONFIRM_BEARINGS", "-40 0 40").split())
+CONFIRM_FACE_MM = float(os.environ.get("CONFIRM_FACE_MM", "2.0"))
+# With CONFIRM_SUCTION=1, the pump on after each landing and the seal judged: whether the cup was on the desk.
+CONFIRM_SUCTION = os.environ.get("CONFIRM_SUCTION") == "1"
+CONFIRM_CLEARANCE_MM = 13.0      # down_to() travels at clearance + face + 5: 20 mm
+
+
+def confirm(rig: Rig) -> None:
+    """The library's own landing (`MaxArm.down_to()`, as grab() and drop() come down), no suction: onto a 2 mm face
+    at every reach and three bearings, twice, the places in an order that comes at them from both sides. Each
+    landing is logged with the commands it sent and the steady read it ended on."""
+    sent: List[list] = []
+    original = rig.protocol.set_position
+
+    def counting(point, move_ms, *args, **kwargs):
+        sent.append([round(time.monotonic(), 3), list(point), move_ms])
+        return original(point, move_ms, *args, **kwargs)
+
+    rig.protocol.set_position = counting
+    rig.arm.set_clearance(CONFIRM_CLEARANCE_MM)
+    travel = CONFIRM_CLEARANCE_MM + CONFIRM_FACE_MM + 5.0
+    places = [(r, b) for r in CONFIRM_REACHES for b in CONFIRM_BEARINGS]
+    trials = places + places[::-1]
+    for number, (r, b) in enumerate(trials, 1):
+        rig.check_stop()
+        x, y = at(r, b)
+        if not all(clear_of_cups(*at(r, b + turn)) for turn in (-6.0, 0.0, 6.0)):      # the approach is 4.8 deg aside
+            continue
+        face = (x, y, CONFIRM_FACE_MM)
+        sent.clear()
+        result = rig.arm.down_to(*face)
+        settled = rig.arm._settled
+        entry = {"kind": "confirm", "label": f"r{r:.0f} b{b:+.0f}", "reach": r, "bearing": b, "face": face,
+                 "result": str(result), "sent": list(sent), "settled": list(settled) if settled else None,
+                 "landings": sum(1 for before, leg in zip(sent, sent[1:]) if leg[1][2] < before[1][2] - 5.0),
+                 "time": time.time()}
+        target = rig.arm._position
+        entry["target"] = (*rig.spaces.arm.to_desk(target)[:2], CONFIRM_FACE_MM - landing.LAND_PRESS_MM)
+        if settled:
+            entry["landed"] = rig.spaces.arm.to_desk(rig.arm_of_pulses(settled))
+            entry["exact_base"] = geometry.deg_to_pulse(geometry.inverse(raw.raw_position(target)))[0]
+        if result and CONFIRM_SUCTION:
+            rig.arm.set_suction(True)
+            seal, (dip, pulled) = rig.arm.get_seal(), rig.arm.get_seal_measures()
+            entry["seal"], entry["dip"], entry["pulled"] = seal.value if seal else None, dip, pulled
+            rig.arm.set_suction(False)
+        rig.write(entry)
+        rig.desk = rig.arm._desk_position()
+        if not result:
+            print(f"  {entry['label']}: {result}", flush=True)
+            continue
+        rig.travel(x, y, travel, entry["label"], height=travel)
+        landed = entry.get("landed")
+        print(f"  {number}/{len(trials)} {entry['label']}: height {landed[2] - entry['target'][2]:+.2f} mm, "
+              f"base {settled[0] - entry['exact_base']:+.2f} pulses, landings {entry['landings']}"
+              f"{', ' + str(entry.get('seal')) + ' pulled ' + str(entry.get('pulled')) if 'seal' in entry else ''}"
+              if landed else f"  {number}/{len(trials)} {entry['label']}: no read", flush=True)
+
+
+SEAL_PLACES = ((160.0, 0.0), (220.0, 0.0), (265.0, 0.0))
+SEAL_FACES_MM = (1.0, 0.5, 0.0, -0.5, -1.0, -1.5, -2.0)
+
+
+def seal(rig: Rig) -> None:
+    """Where the cup grips the desk now: down_to() faces stepping down 0.5 mm, the pump on at each, until it seals."""
+    rig.arm.set_clearance(CONFIRM_CLEARANCE_MM)
+    for r, b in SEAL_PLACES:
+        x, y = at(r, b)
+        for face in SEAL_FACES_MM:
+            rig.check_stop()
+            result = rig.arm.down_to(x, y, face)
+            settled = rig.arm._settled
+            entry = {"kind": "seal", "label": f"r{r:.0f} b{b:+.0f} f{face:+.1f}", "reach": r, "bearing": b,
+                     "face": face, "result": str(result), "settled": list(settled) if settled else None}
+            if settled:
+                entry["landed"] = rig.spaces.arm.to_desk(rig.arm_of_pulses(settled))
+            if result:
+                rig.arm.set_suction(True)
+                state, (dip, pulled) = rig.arm.get_seal(), rig.arm.get_seal_measures()
+                entry.update(seal=state.value if state else None, dip=dip, pulled=pulled)
+                rig.arm.set_suction(False)
+            rig.write(entry)
+            rig.desk = rig.arm._desk_position()
+            print(f"  {entry['label']}: cup read at desk z {entry.get('landed', [0, 0, float('nan')])[2]:+.2f}, "
+                  f"{entry.get('seal')} dip {entry.get('dip')} pulled {entry.get('pulled')}", flush=True)
+            if not result or entry.get("seal") == "sealed":
+                break
+        rig.travel(x, y, 20.0, f"r{r:.0f} up", height=20.0)
+
+
+# Where to start, the face just above where the cup first sealed on 8 Nov: reach, bearing, face mm.
+WATCH_PLACES = ((265.0, 0.0, 0.25), (220.0, 0.0, 1.0))
+WATCH_STEP_MM = 0.25
+WATCH_CROSSINGS = 3                 # down to a seal, back out to a leak, down to a seal again
+WATCH_MOST_STEPS = 10               # per place
+WATCH_ANSWERS = {"y": "sealed", "n": "loose", "?": "unsure", "": "unsure"}
+
+
+def bracket(rig: Rig, label: str, x: float, y: float, face: float, verdict) -> None:
+    """Around the edge where the cup starts to seal at (x, y): down WATCH_STEP_MM at a time until `verdict` says
+    sealed, back out until loose, down again. `verdict(entry)` answers y, n, ?, s or q; ? goes on the same way."""
+    way, crossings = -1, 0
+    for _ in range(WATCH_MOST_STEPS):
+        rig.check_stop()
+        result = rig.arm.down_to(x, y, face)
+        settled = rig.arm._settled
+        entry = {"kind": "edge", "label": f"{label} f{face:+.2f}", "x": x, "y": y, "face": face,
+                 "result": str(result), "settled": list(settled) if settled else None, "time": time.time()}
+        if settled:
+            entry["landed"] = rig.spaces.arm.to_desk(rig.arm_of_pulses(settled))
+            entry["raw"] = geometry.forward(geometry.pulse_to_deg(tuple(settled)))
+        answer = ""
+        if result:
+            rig.arm.set_suction(True)
+            try:
+                state, (dip, pulled) = rig.arm.get_seal(), rig.arm.get_seal_measures()
+                entry.update(seal=state.value if state else None, dip=dip, pulled=pulled)
+                answer = verdict(entry)
+            finally:
+                rig.arm.set_suction(False)
+        rig.write(entry)
+        rig.desk = rig.arm._desk_position()
+        if not result:
+            print(f"  {entry['label']}: {result}", flush=True)
+            break
+        if answer == "q":
+            rig.travel(x, y, 20.0, f"{label} up", height=20.0)
+            raise Stop()
+        if answer == "s":
+            break
+        if (answer == "y" and way < 0) or (answer == "n" and way > 0):
+            way, crossings = -way, crossings + 1
+            if crossings >= WATCH_CROSSINGS:
+                break
+        face += way * WATCH_STEP_MM
+    rig.travel(x, y, 20.0, f"{label} up", height=20.0)
+
+
+def watch(rig: Rig) -> None:
+    """The owner at the desk, around the edge where the cup starts to seal (`bracket`): the pump stays on at each
+    step until they say whether the cup sealed; their answer is logged beside the library's verdict."""
+    rig.arm.set_clearance(CONFIRM_CLEARANCE_MM)
+    print("At each step the pump stays on. Look at the cup, then answer:\n"
+          "  y sealed, n loose, ? unsure (or Enter), s skip to the next place, q quit", flush=True)
+
+    def owner(entry: dict) -> str:
+        height = entry.get("landed", [0, 0, float("nan")])[2]
+        dip, pulled = (f"{v:.2f}" if v is not None else "-" for v in (entry["dip"], entry["pulled"]))
+        answer = input(f"  {entry['label']}, cup read at {height:+.2f}: library says {entry['seal']} "
+                       f"(dip {dip}, pulled {pulled}). Sealed? ").strip().lower()
+        entry["owner"] = WATCH_ANSWERS.get(answer, answer)
+        return answer
+
+    for r, b, face in WATCH_PLACES:
+        bracket(rig, f"r{r:.0f} b{b:+.0f}", *at(r, b), face, owner)
+
+
+# The 5 Nov find-desk run's own places (files/true-z/2026-11-05-points.csv, run 2), true x, y; the reference
+# place between them, for drift.
+EDGE_REFERENCE = ("ref", 0.0, -190.0)
+EDGE_PLACES = (("r145 b+0", 0.0, -145.0), ("r160 b+11", 29.82, -157.2), ("r160 b-11", -29.82, -157.2),
+               ("r175 b-20", -58.83, -164.81), ("r175 b+0", 0.0, -175.0), ("r175 b+20", 58.83, -164.81),
+               ("r190 b+9", 29.88, -187.64), ("r190 b-9", -29.88, -187.64), ("r205 b+0", 0.0, -205.0),
+               ("r220 b+8", 29.91, -217.96), ("r220 b-8", -29.91, -217.96), ("r235 b-15", -59.35, -227.38),
+               ("r235 b+0", 0.0, -235.0), ("r235 b+15", 59.35, -227.38), ("r250 b+7", 29.93, -248.2),
+               ("r250 b-7", -29.93, -248.2), ("r265 b-13", -59.49, -258.24), ("r265 b+0", 0.0, -265.0),
+               ("r265 b+13", 59.49, -258.24))
+# The same run's places further round, as far as it went at each reach, out to 60 degrees.
+EDGE_SIDE_PLACES = tuple((f"r{r} b{b:+d}", x, y) for r, b, x, y in (
+    (160, -54, -128.97, -94.69), (160, 54, 128.97, -94.69),
+    (175, -60, -151.55, -87.5), (175, -45, -123.74, -123.74), (175, -30, -87.5, -151.55),
+    (175, 30, 87.5, -151.55), (175, 45, 123.74, -123.74), (175, 60, 151.55, -87.5),
+    (190, -45, -134.9, -133.8), (190, 45, 134.9, -133.8),
+    (205, -50, -157.75, -130.92), (205, -34, -113.26, -170.87), (205, 34, 113.26, -170.87),
+    (205, 50, 157.75, -130.92),
+    (220, -55, -179.53, -127.16), (220, -39, -138.65, -170.81), (220, -23, -87.51, -201.85),
+    (220, 23, 87.51, -201.85), (220, 39, 138.65, -170.81), (220, 55, 179.53, -127.16),
+    (235, -44, -162.91, -169.37), (235, -29, -114.85, -205.02), (235, 29, 114.85, -205.02),
+    (235, 44, 162.91, -169.37),
+    (250, -34, -141.16, -206.33), (250, -21, -88.07, -233.97), (250, 21, 88.07, -233.97),
+    (250, 34, 141.16, -206.33), (250, 48, 186.16, -166.87),
+    (265, -39, -166.47, -206.18), (265, -26, -115.94, -238.29), (265, 26, 115.94, -238.29),
+    (265, 39, 166.47, -206.18)))
+# Straight out along x = 0, 7.5 mm apart where the wave is, out and back.
+EDGE_LINE_REACHES = (145.0, 160.0, 175.0, 190.0, 197.5, 205.0, 212.5, 220.0, 227.5, 235.0, 242.5, 250.0, 257.5, 265.0)
+EDGE_LINE_PLACES = tuple((f"line r{r:g}", 0.0, -r) for r in EDGE_LINE_REACHES + EDGE_LINE_REACHES[::-1])
+EDGE_START_MM = 1.0
+EDGE_REFERENCE_EVERY = 5
+
+
+def edge(rig: Rig, chosen=EDGE_PLACES) -> None:
+    """No one at the desk: the edge where the cup starts to seal (`bracket`), the library's verdict deciding, at
+    the 5 Nov run's places, the reference place first, every EDGE_REFERENCE_EVERY places and last."""
+    rig.arm.set_clearance(CONFIRM_CLEARANCE_MM)
+
+    def library(entry: dict) -> str:
+        raw_z, read = entry.get("raw", [0, 0, float("nan")])[2], entry.get("landed", [0, 0, float("nan")])[2]
+        print(f"  {entry['label']}: raw z {raw_z:.2f}, read {read:+.2f}, {entry['seal']} "
+              f"(dip {entry['dip']}, pulled {entry['pulled']})", flush=True)
+        return {"sealed": "y", "loose": "n"}.get(entry["seal"], "?")
+
+    places = []
+    for number, place in enumerate(chosen):
+        if number % EDGE_REFERENCE_EVERY == 0:
+            places.append(EDGE_REFERENCE)
+        places.append(place)
+    places.append(EDGE_REFERENCE)
+    for label, x, y in places:
+        reach, bearing = math.hypot(x, y), geometry.bearing_degrees(x, y)
+        if not all(clear_of_cups(*at(reach, bearing + turn)) for turn in (-6.0, 0.0, 6.0)):
+            print(f"  {label}: too near the base's suction cups, left out", flush=True)
+            continue
+        bracket(rig, label, x, y, EDGE_START_MM, library)
+
+
+PHASES = {"descent": descent, "small": small, "base": base, "sideways": sideways, "pickup": pickup, "tune": tune,
+          "confirm": confirm, "seal": seal, "watch": watch, "edge": edge,
+          "edge-sides": lambda rig: edge(rig, EDGE_SIDE_PLACES), "edge-line": lambda rig: edge(rig, EDGE_LINE_PLACES)}
 
 
 def main() -> None:

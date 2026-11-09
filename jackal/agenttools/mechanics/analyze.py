@@ -7,6 +7,7 @@ Pulses read minus pulses commanded: + past the command in the direction of the l
 """
 
 import json
+import math
 import statistics as st
 import sys
 from collections import defaultdict
@@ -83,7 +84,9 @@ def load(paths):
     for path in paths:
         for line in open(path):
             entry = json.loads(line)
-            if entry.get("reads"):
+            if entry.get("kind") == "confirm":
+                entry["reads"] = []
+            if entry.get("reads") is not None:
                 entries.append(entry)
     return entries
 
@@ -278,6 +281,33 @@ def tuning(entries) -> None:
     print(f"   every variant, n={len(allh)}: height 90% {q(allh, .9):+.2f}, most shallow {allh[-1]:+.2f}")
 
 
+def confirmed(entries) -> None:
+    """The library's landing (`drive.py confirm`): height and reach against the target, base against its exact pulse."""
+    rows = [e for e in entries if e["kind"] == "confirm" and e.get("landed")]
+    if not rows:
+        return
+    print("== confirm: down_to() onto a 2 mm face, the target 1 mm under it (height + too shallow, reach + too far out) ==")
+    groups = defaultdict(list)
+    for e in rows:
+        height = e["landed"][2] - e["target"][2]
+        reach = math.hypot(*e["landed"][:2]) - math.hypot(*e["target"][:2])
+        base = e["settled"][0] - e["exact_base"]
+        for key in ("all", "inner <150" if e["reach"] < 150 else "outer >=150"):
+            groups[key].append((height, reach, base, e["landings"]))
+    for key, values in groups.items():
+        heights = [v[0] for v in values]
+        print(f"{key:11s} n={len(values):2d}: height median {st.median(heights):+.2f}, 10% {q(heights, 0.1):+.2f}, "
+              f"90% {q(heights, 0.9):+.2f}, most shallow {max(heights):+.2f}, deepest {min(heights):+.2f}; "
+              f"reach {spread([v[1] for v in values], 2)}; base within 0.5 {sum(abs(v[2]) <= 0.5 for v in values)}"
+              f"/{len(values)}, within 1 {sum(abs(v[2]) <= 1 for v in values)}/{len(values)}; "
+              f"landed twice {sum(v[3] > 1 for v in values)}")
+    by_reach = defaultdict(list)
+    for e in rows:
+        by_reach[e["reach"]].append(e["landed"][2] - e["target"][2])
+    print("  height by reach: " + "  ".join(f"{r:.0f}: {st.median(v):+.2f} [{min(v):+.2f}..{max(v):+.2f}]"
+                                         for r, v in sorted(by_reach.items())))
+
+
 def main() -> None:
     paths = sys.argv[1:] or sorted((HERE / "runs").glob("*.jsonl"))
     entries = load(paths)
@@ -288,6 +318,7 @@ def main() -> None:
     between(entries)
     pickups(entries)
     tuning(entries)
+    confirmed(entries)
 
 
 if __name__ == "__main__":

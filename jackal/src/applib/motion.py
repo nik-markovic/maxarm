@@ -8,8 +8,8 @@ finding the desk with it -- and the /IOTCONNECT app moves it the same way:
   slow below it; a vertical move through it goes fast down to it and slowly on.
 - **jump**: over to another x, y -- slowly up to the hover height first if lower
   -- and stay at that height.
-- **approach**: a jump, then down onto the point, the way `grab()` comes down
-  onto a piece. Straight down when the point is underneath.
+- **approach**: a jump, then straight down onto the point. Not `grab()`'s
+  landing (`maxarm/landing.py`): no aim past, no press.
 - **glide**: slowly and level, in short legs, to watch the cup's height.
 - **carry**: a piece picked up and set down, as the library's `carry()` does it.
 

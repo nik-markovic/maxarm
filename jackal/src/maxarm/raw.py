@@ -11,7 +11,7 @@ it says, most on the desk, and the base points a little off, by an amount that
 changes over its turn. The library corrects every target before it is sent
 and every reading after it is read:
 
-    true z = raw z + 0.05 x (reach - 207) + wave(reach) - (h / 120)^2 x (3.4 + 0.0126 x (reach - 207))
+    true z = raw z + 0.0588 x (reach - 201.5) + wave(reach) - (h / 120)^2 x (3.33 + 0.0126 x (reach - 201.5))
     true reach = reach + 6.26 - 0.110 x min(h, 44)
     true bearing = bearing - 1.36 x sin 2b + 0.33 x (cos 2b - 1), in degrees
 
@@ -35,18 +35,21 @@ from typing import Tuple
 
 from .geometry import Position
 
-# On the desk, true z is raw z plus this much per mm of reach past LEVEL_REACH_MM,
-TRUE_Z_PER_MM_OF_REACH = 0.05
-LEVEL_REACH_MM = 207.0
-# plus this, by the firmware's reach: the desk found by the cup's seal ring by ring, 0.5 mm under the highest height
-# the cup seals at (STATUS-jackal §15; agenttools/true-z/fit-desk.py prints it).
-DESK_WAVE_MM = ((109.5, -0.53), (125.1, +0.15), (139.4, +0.13), (155.5, +0.12), (169.8, +0.16), (185.1, -0.18),
-                (199.8, -0.71), (214.7, -0.20), (229.3, -0.21), (244.7, +0.03), (259.6, -0.96))
+# On the desk, true z is raw z plus this much per mm of reach past LEVEL_REACH_MM: the line refitted to where the
+# cup starts to seal, 8 Nov, held where the 5 Nov fit hung it, 150-190 mm out (STATUS-jackal §17,
+# agenttools/mechanics/edge_fit.py).
+TRUE_Z_PER_MM_OF_REACH = 0.0588
+LEVEL_REACH_MM = 201.5
+# plus this, by the firmware's reach: the desk found by the cup's seal ring by ring, 0.4 mm under the height that
+# best splits seals from leaks; from 138 mm out refitted with the line above, the two first rows as before
+# (STATUS-jackal §17, agenttools/mechanics/edge_fit.py).
+DESK_WAVE_MM = ((109.5, -0.53), (125.1, +0.15), (138.8, +0.09), (153.8, +0.26), (169.2, +0.20), (184.0, -0.39),
+                (198.8, -0.60), (213.4, -0.21), (228.8, -0.25), (244.0, -0.50), (258.6, -0.47))
 # Above it, raw z reads too tall with the square of the height over the desk:
 # by TALL_AT_STACK_MM at STACK_MM up and LEVEL_REACH_MM out, more further out.
 DESK_Z_MM = 44.0                   # heights are counted from the desk under an ideally placed arm
 STACK_MM = 120.0
-TALL_AT_STACK_MM = 3.4
+TALL_AT_STACK_MM = 3.33            # 3.4 at 207 mm out, the same correction counted from LEVEL_REACH_MM
 TALL_PER_MM_OF_REACH = 0.0126      # how much more for every mm further out
 # x and y: the cup is REACH_AT_DESK_MM further out than the firmware says on the desk, REACH_LESS_PER_MM less for
 # every mm above it, no less above REACH_TOP_MM; and the base points WAVE_SIN_DEG x sin 2b + WAVE_COS_DEG x

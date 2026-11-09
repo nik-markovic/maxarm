@@ -8,11 +8,14 @@
     arm.grab(812.0, 640.0, 4.0, angle=12.0)
     arm.drop(1020.0, 700.0, 5.0, angle=0.0)
     arm.carry((812.0, 640.0, 4.0), (1020.0, 700.0, 5.0), angle=12.0, facing=180.0)   # both: any turn
+    arm.down_to(900.0, 660.0, 4.0)        # the cup onto that face, precisely, and stay there
 
-Every motion -- `move()`, `grab()`, `drop()`, `carry()`, `home()` -- goes through
+Every motion -- `move()`, `down_to()`, `grab()`, `drop()`, `carry()`, `home()` -- goes through
 `_move()`, which plans and checks the whole path (`path.py`) before anything
-is sent, so a refusal means nothing moved. Each leg is one command, given the
-time its speed implies, and waited out. Nothing is read back on the way.
+is sent, so a refusal means nothing moved. A landing's last turn and descent
+(`landing.py`) are checked the same way before the grab or drop starts. Each
+leg is one command, given the time its speed implies, and waited out. Nothing
+is read back on the way.
 
 Positions in and out are true, where the cup really is; the firmware's own
 are corrected at the board (`raw.py`).
@@ -28,7 +31,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
-from . import geometry, nozzle, raw, seal
+from . import geometry, landing, nozzle, raw, seal
 from .geometry import Position
 from .path import CLEARANCE_MARGIN_MM, CROSSING_MM, Planner, Refused
 from .protocol import IS_TRACED, ProtocolError, ReplProtocol, trace_note
@@ -229,10 +232,11 @@ class MaxArm:
         """Pick up the piece whose top face is at (x, y, height).
 
         Lets go of anything held, then: slowly up to the travel height if below
-        it, fast across with the cup centring itself, slowly down onto the
-        piece and read there as PRECISE is, suction on and waited for,
-        slowly back up. The travel height is `clearance + height + 5 mm`, so
-        the piece hangs 5 mm above the clearance.
+        it, fast across to beside the piece with the cup centring itself, the
+        base turned onto it, slowly straight down a little into the cup's give
+        (`landing.py`) and read there as PRECISE is, suction on and waited
+        for, slowly back up. The travel height is `clearance + height + 5 mm`,
+        so the piece hangs 5 mm above the clearance.
 
         `angle` says which way the piece faces; `drop()` turns it from there.
         """
@@ -253,6 +257,23 @@ class MaxArm:
         self._begin()
         self._require_clearance("drop")
         return self._drop((float(x), float(y), float(height)), angle)
+
+    def down_to(self, x: float, y: float, height: float) -> MoveResult:
+        """Bring the cup down onto the face at (x, y, height), as precisely as the arm lands, and stay there.
+
+        The way `grab()` and `drop()` come down (`landing.py`): slowly up to
+        the travel height if below it, fast across to beside the point, the
+        base turned onto it, slowly straight down a little into the cup's give,
+        and read there as PRECISE is. The suction is left as it is, and so is
+        anything held: its face is then the held piece's bottom, set down.
+        `get_position()` then says where the cup came down. The travel height
+        is `clearance + height + 5 mm`; with no clearance set, 5 mm over the
+        face. The cup is not turned: `grab()`, `drop()` and `carry()` do that.
+        """
+        self._begin()
+        self._require_connection()
+        target = self._space.to_desk((float(x), float(y), float(height)))
+        return self._visit(target, self._travel_height(target, self._held.height if self._held else target[2]), None)
 
     def carry(self, start: Position, end: Position, *, angle: Optional[float] = None,
               facing: Optional[float] = None) -> MoveResult:
@@ -486,23 +507,53 @@ class MaxArm:
         return self._move((target[0], target[1], travel), MoveType.SLOW)
 
     def _visit(self, target: Position, travel: float, servo: Optional[float]) -> MoveResult:
-        """Slowly up to `travel` if below it, fast across, slowly down onto `target` and read there."""
+        """Slowly up to `travel` if below it, then down onto `target` as `landing.py` comes down, and read there
+        as PRECISE is. A landing whose base settles more than BASE_OFF_PULSES off is lifted and made again, once."""
         problem = self._visit_problem(target, travel, servo)
         if problem:
             return self._result(MoveStatus.REFUSED, problem)
         here = self._desk_position()
-        legs = [((target[0], target[1], travel), MoveType.FAST, servo), (target, MoveType.PRECISE, None)]
         if here[2] < travel:
-            legs.insert(0, ((here[0], here[1], travel), MoveType.SLOW, None))
-        for point, move_type, leg_servo in legs:
-            result = self._move(point, move_type, leg_servo)
+            result = self._move((here[0], here[1], travel), MoveType.SLOW)
+            if not result:
+                return result
+        way = self._landings(target, travel)[0]
+        for attempt in (1, 2):
+            result = self._move(self._spaces.arm.to_desk(way.approach), MoveType.FAST, servo)
+            if not result:
+                return result
+            servo = None
+            for point, speed in ((way.over, MOVE_FAST_MM_S), (way.down, MOVE_SLOW_MM_S)):
+                failed = self._drive(point, speed, None)
+                if failed is not None:
+                    return failed
+            result = self._land(self._spaces.arm.from_desk(target))     # the face: the press is the move's
+            off = self._settled[0] - way.base if result and self._settled else 0.0
+            if abs(off) <= landing.BASE_OFF_PULSES or attempt == 2:
+                return result
+            if IS_TRACED:
+                trace_note(f"landing: the base settled {off:+.1f} pulses off the target; lifting to land again")
+            result = self._move((target[0], target[1], travel), MoveType.SLOW)
             if not result:
                 return result
         return result
 
     def _visit_problem(self, target: Position, travel: float, servo: Optional[float]) -> Optional[str]:
-        return (self._planner.problem_with((target[0], target[1], travel)) or self._planner.problem_with(target)
-                or nozzle.problem_with(servo))
+        problem = (self._planner.problem_with((target[0], target[1], travel)) or self._planner.problem_with(target)
+                   or nozzle.problem_with(servo))
+        if problem is None and not self._landings(target, travel):
+            problem = "the cup could not be brought down onto it from either side"
+        return problem
+
+    def _landings(self, target: Position, travel: float) -> list:
+        """The ways down onto the face at desk point `target` from `travel` (`landing.plans()`) whose every point
+        the planner takes, the better first."""
+        arm_space = self._spaces.arm
+        face = arm_space.from_desk(target)
+        travel_z = arm_space.from_desk((target[0], target[1], travel))[2]
+        return [way for way in landing.plans(face, travel_z)
+                if not any(self._planner.problem_with(arm_space.to_desk(point))
+                           for point in (way.approach, way.over, way.down, way.target))]
 
     def _halt(self) -> MoveResult:
         """stop() landed during a leg: send the arm to where it has got to, which holds it."""
