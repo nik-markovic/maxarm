@@ -265,7 +265,9 @@ class MaxArm:
         ValueError), down to `height - retry_deeper_mm`. If none seals, the
         cup is let go and lifted, and the result is NOT_GRIPPED. Either way the
         result's `deeper_mm` says how much deeper than `height` the cup went.
-        At 0, the default, the grip is not checked.
+        At 0, the default, the grip is not checked. The seal is told right only
+        against what does not move, the desk or a piece the cup presses onto it;
+        it does not say whether a light piece came along (`seal.py`).
         """
         retry = _retry(retry_deeper_mm, retry_step_mm)
         self._begin()
@@ -359,7 +361,8 @@ class MaxArm:
 
     def get_seal(self) -> Optional[SealState]:
         """Whether the cup sealed when the pump last went on: by how far the pump pulled the supply down, and
-        whether the seal pulled the arm down (`seal.py`). None while the pump is off, and once the arm has moved."""
+        whether the seal pulled the arm down (`seal.py`). None while the pump is off, and once the arm has moved.
+        Told right against what does not move, the desk; not whether a light piece is held."""
         return self._seal[0] if self._seal else None
 
     def get_seal_measures(self) -> Tuple[Optional[float], Optional[float]]:

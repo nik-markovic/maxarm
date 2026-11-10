@@ -11,6 +11,10 @@ seal itself changes what the servos do: the cup is a bellows, and against a seal
 down. Servos pushing the cup down are eased by that, and the dip shrinks; servos holding it short of a target above
 strain against it, and the dip grows as if the cup drew air. So a cup pulled down is sealed, whatever the dip: the
 pump alone never moves the arm.
+
+It holds for a cup landed on what does not move -- the desk, a piece pressed onto it. A light piece is pulled up
+into the cup instead of the cup down, and what the supply reads with a piece on the cup is not told apart from an
+empty cup, there or after a lift: whether something was picked up is not this module's to say.
 """
 
 from enum import Enum

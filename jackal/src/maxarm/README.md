@@ -101,6 +101,8 @@ waited for (1.5 s), slowly back up. The travel height is `clearance + height + 5
 `retry_deeper_mm` (`grab()` and `carry()`, 0 to 2 mm, more is a ValueError; 0 by default, the grip not checked): a
 grip whose seal reads loose or uncertain is let go, lifted, and landed again `retry_step_mm` deeper (0.5 mm unless
 given; 0.1 to 2 mm, else a ValueError), down to that much under the height given. The result's `deeper_mm` is the depth that sealed, or the last tried with `NOT_GRIPPED`.
+The seal it goes by is told right only against what does not move -- the desk, a piece pressed onto it; it does not say
+whether a light piece came along (see the seal, below).
 
 **drop()** is the same in reverse, `down_to()` the place: the piece is turned to `angle` on the way across, and the release is waited out
 (3 s, longer than a grip: the board vents the cup for a second and then shuts the valve) before the slow lift. The
@@ -150,7 +152,9 @@ the arm stands with the pump off -- the reads that end a PRECISE move, or the en
 the reads in the grip's 1.5 s, from 0.75 s on: the pump's dip. The servos pull on the supply too, so a move ends
 the verdict; and a seal pulls the cup down (it is a bellows), which servos holding it short of a target above
 strain against, so a cup pulled down 0.5 mm is sealed whatever the dip. A board that cannot read the supply gives
-UNKNOWN; nothing else changes.
+UNKNOWN; nothing else changes. It holds for a cup landed on what does not move: the desk, or a piece pressed onto it. A
+light piece is pulled up into the cup instead, and the supply does not tell a piece on the cup from an empty one,
+there or after a lift: whether something was picked up is the caller's to check (a camera, say).
 
 `MAXARM_TRACE=1` prints every expression sent to the board, with its answer and timing, on stderr.
 Everything else is a constant in the module that uses it, with where it came from written above it.
