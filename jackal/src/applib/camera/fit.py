@@ -3,19 +3,16 @@
     fit = fit_camera(frame, {"red": (x, y), "green": (x, y), "blue": (x, y)})   # desk mm
     fit.desk_to_pixel                                                           # 3x4, for camera.json
 
-The cubes' shapes and the arm's readings make the camera. A 40 mm cube seen from
-above is a small frame of known edges, and three of them, each turned however it
-was set down, fix a square-pixel camera: focal length, principal point and pose,
-in true millimetres. First a turn, a shift and a stretch from the arm's points
-(six numbers, which three points fix exactly) leave each cube wherever its shape
-puts it: which blob is which cube, and a camera near enough, come of the
-pictures. Then the stretch is let go of: each cube stands where the arm read the
-cup over it, the board's mirror (it negates x) taken out and the arm's
-millimetres real ones, as the library corrects the firmware's (`maxarm/raw.py`),
-and the camera is fitted again to the same edges. The cubes' 40 mm give their
-shape, the arm's distances between them the camera's measure, which a cube's
-small picture fixes only loosely. The first stretch is kept as the check that
-the cubes stand where the arm recorded them.
+The cubes' shapes make the camera; the arm's readings only lay the arm on it. A
+40 mm cube seen from above is a small frame of known edges, and three of them,
+each turned however it was set down, fix a square-pixel camera: focal length,
+principal point and pose, in true millimetres. A turn, a shift and a stretch
+from the arm's points (six numbers, which three points fix exactly) leave each
+cube wherever its shape puts it: which blob is which cube, and the camera, come
+of the pictures alone. Then the arm is laid on that camera by a turn and a shift,
+the board's mirror (it negates x) taken out, its millimetres as the library makes
+them true (`maxarm/raw.py`): where the cubes stand against where the arm read
+them is the arm's error there, not hidden in a bent camera.
 
 1. **Start.** For each naming of the blobs (`cubes.py`), and focal lengths across
    any plausible lens, the camera that puts each cube's middle on its blob (P3P),
@@ -25,11 +22,16 @@ the cubes stand where the arm recorded them.
 3. **Edges.** Each visible edge of each cube moved onto the strongest colour edge
    beside it (`edges.py`). An outline counts only where the cube's colour is on
    its inner side: a shadow's edge, or the desk's grain, has the desk on both sides.
-4. **The arm.** The camera again, each cube where the arm read it, only its turn
-   its own: `desk_to_true` is the mirror, `true_to_pixel` the camera along the
-   arm's x and y, and `desk_to_pixel` names the desk point the arm must be sent to.
+4. **The arm.** The camera stays as the cubes' edges made it -- reality, the 40 mm
+   cubes its only length (the owner, 13 Nov: bending it onto the arm's readings
+   tilted the cubes and moved the base) -- and the arm is laid on it by the turn
+   and shift that best put the cubes' centres on the arm's readings, no stretch:
+   where the arm's axis stands follows from its own readings. `desk_to_true` is
+   the mirror, `true_to_pixel` the camera along the arm's x and y so laid, and
+   `desk_to_pixel` names the desk point the arm must be sent to.
 5. **The cubes as seen.** Each cube where its own edges put it through that camera:
-   what the check image draws, and how far each arm reading is from its cube. The
+   what the check image draws, and how far each arm reading is from its cube --
+   the arm's own error there, since the camera is not bent to hide it. The
    stretch a turn, shift and stretch would take between the two is kept as the
    arm's measure against the camera (`arm_stretch`, `stretch_of()`): shown, not used.
 """
@@ -276,7 +278,7 @@ def fit_camera(frame: np.ndarray, points: Points) -> CameraFit:
     if problem:
         raise CameraNotFound(f"the cubes do not stand where the arm recorded them: {problem}. Was a cube moved "
                              f"after RECORD, or recorded off centre?")
-    return _result(_fit_on_arm(frame, points, params, found), points, frame, found)
+    return _result(params, points, frame, found)
 
 
 # --- the parameters -------------------------------------------------------
@@ -314,18 +316,23 @@ def _corners(params: np.ndarray, points: Points) -> List[np.ndarray]:
 
 
 def _result(params: np.ndarray, points: Points, frame: np.ndarray, found: list) -> CameraFit:
-    """The camera as fitted on the arm (step 4), each cube where its own edges put it (step 5) -- the pixel under its
-    centre and its turn -- and the stretch between the arm's readings and those cubes kept as the arm's measure; with
-    the edges `found` round each cube, numbered as the cube was turned when they were found."""
-    true_to_pixel = _pinhole(params).matrix
+    """The cubes' camera with the arm laid on it (step 4), each cube where its own edges put it (step 5) -- the pixel
+    under its centre and its turn -- and the stretch between the arm's readings and those cubes kept as the arm's
+    measure; with the edges `found` round each cube, numbered as the cube was turned when they were found."""
+    turn, shift = _lay_arm(params, points)
+    laid = np.eye(4)                                  # the arm's true x, y (as laid) to the cubes' own
+    laid[:2, :2], laid[:2, 3] = turn, shift
+    true_to_pixel = _pinhole(params).matrix @ laid
+    turned = math.atan2(turn[1, 0], turn[0, 0])
     seen, distances = _seen_cubes(params, points, found)
+    seen = [np.array([*(turn.T @ (cube[:2] - shift)), cube[2] - turned]) for cube in seen]
     pixels = project(true_to_pixel, np.array([(*cube[:2], 0.0) for cube in seen]))
     cubes_seen = {colour: {"x": float(points[colour][0]), "y": float(points[colour][1]),
                            "turn_deg": round(math.degrees(cube[2]) % 90.0, 2),
                            "pixel": [round(float(pixel[0]), 3), round(float(pixel[1]), 3)]}
                   for colour, cube, pixel in zip(COLOURS, seen, pixels)}
-    cube_edges = {colour: (round(math.degrees(turn), 4), found_on)
-                  for colour, turn, found_on in zip(COLOURS, params[TURNS], found)}
+    cube_edges = {colour: (round(math.degrees(cube_turn - turned), 4), found_on)
+                  for colour, cube_turn, found_on in zip(COLOURS, params[TURNS], found)}
     return CameraFit(true_to_pixel, HANDEDNESS.copy(), cubes_seen, (frame.shape[1], frame.shape[0]),
                      (float(np.median(np.abs(distances))), float(np.percentile(np.abs(distances), 90))),
                      len(distances), cube_edges=cube_edges,
@@ -433,21 +440,17 @@ def _edges_seen(params: np.ndarray, points: Points) -> List[List[Edge]]:
 
 # --- 4. the arm -------------------------------------------------------------
 
-def _fit_on_arm(frame: np.ndarray, points: Points, params: np.ndarray, found: list) -> np.ndarray:
-    """The camera fitted again to the edges found, each cube standing where the arm read the cup over it -- no
-    stretch, the arm's millimetres real ones -- and turned as its edges say."""
-    params = params.copy()
-    params[STRETCH] = (1.0, 1.0, 0.0)
-    centre = np.array([frame.shape[1] / 2, frame.shape[0] / 2])
-
-    def residuals(trial: np.ndarray) -> np.ndarray:
-        parts = [edges.signed_distances(corners, *found_on) for corners, found_on in
-                 zip(_corners(trial, points), found)]
-        parts.append((trial[CENTRE] - centre) / (CENTRE_SPREAD * frame.shape[1]))
-        return np.concatenate(parts)
-
-    return least_squares(residuals, params, STEPS, huber=EDGE_HUBER_PX, free=range(STRETCH.start),
-                         iterations=60)[0]
+def _lay_arm(params: np.ndarray, points: Points) -> Tuple[np.ndarray, np.ndarray]:
+    """The turn (2x2) and shift that best lay the arm's true x, y (its readings, mirrored) on the cubes' centres as
+    the cubes' camera has them, least squares, no stretch: cubes' = turn @ arm's + shift."""
+    arm = np.array([HANDEDNESS @ np.asarray(points[colour], float) for colour in COLOURS])
+    cubes_at = np.array(_centres(params, points))
+    arm_mean, cubes_mean = arm.mean(axis=0), cubes_at.mean(axis=0)
+    left, _, right = np.linalg.svd((cubes_at - cubes_mean).T @ (arm - arm_mean))
+    turn = left @ right
+    if np.linalg.det(turn) < 0:
+        raise CameraNotFound("the arm's points lie on the cubes only mirrored: were two cubes swapped?")
+    return turn, cubes_mean - turn @ arm_mean
 
 
 # --- 5. the cubes as seen ---------------------------------------------------

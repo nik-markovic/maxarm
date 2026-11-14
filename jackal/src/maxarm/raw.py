@@ -13,11 +13,11 @@ and every reading after it is read:
 
     true z = raw z + 0.0588 x (reach - 201.5) + wave(reach) - (h / 120)^2 x (3.33 + 0.0126 x (reach - 201.5))
     true reach = reach + 6.26 - 0.110 x min(h, 44)
-    true bearing = bearing - 1.36 x sin 2b + 0.33 x (cos 2b - 1), in degrees
+    true bearing = bearing + turn(bearing), in degrees
 
     reach = sqrt(x^2 + y^2), the firmware's, mm;  h = true z - 44, the height above the desk, 0 below it;
     b = bearing = the firmware's direction from the base axis: 0 straight out (-y), positive toward +x;
-    wave(reach) = DESK_WAVE_MM, straight between its rows, held beyond its ends
+    wave(reach) = DESK_WAVE_MM, turn(bearing) = TURN_DEG: straight between their rows, held beyond their ends
 
 The desk is at true z 44: a little under the highest height at which the cup
 still seals on it, so that a cup sent there seals. Straight out, true and raw
@@ -52,14 +52,17 @@ STACK_MM = 120.0
 TALL_AT_STACK_MM = 3.33            # 3.4 at 207 mm out, the same correction counted from LEVEL_REACH_MM
 TALL_PER_MM_OF_REACH = 0.0126      # how much more for every mm further out
 # x and y: the cup is REACH_AT_DESK_MM further out than the firmware says on the desk, REACH_LESS_PER_MM less for
-# every mm above it, no less above REACH_TOP_MM; and the base points WAVE_SIN_DEG x sin 2b + WAVE_COS_DEG x
-# (cos 2b - 1) degrees further round than it says, b the firmware's bearing.
+# every mm above it, no less above REACH_TOP_MM.
 REACH_AT_DESK_MM = 6.26
 REACH_LESS_PER_MM = 0.110
 REACH_TOP_MM = 44.0
-WAVE_SIN_DEG = -1.36
-WAVE_COS_DEG = 0.33
-BEARING_ROUNDS = 8                 # the raw bearing of a true one, found by repeating; each round 20 times closer
+# The base points this many degrees further round (+ toward +x) than the firmware's bearing says, by that bearing:
+# a cube's real place against the servos' reading over it, one row each; the rows at -15, 15 and 30 fitted to the
+# 3 Nov grid paper between them (STATUS-jackal §19).
+TURN_DEG = ((-89.76, -0.24), (-46.80, +1.80), (-30.29, +1.95), (-15.0, +0.86), (0.0, 0.0), (15.0, -0.92),
+            (30.0, -2.10), (47.15, -2.15), (53.04, -0.99),
+            (58.97, -0.98), (64.80, -1.37), (92.64, -2.64))
+BEARING_ROUNDS = 8                 # the raw bearing of a true one, found by repeating; each round 15 times closer
 
 _is_raw = False
 
@@ -108,13 +111,18 @@ def describe(true: Position) -> str:
 
 
 def _wave(reach: float) -> float:
-    """DESK_WAVE_MM at a firmware reach: straight between its rows, held beyond its ends."""
-    if reach <= DESK_WAVE_MM[0][0]:
-        return DESK_WAVE_MM[0][1]
-    for (near, near_mm), (far, far_mm) in zip(DESK_WAVE_MM, DESK_WAVE_MM[1:]):
-        if reach <= far:
-            return near_mm + (far_mm - near_mm) * (reach - near) / (far - near)
-    return DESK_WAVE_MM[-1][1]
+    """DESK_WAVE_MM at a firmware reach."""
+    return _between(DESK_WAVE_MM, reach)
+
+
+def _between(rows, at: float) -> float:
+    """A table of (at, value) rows read at `at`: straight between its rows, held beyond its ends."""
+    if at <= rows[0][0]:
+        return rows[0][1]
+    for (near, near_value), (far, far_value) in zip(rows, rows[1:]):
+        if at <= far:
+            return near_value + (far_value - near_value) * (at - near) / (far - near)
+    return rows[-1][1]
 
 
 def _too_tall_per_mm2(out: float) -> float:
@@ -149,5 +157,5 @@ def _further_out(height: float) -> float:
 
 
 def _further_round(bearing: float) -> float:
-    """Radians: how much further round the base points than the firmware's `bearing` says."""
-    return math.radians(WAVE_SIN_DEG * math.sin(2.0 * bearing) + WAVE_COS_DEG * (math.cos(2.0 * bearing) - 1.0))
+    """Radians: how much further round the base points than the firmware's `bearing` (radians) says."""
+    return math.radians(_between(TURN_DEG, math.degrees(bearing)))

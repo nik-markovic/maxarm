@@ -8,7 +8,7 @@
 // target with it, and a move the arm refuses puts it back where the arm last went. The height column is shared
 // with the tests page (common/height.js).
 
-import { $, api, fmt, mountHeader, openModal, report, showHeader, startPolling } from '/common/page.js';
+import { $, api, copyReadout, fmt, mountHeader, openModal, report, setText, showHeader, startPolling } from '/common/page.js';
 import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { HeightColumn, SAFE_MM, cubeIcon } from '/common/height.js';
 import { CubeGrid } from './grid.js';
@@ -121,16 +121,19 @@ function render() {
   });
 }
 
+$('copy').addEventListener('click', () => copyReadout('DESK'));
+
 function renderReadout() {
   const aim = target();
   const says = state ? state.camera.measured : null;
   const sent = state ? state.camera.position : null;
   ['x', 'y', 'z'].forEach((axis, index) => {
-    $(`target-${axis}`).textContent = fmt(aim[index]);
+    setText($(`target-${axis}`), fmt(aim[index], 2));
     const cell = $(`says-${axis}`);
     const off = says && sent ? Math.abs(says[index] - sent[index]) : 0;
-    cell.textContent = says ? fmt(says[index]) : '—';
-    cell.className = `num says ${off >= 2 ? 'far' : off >= 1 ? 'off' : ''}`;
+    setText(cell, says ? fmt(says[index], 2) : '—');
+    const kind = `num says ${off >= 2 ? 'far' : off >= 1 ? 'off' : ''}`;
+    if (cell.className !== kind) cell.className = kind;
   });
   $('readout').classList.toggle('stale', isReading());
 }

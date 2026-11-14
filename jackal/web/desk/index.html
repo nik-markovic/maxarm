@@ -26,7 +26,7 @@
       </div>
     </div>
     <div class="view-body">
-      <canvas id="grid" title="Click to send the arm over that grid point; X and Y fine go back to 0"></canvas>
+      <canvas id="grid" title="Click to land the cup on that grid point, at the height column's height, as PRECISE does"></canvas>
       <div class="zcol">
         <span class="zlabel">HEIGHT <em id="z-mode"></em></span>
         <output class="num" id="z-out" title="The height the arm is sent to"></output>
@@ -68,6 +68,7 @@
           <button data-mode="raw" title="The firmware's own numbers">RAW</button>
         </div>
         <span class="info" tabindex="0">?<span class="tip" id="heights-tip"></span></span>
+        <button class="btn small" id="copy" title="Copy the target and what the arm says, as shown, as one line">COPY</button>
       </div>
     </div>
 
@@ -81,26 +82,19 @@
     </div>
     <div class="desk-line" id="desk-line"></div>
 
-    <div class="fine" data-axis="x">
-      <label>X fine</label>
-      <input type="range" step="1" value="0">
-      <output class="num"></output>
-    </div>
-    <div class="fine" data-axis="y">
-      <label>Y fine</label>
-      <input type="range" step="1" value="0">
-      <output class="num"></output>
-    </div>
     <div class="nudge">
       <div class="pad">
         <button class="btn" data-dir="up"></button>
         <button class="btn" data-dir="left"></button>
-        <span class="hub">1 mm</span>
+        <span class="hub" id="pad-hub"></span>
         <button class="btn" data-dir="right"></button>
         <button class="btn" data-dir="down"></button>
       </div>
-      <p class="hint">Nudges go 1 mm the way the view shows; Z+ and Z− are by the height slider. After every move
-        the servos are read: “arm says”.</p>
+      <button class="btn precise" id="precise"
+        title="Down onto the target the way the library lands: from 20 base pulses to one side, aimed past what the
+servos fall short, read when steady">PRECISE</button>
+      <p class="hint">Nudges go 0.5 mm the way the view shows, 0.25 mm of the firmware's x or y under RAW; Z+ and Z− are by the height slider. PRECISE lands on the
+        target. After every move the servos are read: “arm says”.</p>
     </div>
 
     <div class="cup">

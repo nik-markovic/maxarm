@@ -1,25 +1,26 @@
 // The desk calibration page: bring the cup down onto the desk, record where it touched, fit the plane, try it out.
 //
-// The arm's target is a base plus offsets: base x, y is the grid point last clicked, base z the height column;
-// the X and Y fine sliders and the nudges add to x and y. A grid click puts the offsets back to 0. Whatever moves
-// the arm from elsewhere (a point, a desk test, RESET) moves the base, so the offsets stay where the user left
-// them. A move the arm refuses puts every control back where it was when the arm last went where they said.
+// The arm's target: x, y the grid point last clicked plus the nudges since, z the height column. Whatever moves
+// the arm from elsewhere (a point, a desk test, RESET) becomes the target. A move the arm refuses puts every
+// control back where it was when the arm last went where they said.
 //
 // Heights are true z here and in every request. TRUE / RAW only changes how arm z is shown and typed in: RAW is
 // the firmware's own. Heights above the desk are the same either way.
 
-import { $, api, fmt, mountHeader, report, showHeader, startPolling, toast } from '/common/page.js';
+import { $, api, copyReadout, fmt, mountHeader, report, setText, showHeader, startPolling, toast } from '/common/page.js';
 import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { DeskGrid } from './grid.js';
 
 const SCREEN = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const ARROWS = { up: '▲', down: '▼', left: '◀', right: '▶' };
+// A press of the pad, mm: under TRUE along true x or y, under RAW along the firmware's.
+const NUDGE_MM = { true: 0.5, raw: 0.25 };
 const SAME_MM = 0.005;
-// The height column, the owner's (PILOT-falcon): the slider runs from 80 down to 40 in 1 mm steps, for fine
-// control near the desk; SAFE sends the arm up to 120; each ▼ lets the slider go 2 mm lower and each ▲ 20 mm
-// higher, without end. The desk is at about 44 under most arms, so the slider is yellow from 44 down to 42, and
-// red below.
-const HEIGHT = { top: 80, bottom: 40, safe: 120, lower: 2, higher: 20, caution: 44, danger: 42 };
+// The height column, the owner's (PILOT-falcon; top and SAFE 90 since 13 Nov): the slider runs from 90 down to 40
+// in 1 mm steps, for fine control near the desk and up to over a cube; SAFE sends the arm up to 90; each ▼ lets the
+// slider go 2 mm lower and each ▲ 20 mm higher, without end. The desk is at about 44 under most arms, so the slider
+// is yellow from 44 down to 42, and red below.
+const HEIGHT = { top: 90, bottom: 40, safe: 90, lower: 2, higher: 20, caution: 44, danger: 42 };
 // Whether the cup sealed when the pump went on (maxarm/seal.py), shown while it is on. Not known once the arm has
 // moved: the servos pull on the supply the seal is told by.
 const SEAL = {
@@ -42,8 +43,7 @@ const ui = {
   isRaw: false,
   top: HEIGHT.top,
   bottom: HEIGHT.bottom,
-  base: { x: limits.home[0], y: limits.home[1], z: limits.home[2] },
-  fine: { x: 0, y: 0 },
+  base: { x: limits.home[0], y: limits.home[1], z: Math.min(limits.home[2], HEIGHT.safe) },
   testHeight: limits.desk.test_height,
 };
 let state = null;
@@ -52,32 +52,39 @@ let accepted = '';
 let isDragging = false;
 let pointsShown = '';
 
-const grid = new DeskGrid($('grid'), limits, jump);
-const target = () => [ui.base.x + ui.fine.x, ui.base.y + ui.fine.y, ui.base.z];
-const controls = () => JSON.stringify({ base: ui.base, fine: ui.fine });
+const grid = new DeskGrid($('grid'), limits, pick);
+const target = () => [ui.base.x, ui.base.y, ui.base.z];
+const controls = () => JSON.stringify({ base: ui.base });
 accepted = controls();
 
 // The library's true position, as maxarm/raw.py has it: the raw point of a true one, and the true point of a raw one.
 const TRUE_Z = limits.true_z;
 const TRUE_XY = limits.true_xy;
 const tooTallPerMm2 = (out) => (TRUE_Z.tall_at_stack + TRUE_Z.tall_per_mm_of_reach * out) / TRUE_Z.stack ** 2;
-// The desk's wave by the firmware's reach: straight between the table's rows, held beyond its ends.
-function deskWave(reach) {
-  const rows = TRUE_Z.desk_wave;
-  if (reach <= rows[0][0]) return rows[0][1];
+// A table of [at, value] rows read at `at`: straight between its rows, held beyond its ends.
+function between(rows, at) {
+  if (at <= rows[0][0]) return rows[0][1];
   for (let row = 1; row < rows.length; row += 1) {
-    const [near, nearMm] = rows[row - 1];
-    const [far, farMm] = rows[row];
-    if (reach <= far) return nearMm + ((farMm - nearMm) * (reach - near)) / (far - near);
+    const [near, nearValue] = rows[row - 1];
+    const [far, farValue] = rows[row];
+    if (at <= far) return nearValue + ((farValue - nearValue) * (at - near)) / (far - near);
   }
   return rows[rows.length - 1][1];
 }
+// The desk's wave by the firmware's reach; the base's turn by the firmware's bearing.
+const deskWave = (reach) => between(TRUE_Z.desk_wave, reach);
 const furtherOut = (height) => TRUE_XY.reach_at_desk
   - TRUE_XY.reach_less_per_mm * Math.min(Math.max(height, 0), TRUE_XY.reach_top);
-const furtherRound = (bearing) => (Math.PI / 180)
-  * (TRUE_XY.wave_sin * Math.sin(2 * bearing) + TRUE_XY.wave_cos * (Math.cos(2 * bearing) - 1));
+const furtherRound = (bearing) => (Math.PI / 180) * between(TRUE_XY.turn, (bearing * 180) / Math.PI);
 // x and y from reach and bearing: 0 straight out (-y), positive toward +x.
 const fromPolar = (reach, bearing) => [reach * Math.sin(bearing), -reach * Math.cos(bearing)];
+// The true x and y of the firmware's, at true height z.
+function trueXY([x, y], z) {
+  const reach = Math.hypot(x, y);
+  if (reach === 0) return [x, y];
+  const bearing = Math.atan2(x, -y);
+  return fromPolar(reach + furtherOut(Math.max(z - TRUE_Z.desk_z, 0)), bearing + furtherRound(bearing));
+}
 function rawPoint([x, y, z]) {
   const height = Math.max(z - TRUE_Z.desk_z, 0);
   const reach = Math.hypot(x, y);
@@ -136,11 +143,13 @@ function show(next, isReply = false) {
   render();
 }
 
-// Moves the base so that base + offsets is where the arm was sent.
+// Makes where the arm was sent the target; the height no higher than SAFE, so that after RESET the height column
+// stands at SAFE, where the next click or nudge goes.
 function follow(sent) {
   const [x, y, z] = target();
-  if (Math.abs(x - sent[0]) < SAME_MM && Math.abs(y - sent[1]) < SAME_MM && Math.abs(z - sent[2]) < SAME_MM) return;
-  ui.base = { x: sent[0] - ui.fine.x, y: sent[1] - ui.fine.y, z: sent[2] };
+  const height = Math.min(sent[2], HEIGHT.safe);
+  if (Math.abs(x - sent[0]) < SAME_MM && Math.abs(y - sent[1]) < SAME_MM && Math.abs(z - height) < SAME_MM) return;
+  ui.base = { x: sent[0], y: sent[1], z: height };
 }
 
 const move = () => {
@@ -148,17 +157,31 @@ const move = () => {
   return command('move', { x, y, z }, 'Move', { isRevertible: true });
 };
 
-function jump(x, y) {
+// Down onto the target as the library lands: PRECISE.
+const land = () => {
+  const [x, y, z] = target();
+  return command('land', { x, y, z }, 'Land', { isRevertible: true });
+};
+
+// A grid click: down onto the grid point, at the height column's height -- no higher than SAFE, so that a click
+// after RESET, the column up where reset parks the arm, comes down to SAFE -- as PRECISE lands.
+function pick(x, y) {
   ui.base.x = x;
   ui.base.y = y;
-  ui.fine = { x: 0, y: 0 };
-  command('jump', { x, y }, 'Over to the grid point', { isRevertible: true });
+  ui.base.z = Math.min(ui.base.z, HEIGHT.safe);
+  land();
 }
 
-// One step of X or Y fine; past the end of its slider the base takes it, so a nudge always moves.
+// A press of the pad: the target NUDGE_MM along x or y -- under RAW the firmware's x or y, its true height kept --
+// a plain move.
 function nudge(axis, delta) {
-  if (Math.abs(ui.fine[axis] + delta) <= ui.step) ui.fine[axis] += delta;
-  else ui.base[axis] += delta;
+  if (ui.isRaw) {
+    const point = rawPoint(target());
+    point[axis === 'x' ? 0 : 1] += delta * NUDGE_MM.raw;
+    [ui.base.x, ui.base.y] = trueXY(point, ui.base.z);
+  } else {
+    ui.base[axis] += delta * NUDGE_MM.true;
+  }
   move();
 }
 
@@ -204,18 +227,11 @@ function renderHeight() {
 }
 
 function renderControls() {
-  for (const row of document.querySelectorAll('.fine')) {
-    const axis = row.dataset.axis;
-    const slider = row.querySelector('input');
-    slider.min = -ui.step;
-    slider.max = ui.step;
-    if (!isDragging) slider.value = ui.fine[axis];
-    row.querySelector('output').textContent = fmt(ui.fine[axis], 0, true);
-  }
   for (const button of document.querySelectorAll('.pad [data-dir]')) {
     const [dx, dy] = armStep(SCREEN[button.dataset.dir]);
     button.textContent = `${ARROWS[button.dataset.dir]} ${dx > 0 ? '+X' : dx < 0 ? '−X' : dy > 0 ? '+Y' : '−Y'}`;
   }
+  $('pad-hub').textContent = String(ui.isRaw ? NUDGE_MM.raw : NUDGE_MM.true);
   $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
   for (const button of $('heights').children) {
@@ -252,15 +268,16 @@ function renderReadout() {
   const aim = shown(target());
   const says = state && state.measured ? state.measured : null;
   ['x', 'y', 'z'].forEach((axis, index) => {
-    $(`target-${axis}`).textContent = fmt(aim[index]);
+    setText($(`target-${axis}`), fmt(aim[index], 2));
     const cell = $(`says-${axis}`);
     const off = says ? Math.abs(says[index] - state.sent[index]) : 0;
-    cell.textContent = says ? fmt(shown(says)[index], 0) : '—';
-    cell.className = `num says ${off >= 2 ? 'far' : off >= 1 ? 'off' : ''}`;
+    setText(cell, says ? fmt(shown(says)[index], ui.isRaw ? 2 : 0) : '—');     // RAW: the servos' mean, to 0.01
+    const kind = `num says ${off >= 2 ? 'far' : off >= 1 ? 'off' : ''}`;
+    if (cell.className !== kind) cell.className = kind;
   });
   $('readout').classList.toggle('stale', isReading());
-  for (const axis of ['x', 'y']) $(`${axis}-head`).textContent = ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase();
-  $('z-head').textContent = ui.isRaw ? 'Z raw' : 'Z';
+  for (const axis of ['x', 'y']) setText($(`${axis}-head`), ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase());
+  setText($('z-head'), ui.isRaw ? 'Z raw' : 'Z');
   const desk = state ? state.desk : null;
   const parts = [];
   if (desk && desk.fit_height !== null) parts.push(`the fit of the points <b>${fmt(desk.fit_height, 1, true)}</b>`);
@@ -378,10 +395,6 @@ $('z-higher').addEventListener('click', () => {
   render();
 });
 
-for (const row of document.querySelectorAll('.fine')) {
-  const axis = row.dataset.axis;
-  onSlide(row.querySelector('input'), (value) => { ui.fine[axis] = value; }, move);
-}
 for (const button of document.querySelectorAll('.pad [data-dir]')) {
   button.addEventListener('click', () => {
     const [dx, dy] = armStep(SCREEN[button.dataset.dir]);
@@ -389,6 +402,9 @@ for (const button of document.querySelectorAll('.pad [data-dir]')) {
     else nudge('y', dy);
   });
 }
+$('precise').addEventListener('click', () => land());
+$('copy').addEventListener('click', () => copyReadout(ui.isRaw ? 'ARM RAW' : 'ARM TRUE'));
+
 
 for (const button of $('heights').children) {
   button.addEventListener('click', () => {
@@ -397,8 +413,7 @@ for (const button of $('heights').children) {
   });
 }
 const { per_mm_of_reach: perMm, level_reach: level, desk_z: deskZ, stack, tall_at_stack: tall } = TRUE_Z;
-const { reach_at_desk: outAtDesk, reach_less_per_mm: outLess, reach_top: outTop, wave_sin: waveSin, wave_cos: waveCos }
-  = TRUE_XY;
+const { reach_at_desk: outAtDesk, reach_less_per_mm: outLess, reach_top: outTop, turn } = TRUE_XY;
 $('heights-tip').innerHTML = `<b>True</b> is where the cup really is. <b>Raw</b> is the arm firmware's own
   numbers, which are off. Heights: on the desk the firmware's depends on the distance from the base: 100 mm out it
   says ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm
@@ -406,14 +421,15 @@ $('heights-tip').innerHTML = `<b>True</b> is where the cup really is. <b>Raw</b>
   the base, measured by where the cup seals. Above the desk it reads too tall, the more the higher and the
   further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. Across: the cup is ${fmt(outAtDesk)} mm further
   out than the firmware says on the desk, less higher up, and the base points up to about
-  ${fmt(Math.abs(waveSin) + Math.abs(waveCos))}° off, by an amount that changes over its turn. The library corrects
+  ${fmt(Math.max(...turn.map((row) => Math.abs(row[1]))))}° off, by an amount that changes over its turn. The library corrects
   every position it sends and reads:
   <code>true z = raw z + ${perMm} × (reach − ${level}) + wave(reach) − (h / ${stack})² × (${tall}
   + ${TRUE_Z.tall_per_mm_of_reach} × (reach − ${level}))</code>
   <code>true reach = reach + ${outAtDesk} − ${outLess} × min(h, ${outTop})</code>
-  <code>true bearing = bearing ${waveSin < 0 ? '−' : '+'} ${Math.abs(waveSin)} × sin 2b + ${waveCos} × (cos 2b − 1)</code>
+  <code>true bearing = bearing + turn(b)</code>
   h is the height above the desk, true z − ${deskZ}; reach and bearing b are the firmware's, b in degrees from
-  straight out; wave(reach) runs from ${fmt(Math.min(...TRUE_Z.desk_wave.map((row) => row[1])))} to
+  straight out; turn(b) is measured, ${turn.map(([at, deg]) => `${fmt(deg, 2, true)}° at ${fmt(at, 0)}°`).join(', ')}, straight
+  between; wave(reach) runs from ${fmt(Math.min(...TRUE_Z.desk_wave.map((row) => row[1])))} to
   ${fmt(Math.max(...TRUE_Z.desk_wave.map((row) => row[1])))} mm. RAW only changes the numbers shown: the arm moves the same, and touch points, offsets and SAVE always
   use true positions.`;
 
@@ -426,11 +442,6 @@ $('steps').innerHTML = STEPS.map((step) => `<button>${step}</button>`).join('');
 for (const button of $('steps').children) {
   button.addEventListener('click', () => {
     ui.step = Number(button.textContent);
-    for (const axis of ['x', 'y']) {
-      const kept = Math.max(-ui.step, Math.min(ui.step, ui.fine[axis]));
-      ui.base[axis] += ui.fine[axis] - kept;
-      ui.fine[axis] = kept;
-    }
     keepView();
     render();
   });

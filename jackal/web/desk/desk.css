@@ -38,16 +38,15 @@ main.desk {
 .info:hover .tip, .info:focus .tip { display: block; }
 .tip code { display: block; margin: 6px 0; color: var(--green-bright); font: 12px var(--mono); }
 
-.fine { display: grid; grid-template-columns: 70px 1fr 50px; align-items: center; gap: 10px; margin-bottom: 9px; }
-.fine label { color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.fine output { text-align: right; }
 
-.nudge { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+.nudge { display: grid; grid-template-columns: auto auto 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+.nudge .precise { letter-spacing: 1px; }
 .pad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 34px); gap: 4px; }
 .pad .btn { padding: 0; font-size: 11.5px; }
 .pad [data-dir="up"] { grid-area: 1 / 2; }
 .pad [data-dir="left"] { grid-area: 2 / 1; }
-.pad .hub { grid-area: 2 / 2; display: grid; place-items: center; color: var(--faint); font-size: 10px; }
+.pad .hub { grid-area: 2 / 2; display: grid; place-items: center; text-align: center; color: var(--faint);
+  font-size: 10px; }
 .pad [data-dir="right"] { grid-area: 2 / 3; }
 .pad [data-dir="down"] { grid-area: 3 / 2; }
 .nudge .hint { margin: 0; }

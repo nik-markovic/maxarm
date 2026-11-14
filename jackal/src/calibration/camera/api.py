@@ -17,6 +17,8 @@ stand on the desk while it is used, so the arm crosses over them
 |                              |         | calibration aside                                             |
 | `GET /api/camera/feed`       |         | the live view, JPEG after JPEG                                |
 | `GET /api/camera/check.jpg`  |         | the latest check image                                        |
+| `GET /api/camera/snapshot.png` |       | a still frame as CALIBRATE takes it, full size, lossless; the arm |
+|                              |         | not parked, nothing drawn: for checks by hand                 |
 
 CALIBRATE and VALIDATE park the arm first, the way RESET does, so that it is not
 in the picture. CALIBRATE fits the camera to the cubes in its frame (`fit.py`)
@@ -37,6 +39,8 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Tuple, Union
+
+import cv2
 
 from maxarm import MoveResult, Space
 
@@ -78,6 +82,7 @@ class CameraSession:
             server.post(f"/api/camera/{name}", handler)
         server.get_stream("/api/camera/feed", self.feed.frames)
         server.get_bytes("/api/camera/check.jpg", self._check_image)
+        server.get_bytes("/api/camera/snapshot.png", self._snapshot)
 
     # --- the arm ----------------------------------------------------------
 
@@ -221,6 +226,15 @@ class CameraSession:
             "feed": self.feed.state(),
             "view": store.load_view_choice(self.config_dir),
         }}
+
+    def _snapshot(self, query: dict) -> Optional[Tuple[bytes, str]]:
+        """The frame CALIBRATE would take now -- fresh frames averaged, full size -- as PNG; None without a camera."""
+        try:
+            frame, _ = self.feed.snapshot()
+        except Exception:                             # no camera, or no frame from it: a 404
+            return None
+        is_encoded, png = cv2.imencode(".png", frame)
+        return (png.tobytes(), "image/png") if is_encoded else None
 
     def _check_image(self, query: dict) -> Optional[Tuple[bytes, str]]:
         image = store.read_check(self.config_dir)

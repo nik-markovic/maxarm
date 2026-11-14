@@ -5,6 +5,7 @@
 | `POST /api/connect` |         | open the port again: the board resets and homes the arm    |
 | `POST /api/move`    | x, y, z | straight there, corrected; a newer move replaces a waiting one |
 | `POST /api/jump`    | x, y    | over to x, y at a safe height, and stay at that height     |
+| `POST /api/land`    | x, y, z | down to x, y, z as the library lands, aimed past what the servos fall short; across no lower than the cup already is, as a jump |
 | `POST /api/cup`     | angle   | the cup's servo, -90 to 90 degrees                         |
 | `POST /api/suction` | on      | the pump on or off, waited out; on, whether the cup sealed |
 | `POST /api/reset`   |         | stop everything, let go, lift clear and go home            |
@@ -25,6 +26,12 @@ from applib.motion import HOVER_MM
 from .server import Server, number
 from .worker import Worker
 
+# A landing from the desk page crosses ABOVE_TARGET_MM over its target, never under CROSS_SAFE_MM (the page's SAFE,
+# clear of 40 mm cubes) -- or, when the cup is already lower, at the cup's own height, never under the hover. Higher
+# than that the turn aside can ask the elbow for more than it has.
+ABOVE_TARGET_MM = 20.0
+CROSS_SAFE_MM = 90.0
+
 
 def register(server: Server, worker: Worker) -> None:
     server.add_state(worker.state)
@@ -42,6 +49,12 @@ def register(server: Server, worker: Worker) -> None:
         return worker.run("jump", f"over to ({x:.1f}, {y:.1f})",
                           lambda motion: motion.jump(Space.ARM, x, y), latest_only=True)
 
+    def land(body: dict) -> dict:
+        target = (number(body, "x"), number(body, "y"), number(body, "z"))
+        return worker.run("land", f"landing on {describe(target)}",
+                          lambda motion: motion.down_to(Space.ARM, target, hover=crossing(motion, target)),
+                          latest_only=True)
+
     def cup(body: dict) -> dict:
         angle = number(body, "angle", -nozzle.NOZZLE_RANGE_DEG, nozzle.NOZZLE_RANGE_DEG)
         return worker.run("cup", f"turning the cup to {angle:+.0f} deg",
@@ -52,7 +65,7 @@ def register(server: Server, worker: Worker) -> None:
         return worker.run("suction", f"suction {'on' if is_on else 'off'}",
                           lambda motion: motion.suction(is_on))
 
-    for name, handler in (("move", move), ("jump", jump), ("cup", cup), ("suction", suction)):
+    for name, handler in (("move", move), ("jump", jump), ("land", land), ("cup", cup), ("suction", suction)):
         server.post(f"/api/{name}", handler)
 
 
@@ -69,9 +82,15 @@ def limits() -> dict:
                    "desk_z": raw.DESK_Z_MM, "stack": raw.STACK_MM, "tall_at_stack": raw.TALL_AT_STACK_MM,
                    "tall_per_mm_of_reach": raw.TALL_PER_MM_OF_REACH, "desk_wave": raw.DESK_WAVE_MM},
         "true_xy": {"reach_at_desk": raw.REACH_AT_DESK_MM, "reach_less_per_mm": raw.REACH_LESS_PER_MM,
-                    "reach_top": raw.REACH_TOP_MM, "wave_sin": raw.WAVE_SIN_DEG, "wave_cos": raw.WAVE_COS_DEG,
+                    "reach_top": raw.REACH_TOP_MM, "turn": raw.TURN_DEG,
                     "bearing_rounds": raw.BEARING_ROUNDS},
     }
+
+
+def crossing(motion, target: Position) -> float:
+    """The height a desk-page landing crosses at (ABOVE_TARGET_MM, CROSS_SAFE_MM)."""
+    over = max(target[2] + ABOVE_TARGET_MM, CROSS_SAFE_MM)
+    return max(HOVER_MM[Space.ARM], min(motion.position(Space.ARM)[2], over))
 
 
 def describe(point: Position) -> str:

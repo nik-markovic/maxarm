@@ -145,9 +145,7 @@ class Motion:
     def down_to(self, space: Space, target: Position, hover: Optional[float] = None) -> MoveResult:
         """Down to exactly `target` as the library lands (`MaxArm.down_to()`), read there as PRECISE is, crossing
         at the hover height: the library's own travel height for the call, so that the arm goes straight to beside
-        the target, not over it first. Desk space: the hover is a height over the desk."""
-        if space is not Space.DESK:
-            raise ValueError("down_to() crosses at a height over the desk: desk space only")
+        the target, not over it first. The hover is the space's unless given: in desk space a height over the desk."""
         self.use(space)
         if self.stopping.is_set():
             return MoveResult(MoveStatus.STOPPED, self.position(space), "RESET")

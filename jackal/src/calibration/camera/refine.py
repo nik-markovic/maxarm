@@ -5,15 +5,12 @@
     off = off_by(refined, point)             # how far its reading is from its cube as seen; how tall it looks
 
 A point pairs where the arm says the cup is, over the cube's centre, with the
-edges found round the cube in the snapshot (`sighting.py`). SAVE CALIBRATION fits
-the camera to all of them at once: each point's cube, 40 mm, stands where the arm
-read the cup over it -- the board's mirror taken out, the arm's millimetres real
-ones, as `maxarm/raw.py` makes them -- turned as its edges say, and the camera --
-focal length, principal point (held loosely to the frame's middle, as `fit.py`
-holds it), where it stands and which way it looks -- is the one through which all
-their edges lie best along those found. The cubes' 40 mm give their shape, the
-arm's distances between the points the camera's measure, which a cube's small
-picture fixes only loosely. No turn or shift lies between the arm and the camera.
+edges found round the cube in the snapshot (`sighting.py`). SAVE CALIBRATION keeps
+the camera CALIBRATE made from the cubes' edges -- reality, not bent onto the arm
+(the owner, 13 Nov) -- and lays the arm on it again, by the turn and shift that
+best put every point's cube, as the camera sees it, on the arm's reading for it:
+more points, spread out, place the arm's axis and turn better than three. Each
+point's miss is then the arm's own error there.
 
 A point's miss is how far its reading is from its cube as the camera sees it,
 placed where its own edges put it, through the camera the other points make
@@ -124,8 +121,20 @@ def refine_and_leave_out(fit: CameraFit,
     alone = fit.cube_fit()
     if not points:
         return alone, []
-    refined = _calibration(alone, _camera(alone, points), points)
-    put = left_out(refined, points)
+    seen = [_seen(in_frame(alone.true_to_pixel, alone.frame_size, point), point) for point in points]
+    readings = [HANDEDNESS @ np.array([point.x, point.y]) for point in points]
+    turn, shift = _lay(readings, seen)
+    laid = np.eye(4)
+    laid[:2, :2], laid[:2, 3] = turn, shift
+    refined = _calibration(alone, alone.true_to_pixel @ laid, points)
+    put = []                                          # each reading laid by the others, in the refined frame
+    for index, reading in enumerate(readings):
+        others = [k for k in range(len(points)) if k != index]
+        if len(others) < MIN_CUBES:
+            put.append(None)
+            continue
+        turn_o, shift_o = _lay([readings[k] for k in others], [seen[k] for k in others])
+        put.append(turn.T @ (turn_o @ reading + shift_o - shift))
     offs = [off_by(refined, point) for point in points]
     across = [off.across if others is None else float(math.dist(others, refined.desk_to_true @ off.seen))
               for off, others in zip(offs, put)]                     # each through the others' camera
@@ -138,6 +147,17 @@ def refine_and_leave_out(fit: CameraFit,
                                cubes_alone={"true_to_pixel": alone.true_to_pixel.tolist(),
                                             "desk_to_true": alone.desk_to_true.tolist(), **stretch,
                                             "cubes": alone.cubes}), put
+
+
+def _lay(readings: Sequence[np.ndarray], seen: Sequence[np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
+    """The turn and shift that best lay the readings (true x, y) on the cubes as seen: seen = turn @ reading + shift."""
+    readings, seen = np.asarray(readings, float), np.asarray(seen, float)
+    r_mean, s_mean = readings.mean(axis=0), seen.mean(axis=0)
+    left, _, right = np.linalg.svd((seen - s_mean).T @ (readings - r_mean))
+    turn = left @ right
+    if np.linalg.det(turn) < 0:
+        raise PointsDoNotFit("the points lie on their cubes only mirrored: a point recorded on the wrong cube?")
+    return turn, s_mean - turn @ r_mean
 
 
 def left_out(fit: CameraFit, points: Sequence[Sighting]) -> List[Optional[np.ndarray]]:

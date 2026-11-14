@@ -6,8 +6,8 @@ A servo stops short of a command, in the direction it was moving, by an amount s
 way, which servo (work/MAXARM_MECHANICS.md §4-7). A one-pulse correction is ignored. So a landing is made the same
 way every time, and aimed past by what that way falls short:
 
-1. across, at the travel height, to APPROACH_PULSES of the base to one side of the target: the side of higher
-   pulses, so that the last turn is made with them falling, where the planner allows;
+1. across, at the travel height, to APPROACH_PULSES of the base to one side of the target: the side of lower
+   pulses, so that the last turn is made with them rising, where the planner allows;
 2. the base turned onto the target from there, aimed past it by AIM_PAST_* pulses;
 3. straight down in one slow command, servos 2 and 3 given EXTRA_PULSES -- by reach -- beyond the target's.
 
@@ -26,8 +26,12 @@ from . import geometry, raw
 from .geometry import Position
 
 # How far to one side of the target, in base pulses, the last turn starts: the same turn every time.
-APPROACH_PULSES = 20
-# How far past the target the base is aimed, in pulses: turning onto it with its pulses falling, and rising.
+# A short turn stops the same each time; a long one carries on by however it was moving (13 Nov,
+# `agenttools/probe/base-shortfall.py`: from 6 pulses aside it stops 1.5 short falling and 2.1 rising, 0.4-0.5 either
+# way; from 20, 0.75 and 1.5 short, 0.7-0.8 either way; from 60, round the command, 0.8 either way).
+APPROACH_PULSES = 6
+# How far past the target the base is aimed, in pulses: turning onto it with its pulses falling, and rising. Rising
+# is the steadier and its shortfall a whole pulse, so it is the first way down.
 AIM_PAST_FALLING = 1
 AIM_PAST_RISING = 2
 # Servo 2's and servo 3's extra pulses on the way down, by the target's reach in mm: straight between rows, held
@@ -52,14 +56,14 @@ class Landing:
 
 
 def plans(target: Position, travel_z: float) -> List[Landing]:
-    """The two ways down to `target` from arm z `travel_z`, the last turn with the base's pulses falling first.
+    """The two ways down to `target` from arm z `travel_z`, the last turn with the base's pulses rising first.
     Empty if the firmware's kinematics cannot take the target."""
     try:
         exact = _pulses(target)
         high = _pulses((target[0], target[1], travel_z))
     except geometry.Unreachable:
         return []
-    sides = [1, -1]
+    sides = [-1, 1]
     extra2, extra3 = extra_pulses(math.hypot(target[0], target[1]))
     ways = []
     for side in sides:                      # +1: from higher pulses, turning with them falling

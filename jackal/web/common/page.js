@@ -30,6 +30,23 @@ export function fmt(value, digits = 1, sign = false) {
   return sign && value > 0 ? `+${text}` : text.replace(/^-(0\.0*)$/, '$1');
 }
 
+// Text rewritten only when it changes: rewriting it on every poll drops whatever the user has selected in it.
+export function setText(element, text) {
+  if (element.textContent !== text) element.textContent = text;
+}
+
+// The readout (#target-x.. and #says-x..) as one line, `label` first, onto the clipboard.
+export async function copyReadout(label) {
+  const cells = (row) => ['x', 'y', 'z'].map((axis) => $(`${row}-${axis}`).textContent).join(' ');
+  const text = `${label} target ${cells('target')} | arm says ${cells('says')}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`Copied: ${text}`);
+  } catch {
+    toast(`Could not copy; here it is: ${text}`, 'warn');
+  }
+}
+
 export function toast(text, kind = 'ok') {
   const box = document.createElement('div');
   box.className = `toast ${kind}`;

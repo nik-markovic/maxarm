@@ -5,13 +5,18 @@
   their faces hide, and an X across each one's bottom under its centre, fainter. On a frame taken later, a
   cube standing anywhere else, or a camera nudged since, shows as the outline off
   its cube.
-- The arm's base: its four suction cups, 40 mm across on a 120 mm square round
-  the arm's axis, in cyan, where the calibration puts them. Away from the cubes,
-  this is the one check of the calibration the arm always brings along.
+- The arm's base, where the calibration puts it, its sizes the owner's
+  (work/PILOT-kiwi-idea.md): the four suction cups' rims, 42 mm across, flush on the
+  desk, in cyan; the screw nuts at their centres on a 120 mm square round the arm's
+  axis -- the hex, 7 mm across its flats, from the plate's top 10 mm up to 13, and
+  the rounded tip, 5 mm across narrowing to 4, up to 18 -- in magenta; the base
+  plate's four straight central edges, 124.5 mm apart, 10 mm up, in white. Away
+  from the cubes, this is the one check of the calibration the arm always brings
+  along.
 - Desk coordinates: a dot every 50 mm within reach, labelled every 100 mm.
 - The reach on the desk: 95 mm in orange, 270 mm in red, across the arm's fan.
-- A line of text saying what the calibration is, and how it was checked; a line
-  at the bottom saying what the colours are.
+- No text over the picture (the owner): the page says what the calibration is and
+  how it was checked, so nothing covers an edge.
 
 When no calibration comes of a frame, `draw_blobs()` shows what was found in it
 instead: every blob that could have been a cube, warm or cool.
@@ -41,24 +46,30 @@ HIDDEN_OPACITY = 0.25                   # the edges a cube hides, and the X unde
 DOT_STEP_MM = 50
 LABEL_STEP_MM = 100
 # The MaxArm's base: a suction cup at each corner of a square round the arm's axis, its sides along the arm's x and y.
-BASE_CUP_SPACING_MM = 120.0
-BASE_CUP_RADIUS_MM = 20.0
+# The arm's base (the owner, work/PILOT-kiwi-idea.md), mm, round the arm's axis, sides along its x and y.
+BASE_CUP_SPACING_MM = 120.0       # the screw nuts' centres, and the cups' on them
+BASE_CUP_RADIUS_MM = 21.0         # 162 mm across the outer rims, flush on the desk
+PLATE_TOP_MM = 10.0
+NUT_TOP_MM = 13.0                 # the hex, 3 mm tall on the plate
+NUT_HALF_MM = 3.5                 # 7 mm across the flats
+TIP_BOTTOM_HALF_MM, TIP_TOP_HALF_MM, TIP_TOP_MM, TIP_MM = 2.5, 2.0, 17.0, 18.0
+PLATE_EDGE_MM = 124.5             # the plate's straight central edges apart
+PLATE_EDGE_HALF_MM = 28.0         # each straight for this either side of its middle
+MAGENTA = (255, 0, 255)
 LEGEND = (f"yellow: the cubes as seen, fainter where hidden, X under the centre   cyan: the base's suction cups   "
           f"orange, red: the reach on the desk, {REACH_MIN_MM:.0f} and {REACH_MAX_MM:.0f} mm   "
           f"dots: every {DOT_STEP_MM} mm")
 
 
 def draw(frame: np.ndarray, fit: CameraFit, caption: Sequence[str]) -> np.ndarray:
-    """`frame` with the calibration drawn on it, and `caption` written across its top."""
+    """`frame` with the calibration drawn on it. `caption` is not drawn: kept for the callers, it says what the page says."""
     image = frame.copy()
     width = image.shape[1]
     line = max(1, round(width / 1300))
     matrix = fit.desk_to_pixel
     for radius, colour in ((REACH_MIN_MM, ORANGE), (REACH_MAX_MM, RED)):
         _polyline(image, matrix, _arc(radius), colour, 2 * line)
-    half = BASE_CUP_SPACING_MM / 2
-    for corner in ((half, half), (half, -half), (-half, -half), (-half, half)):
-        _polyline(image, matrix, _circle(corner, BASE_CUP_RADIUS_MM), CYAN, line)
+    _draw_base(image, matrix, line)
     wireframes = [fit.wireframe(cube) for cube in COLOURS]
     _desk_dots(image, matrix, line, [cv2.convexHull(cube.corners.astype(np.float32)) for cube in wireframes])
     for opacity, lines in ((HIDDEN_OPACITY, [cube.hidden_lines for cube in wireframes]),
@@ -67,8 +78,6 @@ def draw(frame: np.ndarray, fit: CameraFit, caption: Sequence[str]) -> np.ndarra
         for start, end in (pair for cube in lines for pair in cube):
             cv2.line(drawn, _pixel(start), _pixel(end), YELLOW, 1, cv2.LINE_AA)
         image = cv2.addWeighted(drawn, opacity, image, 1 - opacity, 0)
-    _caption(image, caption)
-    _caption(image, [LEGEND], at_bottom=True)
     return image
 
 
@@ -112,16 +121,30 @@ def _arc(radius: float) -> np.ndarray:
     return np.column_stack((radius * np.sin(bearings), -radius * np.cos(bearings), np.zeros(len(bearings))))
 
 
-def _circle(centre: Tuple[float, float], radius: float) -> np.ndarray:
-    """A circle on the desk, closed."""
+def _draw_base(image: np.ndarray, matrix: np.ndarray, line: int) -> None:
+    """The arm's base: cups' rims, screw nuts and their tips, the plate's central edges (PLATE_*, NUT_*, TIP_*)."""
+    half = BASE_CUP_SPACING_MM / 2
+    for corner in ((half, half), (half, -half), (-half, -half), (-half, half)):
+        _polyline(image, matrix, _circle(corner, BASE_CUP_RADIUS_MM), CYAN, line)
+        for radius, height in ((NUT_HALF_MM, PLATE_TOP_MM), (NUT_HALF_MM, NUT_TOP_MM),
+                               (TIP_BOTTOM_HALF_MM, NUT_TOP_MM), (TIP_TOP_HALF_MM, TIP_TOP_MM)):
+            _polyline(image, matrix, _circle(corner, radius, height), MAGENTA, 1)
+        _polyline(image, matrix, np.array([(*corner, NUT_TOP_MM), (*corner, TIP_MM)]), MAGENTA, 1)
+    edge, along = PLATE_EDGE_MM / 2, PLATE_EDGE_HALF_MM
+    for a, b in (((edge, -along), (edge, along)), ((-edge, -along), (-edge, along)),
+                 ((-along, edge), (along, edge)), ((-along, -edge), (along, -edge))):
+        _polyline(image, matrix, np.array([(*a, PLATE_TOP_MM), (*b, PLATE_TOP_MM)]), WHITE, 1)
+
+
+def _circle(centre: Tuple[float, float], radius: float, height: float = 0.0) -> np.ndarray:
+    """A circle `height` over the desk, closed."""
     turns = np.linspace(0.0, 2 * math.pi, 73)
     return np.column_stack((centre[0] + radius * np.cos(turns), centre[1] + radius * np.sin(turns),
-                            np.zeros(len(turns))))
+                            np.full(len(turns), height)))
 
 
 def _desk_dots(image: np.ndarray, matrix: np.ndarray, line: int, hidden: List[np.ndarray]) -> None:
     """A dot every 50 mm within reach, but where a cube hides the desk."""
-    font = 0.4 * line + 0.1
     for x in range(-300, 301, DOT_STEP_MM):
         for y in range(-300, 301, DOT_STEP_MM):
             if not (REACH_MIN_MM <= math.hypot(x, y) <= REACH_MAX_MM and _in_fan(x, y)):
@@ -131,8 +154,6 @@ def _desk_dots(image: np.ndarray, matrix: np.ndarray, line: int, hidden: List[np
                     cv2.pointPolygonTest(outline, _pixel(pixel), False) >= 0 for outline in hidden):
                 continue
             cv2.circle(image, _pixel(pixel), 2 * line, WHITE, -1, cv2.LINE_AA)
-            if x % LABEL_STEP_MM == 0 and y % LABEL_STEP_MM == 0:
-                _text(image, f"{x},{y}", pixel + (4 * line, -4 * line), font)
 
 
 def _polyline(image: np.ndarray, matrix: np.ndarray, points: np.ndarray, colour, thickness: int) -> None:

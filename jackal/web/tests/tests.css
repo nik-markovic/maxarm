@@ -32,7 +32,7 @@ main.tests.is-blocked .view, main.tests.is-blocked .live, main.tests.is-blocked 
 
 /* --- the view, and the arm under it ------------------------------------ */
 
-.arm-row { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; margin-top: 12px; }
+.arm-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 14px; align-items: center; margin-top: 12px; }
 .btn.record { align-self: stretch; padding: 8px 14px; line-height: 1.35; letter-spacing: 1px; }
 .pad { display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 30px); gap: 4px; }
 .pad .btn { padding: 0; font-size: 11.5px; }
