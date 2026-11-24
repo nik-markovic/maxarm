@@ -206,6 +206,7 @@ class Feed:
         self.is_closed = False
         self.is_reopening = False           # the view stops, to open the camera again
         self.status = {"status": "idle", "detail": ""}
+        self.problem = ""                   # the failure last printed, until the camera is live again
         self.page_jpeg: Tuple[int, bytes] = (-1, b"")   # the newest frame as the pages are sent it, made once
         self.page_lock = threading.Lock()
         self.thread = threading.Thread(target=self._run, name="camera", daemon=True)
@@ -310,6 +311,9 @@ class Feed:
                 self._stream()
             except Exception as error:               # will not open, or stopped: the page says why
                 with self.condition:
+                    if self.problem != str(error):              # said once, not at every try
+                        self.problem = str(error)
+                        print(f"[camera] {error} -- trying again every {RETRY_S:.0f} s", flush=True)
                     self.status = {"status": "failed", "detail": str(error)}
                     self.condition.wait_for(lambda: self.is_closed, timeout=RETRY_S)
 
@@ -349,6 +353,7 @@ class Feed:
                 with self.condition:
                     self.raw, self.size, self.count = raw, (mode.width, mode.height), self.count + 1
                     self.status = {"status": "live", "detail": f"{name}, {mode.width}x{mode.height} {mode.fourcc}"}
+                    self.problem = ""
                     self.condition.notify_all()
         finally:
             if pipeline is not None:

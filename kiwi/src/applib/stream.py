@@ -56,10 +56,10 @@ HARDWARE_CONTROLS = "controls,h264_profile=4,video_bitrate={bitrate},h264_i_fram
 
 def stream_size(frame_size: Tuple[int, int]) -> Tuple[int, int]:
     """The camera's picture as large as fits in `MAX_MACROBLOCKS`: its shape kept, the width a multiple of 16, the
-    height even."""
+    height of 8, which the i.MX95's encoder needs (STATUS-kiwi §10)."""
     width, height = frame_size
     for columns in range(min(width, 4096) // 16, 0, -1):
-        size = (16 * columns, 2 * round(8 * columns * height / width))
+        size = (16 * columns, 8 * round(2 * columns * height / width))
         if size[0] <= width and columns * -(-size[1] // 16) <= MAX_MACROBLOCKS:
             return size
     return 16, 16
