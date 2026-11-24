@@ -57,6 +57,8 @@ On a PC, in a venv of your own if you like: `scripts/install.sh`, then `python s
 |                             | they stand now                                                                      |
 | `agent` *SENTENCE*          | the sentence to the language model on the Ara240 -- `go`, `a 7-letter word`, `a     |
 |                             | farm animal`, `elaborate` -- which finds a word of the tiles and has it set down    |
+| `stop`                      | the model's request and whatever moves the arm cut short, the commands waiting      |
+|                             | dropped; the cup lets go, lifts clear and goes home, as RESET on the pages          |
 
 Each is answered by its acknowledgement, the answer the console prints -- `agent`'s cut short, the whole of it the
 `answer` telemetry. The console takes the same commands as text: `place TEAM`, `find cube`, `reader left`,
@@ -90,10 +92,12 @@ background, its log `connector/server.log`. With or without, `run.sh` restarts i
 |                 | `ready` or `failed`                                                                         |
 | `version`, `sdk_version` | the app's and the SDK's                                                            |
 
-The stream is the camera's live view at the calibration's frame size, made as large as H.264 level 3.1 holds (1104 x
-828 from the document camera's 2592 x 1944), with the Tiles page's overlay drawn in -- the areas, the tiles, their
-letters, a word being set down -- the red cube after `find-cube`, and a bar: what the app is doing, the last answer,
-the cloud and the stream. It is a branch of the camera's GStreamer pipeline, run only while someone watches, at the
+The stream is the camera's live view at the calibration's frame size, made as large as H.264 level 3.1 holds, its
+height in eights for the board's encoder (1248 x 720 from the C920's 2560 x 1472), with the Tiles page's overlay drawn
+in -- the areas, the tiles, their letters, a word being set down -- the red cube after `find-cube`, and a bar: what
+the arm is doing and for how long, or why it cannot be used, or the tiles last seen; the cloud when it is not online;
+the language model on the Ara240, if there is one, and while it answers, the request and what it is doing. Each
+command's answer shows over the bar, yellow, red when refused. It is a branch of the camera's GStreamer pipeline, run only while someone watches, at the
 live view's 5 frames a second at most: H.264 from the board's hardware encoder where GStreamer has one, else x264 in
 PyAV at its fastest, encoded once for every viewer (`src/applib/stream.py`).
 

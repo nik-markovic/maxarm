@@ -82,6 +82,7 @@ class _Request:
     placed: str = ""                        # the word it started setting down
     trace: List[dict] = field(default_factory=list)    # what went to and from the model, in turn
     is_asked_again: bool = False            # an answer dropped and the model asked again (`watch.py`)
+    is_stopped: bool = False                # `stop()`: no tool call more, nothing set down
 
 
 class AgentService:
@@ -128,10 +129,11 @@ class AgentService:
     def stop(self) -> bool:
         """Cut the request being answered short, at the model's next safe point; whether there was one."""
         request = self._request
-        if request is None or request.agent is None:
+        if request is None:
             return False
-        request.doing = "Stopping"
-        request.agent.cancel()
+        request.is_stopped, request.doing = True, "Stopping"
+        if request.agent is not None:
+            request.agent.cancel()
         return True
 
     def forget(self) -> None:
@@ -139,13 +141,17 @@ class AgentService:
 
     def state(self) -> dict:
         """For the Chat page: the model, the conversation, the request being answered and the word being set down."""
+        return {**self.activity(), "messages": self.chat.messages()}
+
+    def activity(self) -> dict:
+        """The model, the request being answered and the word being set down, without the conversation: for the
+        stream's bar, every frame."""
         request = self._request
         # Seconds, not the time it started: the page's clock need not be the board's.
         thinking = None if request is None else {"text": request.text, "doing": request.doing, "calls": request.calls,
                                                  "steps": request.steps,
                                                  "seconds": int(time.monotonic() - request.started)}
-        return {"model": self.source.status(), "messages": self.chat.messages(), "thinking": thinking,
-                "placing": self._placing}
+        return {"model": self.source.status(), "thinking": thinking, "placing": self._placing}
 
     def trace(self, n: int) -> Optional[List[dict]]:
         """What went to and from the model for the chat's message `n`, an answer; None if there is none."""
@@ -246,6 +252,8 @@ class AgentService:
     def _step(self, request: _Request, name: str, argument: str, call: Callable[[], Tuple[str, dict]]) -> str:
         """One tool call: in the chat and on the console before it runs -- it takes time -- and with what came back."""
         request.steps += 1
+        if request.is_stopped:
+            return "Stopped by the user: nothing more is done. Answer now."
         if request.steps > MAX_STEPS:
             if request.steps > MAX_STEPS + 2:
                 request.agent.cancel()
@@ -306,6 +314,9 @@ class AgentService:
             self.chat.set_word(request.turn, found.word, PROPOSED)
             data["busy"] = busy
             return f"{found.about}; not set down: the arm is setting down {busy}. Tell the user.", data
+        if request.is_stopped:                          # stopped while the word was being found
+            self.chat.set_word(request.turn, found.word, PROPOSED)
+            return f"{found.about}; not set down: stopped by the user. Tell the user the word.", data
         request.placed = found.word
         self.chat.set_word(request.turn, found.word, PLACING)
         self._start_placing(found.word, request.turn)

@@ -23,6 +23,9 @@ so the handlers below, read top to bottom, are the whole behaviour of the app:
   letters as last seen (`agent_desk()`). Held outside the lock, as its tools
   come back in through `on_command()`; the model takes one sentence at a time,
   and refuses another meanwhile. Its answer goes to the dashboard as `answer`.
+- `stop`: what the calibration pages' RESET does, and the model's request too:
+  the model cut short, whatever moves the arm cut short, the commands waiting
+  for the arm dropped, then the cup lets go, lifts clear and goes home.
 
 The arm is connected on a thread of its own (`keep_arm_connected()`): at the
 start, and again RECONNECT_S after it fails or is lost, so the app runs on
@@ -37,7 +40,7 @@ at a time, under a lock, so a command that comes while another runs waits for it
 
 from __future__ import annotations
 
-from threading import Lock
+from threading import Event, Lock
 from typing import TYPE_CHECKING, Optional, Union
 
 from maxarm import MoveResult, TransportError
@@ -73,16 +76,19 @@ class TilesApp:
         self.overlay = overlay          # what the stream shows over the picture
         self.telemetry = telemetry      # written here, sent by iotc.py
         self.agent: Optional["AgentService"] = None     # the language model on the Ara240, set_agent()
-        self.arm_problem = "connecting"  # why the arm is not connected; "" once it is
+        self.arm_problem = ""           # why the arm is not connected; "" once it is: `_set_arm_problem()`
+        self.closing = Event()          # the app is stopping: `close()`
         self._lock = Lock()
+        self._stops = 0                 # `stop`s so far: a command that waited across one is dropped
         self._handlers = {
             commands.DETECT: self._detect,
             commands.PLACE: self._place,
             commands.FIND_CUBE: self._find_cube,
             commands.READER_LOCATION: self._reader_location,
             commands.AGENT: self._agent,
+            commands.STOP: self._stop,
         }
-        self._rest()
+        self._set_arm_problem("connecting")
 
     def on_command(self, command: Command) -> str:
         """Run one command and return its answer; `CommandError`, saying why, if it cannot be done."""
@@ -91,9 +97,14 @@ class TilesApp:
             raise CommandError(f"There is no command {command.verb}.")
         if command.verb in (commands.READER_LOCATION, commands.AGENT):
             return handler(command)
+        if command.verb == commands.STOP:
+            self._cut_short()                           # before the lock: whatever holds it lets go
+        stops = self._stops
         with self._lock:
-            if self.motion.stopping.is_set():
+            if self.closing.is_set():
                 raise CommandError("The app is stopping.")
+            if self._stops != stops:
+                raise CommandError("Dropped: a stop came while it waited for the arm.")
             if not self.motion.is_connected:
                 raise CommandError(_sentence(f"the arm is not connected, {self.arm_problem}; it is tried again "
                                              f"every {RECONNECT_S:.0f} s"))
@@ -104,31 +115,36 @@ class TilesApp:
             except TransportError as error:
                 self.motion.is_connected = False
                 self.motion.arm.disconnect()            # the port let go at once: plugged in again, the arm takes it
-                self.arm_problem = f"it stopped answering: {error}"
+                self._set_arm_problem(f"it stopped answering: {error}")
                 raise CommandError(_sentence(f"the arm stopped answering: {error}; it is tried again every "
                                              f"{RECONNECT_S:.0f} s")) from None
             finally:
                 self.overlay.set_doing("")
-                self._rest()
 
     def keep_arm_connected(self) -> None:
         """Connect the arm, and again RECONNECT_S after each failure or loss, until the app stops. Its own thread."""
         said = None
-        while not self.motion.stopping.is_set():
+        while not self.closing.is_set():
             if not self.motion.is_connected:
                 with self._lock:
                     try:
                         self.motion.connect()
-                        self.arm_problem = ""
+                        self._set_arm_problem("")
                     except Exception as error:
-                        self.arm_problem = str(error) or repr(error)
+                        self._set_arm_problem(str(error) or repr(error))
                 if self.arm_problem != said:
                     said = self.arm_problem
                     if said:
                         print(f"arm        : {said}; tried again every {RECONNECT_S:.0f} s", flush=True)
                     else:
                         print("arm        : connected and homed", flush=True)
-            self.motion.stopping.wait(RECONNECT_S)
+            self.closing.wait(RECONNECT_S)
+
+    def close(self) -> None:
+        """The app stopping: the arm held where it is, nothing more started."""
+        self.closing.set()
+        self.motion.stopping.set()
+        self.motion.arm.stop()
 
     def set_agent(self, agent: Optional["AgentService"]) -> None:
         """The language model, once built: its tools are this app's handlers, so it is built after the app."""
@@ -193,7 +209,6 @@ class TilesApp:
                 self.settings.set(reader=reader)
             except ValueError as reason:
                 raise CommandError(_sentence(str(reason))) from None
-            self._rest()
             return f"Words are set down for a reader {READER_WORDS[reader]} from now on."
         reader = self.settings.get("reader")
         return f"Words are set down for a reader {READER_WORDS[reader]}: reader-location {', '.join(READER_WORDS)}."
@@ -208,7 +223,25 @@ class TilesApp:
         self.telemetry.set_once(answer=answer)
         return answer
 
+    def _stop(self, command: Command) -> str:
+        """Under the lock, once what ran has let go of it (`_cut_short()`)."""
+        self.motion.stopping.clear()
+        self.overlay.set_doing("Stopping: letting go, lifting, going home")
+        result = self.motion.reset()
+        if not result:
+            why = result.detail or result.status.value
+            raise CommandError(_sentence(f"stopped, but the arm did not go home: {why}"))
+        return "Stopped: the cup let go, lifted clear and went home."
+
     # --- inside -----------------------------------------------------------------------------------------------
+
+    def _cut_short(self) -> None:
+        """The model's request, the arm's move, and the commands waiting for the arm: all cut short."""
+        if self.agent is not None:
+            self.agent.stop()
+        self._stops += 1
+        self.motion.stopping.set()
+        self.motion.arm.stop()
 
     def _calibration(self) -> CameraFit:
         """The camera calibration, or why the tiles cannot be found with it."""
@@ -223,16 +256,11 @@ class TilesApp:
         if self.work.found:
             self.telemetry.set(**self.work.summary())
             self.telemetry.wake()
-        self._rest()
 
-    def _rest(self) -> None:
-        """What the stream's bar says while no command runs."""
-        found = self.work.found
-        tiles = (f"{len(found['tiles'])} tiles: {self.work.summary()['tiles'].upper()}" if found and found["tiles"]
-                 else "no tiles found" if found else "waiting for a command")
-        self.overlay.set_resting(f"{tiles}   reader {self.settings.get('reader')}   tile height "
-                                 f"{self.settings.get('tile_height_mm'):g} mm, offset "
-                                 f"{self.settings.get('tile_offset_mm'):g} mm in")
+    def _set_arm_problem(self, problem: str) -> None:
+        """Why the arm cannot be used, "" once it can: for the commands' refusals and the stream's bar."""
+        self.arm_problem = problem
+        self.overlay.set_arm_problem(problem)
 
 
 def _answer(result: Union[MoveResult, str]) -> str:

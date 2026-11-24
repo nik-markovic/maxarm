@@ -169,18 +169,23 @@ class Canvas:
 
     def label(self, text: str, at: Point, colour: Ink, size: float = 12.0, anchor: str = "centre",
               pill: Ink = (17, 13, 10)) -> None:
-        """`text` on a dark pill outlined in `colour`, kept inside the picture: centred on `at`, or starting there."""
+        """`text`, lines apart by newlines, on a dark pill outlined in `colour`, kept inside the picture: centred on
+        `at`, or starting there."""
         if at is None:
             return
-        width = (self.text_width(text, size) + 14) * self.scale
-        height = 22 * self.scale
+        lines = text.split("\n")
+        step = 1.5 * size
+        width = (max(self.text_width(line, size) for line in lines) + 14) * self.scale
+        height = (22 + step * (len(lines) - 1)) * self.scale
         left = at[0] - width / 2 if anchor == "centre" else at[0]
         left = min(max(left, 4 * self.scale), self.size[0] - width - 4 * self.scale)
         top = min(max(at[1] - height / 2, 4 * self.scale), self.size[1] - height - 4 * self.scale)
         outline = _rounded(left, top, width, height, 6 * self.scale)
         self.fill(outline, pill, 0.82)
         self.lines(outline, colour, 1.0, 1.0, closed=True)
-        self.text(text, (left + 7 * self.scale, top + height / 2), colour, size, anchor="left")
+        for index, line in enumerate(lines):
+            middle = top + (11 + step * index) * self.scale
+            self.text(line, (left + 7 * self.scale, middle), colour, size, anchor="left")
 
     def text_width(self, text: str, size: float, bold: bool = False) -> float:
         """How wide `text` is drawn, design px."""

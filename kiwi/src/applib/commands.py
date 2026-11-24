@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from threading import Thread
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,8 @@ PLACE = "place"
 FIND_CUBE = "find-cube"
 READER_LOCATION = "reader-location"
 AGENT = "agent"             # a sentence for the language model on the Ara240
-VERBS = (DETECT, PLACE, FIND_CUBE, READER_LOCATION, AGENT)
+STOP = "stop"               # what runs cut short, the arm home: the calibration pages' RESET
+VERBS = (DETECT, PLACE, FIND_CUBE, READER_LOCATION, AGENT, STOP)
 
 NOT_UNDERSTOOD = f"Not a command: the commands are {', '.join(VERBS)}."
 
@@ -89,11 +91,19 @@ class CommandService:
 
     def submit(self, text: str, source: str = "console") -> "Future[CommandResult]":
         """A line of text, parsed and run."""
-        return self._executor.submit(self.run, text, source)
+        command = parse(text)
+        if command is None:
+            return self._executor.submit(self.run, text, source)
+        return self.submit_command(command, source)
 
     def submit_command(self, command: Command, source: str = "c2d") -> "Future[CommandResult]":
-        """A command its source has already named the verb of."""
-        return self._executor.submit(self.execute, command, source)
+        """A command its source has already named the verb of. `stop` on a thread of its own: it must not wait for
+        a free thread behind the commands it stops."""
+        if command.verb != STOP:
+            return self._executor.submit(self.execute, command, source)
+        future: "Future[CommandResult]" = Future()
+        Thread(target=lambda: future.set_result(self.execute(command, source)), name="stop", daemon=True).start()
+        return future
 
     def run(self, text: str, source: str = "console") -> CommandResult:
         command = parse(text)

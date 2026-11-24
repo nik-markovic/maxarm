@@ -60,9 +60,7 @@ DEAD_STATES = ("disconnected", "failed", "closed")
 class WebRtcStreamer:
     """One signalling channel, held open, and one peer connection per viewer."""
 
-    def __init__(self, on_status: Callable[[str], None], on_watched: Callable[[bool], None],
-                 on_keyframe_wanted: Callable[[], None]) -> None:
-        self.on_status = on_status
+    def __init__(self, on_watched: Callable[[bool], None], on_keyframe_wanted: Callable[[], None]) -> None:
         self.on_watched = on_watched                    # anyone watching, or about to, or nobody now
         self.on_keyframe_wanted = on_keyframe_wanted
         self.channel_arn = ""
@@ -86,7 +84,6 @@ class WebRtcStreamer:
         self.channel_arn = channel_arn
         self.region = channel_arn.split(":")[3]
         self.get_credentials = get_credentials
-        self.on_status("stream: connecting")
         self._thread.start()
 
     def stop(self) -> None:
@@ -140,7 +137,6 @@ class WebRtcStreamer:
                 url = await asyncio.to_thread(self.build_signed_url)
                 async with websockets.connect(url) as socket:
                     print(f"[webrtc] master on {self.channel_arn.rsplit('/', 2)[-2]}, waiting for viewers", flush=True)
-                    self.on_status("stream: ready")
                     async for message in socket:
                         await self._on_signal(message, socket)
             except Exception as error:
@@ -149,7 +145,6 @@ class WebRtcStreamer:
                 logger.exception("signalling channel dropped")
                 print(f"[webrtc] signalling: {type(error).__name__}: {error} -- again in {RECONNECT_WAIT_S:.0f} s",
                       flush=True)
-                self.on_status("stream: offline")
                 await asyncio.sleep(RECONNECT_WAIT_S)
 
     def build_signed_url(self) -> str:
@@ -211,14 +206,12 @@ class WebRtcStreamer:
             print(f"[webrtc] viewer {viewer_id}: {peer.connectionState}", flush=True)
             if peer.connectionState in DEAD_STATES:
                 await self._drop_viewer(viewer_id)
-            self._report_viewers()
 
         peer.addTrack(track)
         pin_h264(peer)                       # before the offer is taken: the codecs are settled there
         await peer.setRemoteDescription(RTCSessionDescription(sdp=payload["sdp"], type=payload["type"]))
         await peer.setLocalDescription(await peer.createAnswer())
         await socket.send(_encode_signal("SDP_ANSWER", peer.localDescription, viewer_id))
-        self._report_viewers()
         self.on_keyframe_wanted()            # so the first picture comes now, not at the next keyframe
 
     async def _on_ice_candidate(self, payload: dict, viewer_id: str) -> None:
@@ -240,11 +233,6 @@ class WebRtcStreamer:
         if not self._tracks:
             self.on_watched(False)
         await peer.close()
-
-    def _report_viewers(self) -> None:
-        watching = sum(1 for peer, _ in self._viewers.values() if peer.connectionState == "connected")
-        self.on_status(f"stream: {watching} watching" if watching else "stream: ready")
-
 
 class H264Track(MediaStreamTrack):
     """One viewer's view of the stream: the access units it has yet to be sent, a few at most."""

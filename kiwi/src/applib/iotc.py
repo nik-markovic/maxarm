@@ -75,8 +75,7 @@ MAX_AGENT_ACK_CHARS = 60    # the model's answer is a paragraph: enough to know 
 class IotcClient:
     def __init__(self, config_path: Path, cert_path: Path, key_path: Path, service: CommandService,
                  telemetry: TelemetryState, app_version: str, streaming: "Optional[WebRtcStreamer]" = None,
-                 on_status: Optional[Callable[[str], None]] = None,
-                 on_stream_status: Optional[Callable[[str], None]] = None) -> None:
+                 on_status: Optional[Callable[[str], None]] = None) -> None:
         self.config_path = config_path
         self.cert_path = cert_path
         self.key_path = key_path
@@ -85,7 +84,6 @@ class IotcClient:
         self.app_version = app_version
         self.streaming = streaming      # started here: only the cloud knows the channel
         self.on_status = on_status or (lambda status: None)
-        self.on_stream_status = on_stream_status or (lambda status: None)
         self._client: Optional["Client"] = None
         self._kvs = None
         self._last_sent = 0.0
@@ -156,18 +154,14 @@ class IotcClient:
         self._kvs = self._client.get_kvs_client()
         if self._kvs is None:
             print("[iotc] KVS disabled for this device (enable Video Streaming in the template)", flush=True)
-            self.on_stream_status("stream: not enabled")
             return
         self._kvs.obtain_credentials()
         channel_arn = self._kvs.get_signaling_channel_arn()
         print(f"[iotc] KVS channel {channel_arn}, credentials good for {self._kvs.get_secs_to_expiry() / 60:.0f} "
               f"min", flush=True)
-        if self.streaming is None:
-            self.on_stream_status("stream: off")
-        elif not channel_arn:
+        if not channel_arn:
             print("[iotc] no signalling channel: enable Video Streaming -> WebRTC in the template", flush=True)
-            self.on_stream_status("stream: no channel")
-        else:
+        elif self.streaming is not None:            # None: the app runs without the stream, aiortc not installed
             # A callable, not the credentials themselves: they are renewed on this thread, and the streamer signs
             # each new connection with whatever is current.
             self.streaming.start(channel_arn,

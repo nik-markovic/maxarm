@@ -13,6 +13,7 @@ Commands, from the device's Commands tab in /IOTCONNECT or typed at the console:
     reader-location left    where the person reading the words stands: back, front, left or right
     agent SENTENCE          the sentence to the language model on the Ara240, which may run the commands above;
                             its answer is the `answer` telemetry. Needs connector/ (connector/install.sh)
+    stop                    the model's request and the arm's work cut short; the cup lets go, lifts and goes home
 
 Calibrate first: the calibration app (`src/calibration/calibration.py`) writes
 config/, and this app uses what it chose there -- the camera's mode and focus, the
@@ -99,7 +100,7 @@ def main() -> int:
     app.set_agent(build_agent(app, telemetry, overlay))
     service = CommandService(app.on_command, on_result=lambda result: overlay.show_answer(result.message,
                                                                                          result.is_ok))
-    streamer = build_streamer(args, overlay, stream)
+    streamer = build_streamer(args, stream)
     cloud = build_cloud(args, service, telemetry, overlay, streamer)
 
     signal.signal(signal.SIGTERM, _interrupt)           # stopped as Ctrl-C stops it: the arm held, the port closed
@@ -126,18 +127,15 @@ def main() -> int:
     return 0
 
 
-def build_streamer(args, overlay: StreamOverlay, stream: Stream):
+def build_streamer(args, stream: Stream):
     """The WebRTC streamer, with no channel yet -- `iotc.py` starts it once the cloud names one -- fed by the stream;
     or None, and the stream goes nowhere."""
     if args.no_iotc:
-        overlay.set_stream_status("stream: off")
         return None
     if not webrtc.IS_WEBRTC_AVAILABLE:
         print("WebRTC     : off, aiortc is not installed (src/requirements.txt)", flush=True)
-        overlay.set_stream_status("stream: unavailable")
         return None
-    streamer = webrtc.WebRtcStreamer(on_status=overlay.set_stream_status, on_watched=stream.set_watched,
-                                     on_keyframe_wanted=stream.request_keyframe)
+    streamer = webrtc.WebRtcStreamer(on_watched=stream.set_watched, on_keyframe_wanted=stream.request_keyframe)
     stream.connect_encoded(streamer.on_encoded)
     return streamer
 
@@ -159,26 +157,26 @@ def build_agent(app: TilesApp, telemetry: TelemetryState, overlay: StreamOverlay
         telemetry.set_once(answer=text)
         overlay.show_answer(text, is_ok)
 
-    return agent.AgentService(agent.AraConnector(on_change=on_change), app.agent_desk(), on_say=on_say)
+    service = agent.AgentService(agent.AraConnector(on_change=on_change), app.agent_desk(), on_say=on_say)
+    overlay.watch_agent(service.activity)
+    return service
 
 
 def build_cloud(args, service: CommandService, telemetry: TelemetryState, overlay: StreamOverlay, streamer):
     """The /IOTCONNECT client, or None with --no-iotc. Unguarded: a missing config or key stops the app at
     `connect()`, with the SDK's own message."""
     if args.no_iotc:
-        overlay.set_cloud_status("cloud: off")
         return None
     if not iotc.IS_SDK_AVAILABLE:
         raise SystemExit("/IOTCONNECT: the SDK is not installed (src/requirements.txt), or run with --no-iotc.")
     print(f"/IOTCONNECT: {DEVICE_CONFIG}, certificate {DEVICE_CERT.name}", flush=True)
     return iotc.IotcClient(DEVICE_CONFIG, DEVICE_CERT, DEVICE_KEY, service, telemetry, VERSION, streaming=streamer,
-                           on_status=overlay.set_cloud_status, on_stream_status=overlay.set_stream_status)
+                           on_status=overlay.set_cloud_status)
 
 
 def shut_down(app: TilesApp, motion: Motion, feed: Feed, service: CommandService, streamer, cloud) -> None:
     """Everything stopped in turn; the arm held where it is and, once no command uses it, its port closed."""
-    motion.stopping.set()
-    motion.arm.stop()
+    app.close()
     if cloud is not None:
         cloud.stop()
     if streamer is not None:
