@@ -55,8 +55,8 @@ The best way to fine tune the calibration is to use **Fine Tune** page is to:
 1. Based on the screenshot guide below, decide if the arm needs improvement in a given desk area: 
 ![arm-to-desk.jpg](media/arm-to-desk.jpg)
 1. Either:
-  - Send the arm to the area using the left desk grid...
-  - Or place the red cube in the area and click *Find Red Cube*.
+ - Send the arm to the area using the left desk grid...
+ - Or place the red cube in the area and click *Find Red Cube*.
 1. Align the cube below the arm like you did during the initial calibration.
 1. Click *Record Point* to add the new point to the calibration. 
 And accept the point if it visually matches the outline.
