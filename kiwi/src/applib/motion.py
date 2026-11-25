@@ -1,8 +1,8 @@
 """How the apps move the arm: carefully near the desk, in arm or desk coordinates.
 
 Every move is a `MaxArm.move()`, so every limit the library knows is checked.
-What this adds is how a person at a web page wants the arm to behave while
-finding the desk with it -- and the /IOTCONNECT app moves it the same way:
+What this adds is how a person at a web page wants the arm to behave near the
+desk -- and the /IOTCONNECT app moves it the same way:
 
 - **direct**: straight there. Fast while both ends are above the hover height,
   slow below it; a vertical move through it goes fast down to it and slowly on.
@@ -12,7 +12,6 @@ finding the desk with it -- and the /IOTCONNECT app moves it the same way:
   landing (`maxarm/landing.py`): no aim past, so the servos stop 1-3 mm short.
 - **down_to**: the library's landing (`MaxArm.down_to()`), crossing at the hover
   height: down to exactly the point, aimed past what the servos fall short.
-- **glide**: slowly and level, in short legs, to watch the cup's height.
 - **carry**: a piece picked up and set down, as the library's `carry()` does it.
 
 `precise` ends a move with the library's `MoveType.PRECISE`: slow, then the
@@ -20,10 +19,10 @@ servos read until steady. It does not correct: the servos stop 1-3 mm short.
 
 Two spaces. ARM uses no calibration at all: the desk is what is being measured,
 so no desk floor from an older calibration may keep the cup off it. DESK uses
-the saved `desk.json`, to try it out, or the library's default desk without one.
+the saved `desk.json`, or the library's default desk without one.
 
 The hover height is the space's own unless a page says otherwise: the camera
-page has 40 mm cubes on the desk, so it hovers over them (`OVER_CUBES_MM`).
+page has the cubes on the desk, so it hovers over them (`OVER_CUBES_MM`).
 """
 
 import math
@@ -37,17 +36,14 @@ from maxarm.path import CLEARANCE_MARGIN_MM, CROSSING_MM
 from maxarm.spaces import DEFAULT_DESK_Z_MM
 
 # Above this nothing on the desk can be hit, so moves go fast; below it they go
-# slow. Arm z, true z: 10 mm over the default desk, 44 (the owner's, PILOT-falcon).
+# slow. Arm z, true z: 10 mm over the default desk.
 HOVER_MM = {Space.ARM: 54.0, Space.DESK: 20.0}
-# The same for the camera page, in desk space: over its 40 mm cubes with room to
-# slide one under the cup.
+# The same for the camera page, in desk space: over the cubes with room to slide
+# one under the cup.
 OVER_CUBES_MM = 60.0
 # RESET lifts the cup straight up to this, arm z, before it heads home: over the
 # cubes, whichever page the arm was last moved from.
 RESET_LIFT_MM = DEFAULT_DESK_Z_MM + OVER_CUBES_MM
-# How far apart a glide's commands are: it is sent as points along the line, each
-# at the glide's height.
-GLIDE_STEP_MM = 10.0
 # How far a jump lowers its crossing height at a time, looking for one at which
 # the far end is in reach: near the reset pose, little is.
 TRAVEL_SEARCH_STEP_MM = 5.0
@@ -156,17 +152,6 @@ class Motion:
         finally:
             self.arm.set_clearance(0.0)
 
-    def glide(self, space: Space, target: Position) -> Optional[MoveResult]:
-        """Slowly and level to `target`, precise there; None, with nothing sent, if a straight line cannot get there."""
-        self.use(space)
-        here = self.position(space)
-        steps = max(1, math.ceil(math.dist(here, target) / GLIDE_STEP_MM))
-        legs = [(tuple(a + (b - a) * step / steps for a, b in zip(here, target)), MoveType.SLOW)
-                for step in range(1, steps + 1)]
-        if not all(self.arm.can_reach(*point) for point, _ in legs):
-            return None
-        return self._go(legs, precise=True)
-
     def turn(self, servo: float) -> MoveResult:
         """The cup's servo to `servo` degrees, -90 to 90, where the arm is."""
         self.use(Space.ARM)
@@ -212,7 +197,7 @@ class Motion:
         return result
 
     def reset(self) -> MoveResult:
-        """Let go, lift clear of the desk and of the cubes on it, and go home with the cup centred."""
+        """Let go, lift clear of the desk and of the cubes on it, and go home with the cup centered."""
         self.use(Space.ARM)
         if self.is_suction_on:
             self.suction(False)
@@ -227,10 +212,6 @@ class Motion:
         if result:
             self.cup = 0.0
         return result
-
-    def hold(self, seconds: float) -> bool:
-        """Wait, unless RESET. True if it waited it out."""
-        return not self.stopping.wait(seconds)
 
     def read(self) -> None:
         """Where the servos say the arm is, kept in arm space."""

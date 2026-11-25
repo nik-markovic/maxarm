@@ -2,7 +2,7 @@
 
 A calibrated camera maps any horizontal plane to pixels by a homography, so the
 plane the tiles' top faces lie on, a tile's thickness up, can be resampled into an image in
-millimetres. In it every tile's top face is the same 25 mm square wherever it
+millimeters. In it every tile's top face is the same 25 mm square wherever it
 lies, and perspective is gone.
 
 The view is laid out like the pages' view from above: desk +x to the right,
@@ -21,7 +21,7 @@ from maxarm import Camera
 
 Box = Tuple[float, float, float, float]          # desk mm: x from, x to, y from, y to
 
-# Close to what the camera itself resolves on the desk: it sees about 2.5 to 5 px a millimetre.
+# Close to what the camera itself resolves on the desk: it sees about 2.5 to 5 px a millimeter.
 PX_PER_MM = 4.0
 # Pixels at the frame's very edge are interpolated against nothing.
 EDGE_MARGIN_PX = 2
@@ -33,7 +33,7 @@ class TopDown:
     is_seen: np.ndarray             # bool: the frame shows the desk there
     height_mm: float
     px_per_mm: float
-    origin: Tuple[float, float]     # desk x, y at the centre of pixel (0, 0)
+    origin: Tuple[float, float]     # desk x, y at the center of pixel (0, 0)
 
     def to_desk(self, u, v):
         """View pixels to desk mm; arrays or numbers."""

@@ -1,9 +1,9 @@
 // The height column beside the view, for the pages that work in desk space with cubes on the desk (camera, tests).
-// The owner's (PILOT-gecko): the slider runs from 70 down to -2 mm over the desk, yellow from the desk down a
-// millimetre and red below, where the cup presses into it. The notch, over a cube's top, catches the slider from a
-// millimetre either side. SAFE is well clear of the cubes anywhere in reach. ▲ and ▼ take the slider's ends
+// The slider runs from 70 down to -2 mm over the desk, yellow from the desk down a
+// millimeter and red below, where the cup presses into it. The notch, over a cube's top, catches the slider from a
+// millimeter either side. SAFE is well clear of the cubes anywhere in reach. ▲ and ▼ take the slider's ends
 // further. The arm sent past them -- RESET, at the start -- leaves them where they are: the slider stops at its end
-// and the number says the arm's height, marked as off the slider (the owner's).
+// and the number says the arm's height, marked as off the slider.
 //
 // The page owns the height: the column shows it, and says when it is changed and when to send it.
 
@@ -12,9 +12,9 @@ import { $, fmt } from './page.js';
 const HEIGHT = { top: 70, bottom: -2, safe: 80, lower: 2, higher: 20, caution: 0, danger: -1, snap: 1 };
 export const SAFE_MM = HEIGHT.safe;
 
-// An isometric cube, lit from above, in a cube's colour: blue, green, red, or the notch's grey.
-export function cubeIcon(colour) {
-  return `<svg class="cube-icon ${colour}" viewBox="0 0 32 32" aria-hidden="true">
+// An isometric cube, lit from above, in a cube's color: blue, green, red, or the notch's gray.
+export function cubeIcon(color) {
+  return `<svg class="cube-icon ${color}" viewBox="0 0 32 32" aria-hidden="true">
     <path class="top" d="M16 3 28 9.5 16 16 4 9.5Z"/><path class="left" d="M4 9.5 16 16v13L4 22.5Z"/>
     <path class="right" d="M28 9.5 16 16v13l12-6.5Z"/></svg>`;
 }

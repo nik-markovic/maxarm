@@ -35,7 +35,7 @@ SERVO_3_MIN_PULSE = 470.0
 
 BLIND_RADIUS = 50.0        # set_position() returns None inside this cylinder
 Z_CLAMP = 225.0            # above this it pins z and still reports success
-BASE_FAN_DEG = 120.0       # the base servo's 240 degrees, centred on straight out
+BASE_FAN_DEG = 120.0       # the base servo's 240 degrees, centered on straight out
 
 # What the board's go_home() commands, and where every connect leaves the arm.
 HOME = (0.0, -163.0, 212.0)
@@ -119,7 +119,7 @@ def forward(angles: Angles) -> Position:
 
 
 def bearing_degrees(x: float, y: float) -> float:
-    """0 straight out from the arm (-y), positive towards +x. The fan is +-120."""
+    """0 straight out from the arm (-y), positive toward +x. The fan is +-120."""
     return math.degrees(math.atan2(x, -y))
 
 

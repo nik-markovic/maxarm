@@ -76,7 +76,7 @@ class Mesh:
         self.triangles = _delaunay(plane)
         self.edges = _edges(plane, self.triangles)
         # What `_left_at()` asks of every triangle and edge, worked out once: a position converted asks it of each
-        # of them, and a landing converts some dozens of positions (STATUS-kiwi).
+        # of them, and a landing converts some dozens of positions.
         self._shares = [_shares_of(plane[list(corners)]) for corners in self.triangles]
         self._sides = [_side_of(plane[start], plane[end]) for start, end in self.edges]
 
@@ -207,12 +207,12 @@ def _delaunay(plane: np.ndarray) -> List[Tuple[int, int, int]]:
         if abs(twice_area) <= FLAT * longest:
             continue
         d = 2 * twice_area
-        centre = np.array([
+        center = np.array([
             (a @ a * (b[1] - c[1]) + b @ b * (c[1] - a[1]) + c @ c * (a[1] - b[1])) / d,
             (a @ a * (c[0] - b[0]) + b @ b * (a[0] - c[0]) + c @ c * (b[0] - a[0])) / d])
-        radius2 = np.sum((a - centre) ** 2)
+        radius2 = np.sum((a - center) ** 2)
         others = np.delete(plane, list(corners), axis=0)
-        if not len(others) or np.min(np.sum((others - centre) ** 2, axis=1)) >= radius2 * (1 - 1e-9):
+        if not len(others) or np.min(np.sum((others - center) ** 2, axis=1)) >= radius2 * (1 - 1e-9):
             found.append(corners)
     return found
 

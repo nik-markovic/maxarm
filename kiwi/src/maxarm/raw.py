@@ -42,14 +42,13 @@ from typing import Tuple
 
 from .geometry import Position
 
-# On the desk, true z is raw z plus this much per mm of reach past LEVEL_REACH_MM: the line refitted to where the
-# cup starts to seal, 8 Nov, held where the 5 Nov fit hung it, 150-190 mm out (STATUS-jackal §17,
-# agenttools/mechanics/edge_fit.py).
+# On the desk, true z is raw z plus this much per mm of reach past LEVEL_REACH_MM: the line fitted to where the
+# cup starts to seal, 150-190 mm out (`files/true-z/`).
 TRUE_Z_PER_MM_OF_REACH = 0.0588
 LEVEL_REACH_MM = 201.5
 # plus this, by the firmware's reach: the desk found by the cup's seal ring by ring, 0.4 mm under the height that
-# best splits seals from leaks; from 138 mm out refitted with the line above, the two first rows as before
-# (STATUS-jackal §17, agenttools/mechanics/edge_fit.py).
+# best splits seals from leaks; from 138 mm out fitted with the line above
+# (`files/true-z/`).
 DESK_WAVE_MM = ((109.5, -0.53), (125.1, +0.15), (138.8, +0.09), (153.8, +0.26), (169.2, +0.20), (184.0, -0.39),
                 (198.8, -0.60), (213.4, -0.21), (228.8, -0.25), (244.0, -0.50), (258.6, -0.47))
 # Above it, raw z reads too tall with the square of the height over the desk:
@@ -64,10 +63,10 @@ REACH_AT_DESK_MM = 6.26
 REACH_LESS_PER_MM = 0.110
 REACH_TOP_MM = 44.0
 # The base points this many degrees further round (+ toward +x) than the firmware's bearing says, by that bearing:
-# a cube's real place against the servos' reading over it, one row each; the rows at -15, 15 and 30 fitted to the
-# 3 Nov grid paper between them (STATUS-jackal §19). The left end: base pulse 870 is -90, matched by hand; the row at
+# a cube's real place against the servos' reading over it, one row each; the rows at -15, 15 and 30 fitted to grid
+# paper between them. The left end: base pulse 870 is -90, matched by hand; the row at
 # -77 only holds the table as it was to just past the calibration's furthest-left point, so that the end changes
-# nothing the points measured (STATUS-jackal §24).
+# nothing the points measured.
 TURN_DEG = ((-88.80, -1.20), (-77.0, +0.37), (-46.80, +1.80), (-30.29, +1.95), (-15.0, +0.86), (0.0, 0.0), (15.0, -0.92),
             (30.0, -2.10), (47.15, -2.15), (53.04, -0.99),
             (58.97, -0.98), (64.80, -1.37), (92.64, -2.64))

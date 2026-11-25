@@ -9,7 +9,7 @@ to serve -- takes fewer.
 
 Processes, not threads. The fits (`find.py`) are numpy on small arrays, most of it under the interpreter's lock:
 three threads make them no faster than two, and the app's own threads wait on the same lock. Nor do six processes
-make six times one's: the cores share little cache (STATUS-kiwi). The workers are kept from one call to the next, as
+make six times one's: the cores share little cache. The workers are kept from one call to the next, as
 starting them takes seconds.
 
 They are forked from a fork server, a process of its own, and never from this one: a fork of the app would cut its

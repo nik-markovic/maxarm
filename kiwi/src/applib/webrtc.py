@@ -1,7 +1,7 @@
-"""KVS WebRTC: the stream, live in a browser -- the /IOTCONNECT dashboard's video tab (the property-alarm demo's
-`webrtc.py`, `work/refs/iotc-eiq-imx95-property-alarm`).
+"""KVS WebRTC: the stream, live in a browser -- the /IOTCONNECT dashboard's video tab (the
+iotc-eiq-imx95-property-alarm demo's `webrtc.py`).
 
-The device is the master on an Amazon Kinesis Video Streams signalling channel.
+The device is the master on an Amazon Kinesis Video Streams signaling channel.
 /IOTCONNECT hands over the channel ARN and temporary AWS credentials (`iotc.py`);
 one signed WebSocket to the channel stays open the whole run, and every viewer
 pressing play arrives on it as an SDP offer and gets a peer connection of its own.
@@ -58,7 +58,7 @@ DEAD_STATES = ("disconnected", "failed", "closed")
 
 
 class WebRtcStreamer:
-    """One signalling channel, held open, and one peer connection per viewer."""
+    """One signaling channel, held open, and one peer connection per viewer."""
 
     def __init__(self, on_watched: Callable[[bool], None], on_keyframe_wanted: Callable[[], None]) -> None:
         self.on_watched = on_watched                    # anyone watching, or about to, or nobody now
@@ -87,7 +87,7 @@ class WebRtcStreamer:
         self._thread.start()
 
     def stop(self) -> None:
-        """Cancel the signalling task and let it close the viewers, rather than stopping the loop under them."""
+        """Cancel the signaling task and let it close the viewers, rather than stopping the loop under them."""
         self._is_stopping = True
         if self._loop is not None and self._task is not None:
             self._loop.call_soon_threadsafe(self._task.cancel)
@@ -122,15 +122,15 @@ class WebRtcStreamer:
     async def _runner(self) -> None:
         self._task = asyncio.current_task()
         try:
-            await self._signalling_loop()
+            await self._signaling_loop()
         except asyncio.CancelledError:
             pass
         for viewer_id in list(self._viewers):
             await self._drop_viewer(viewer_id)
 
-    # --- the signalling channel -------------------------------------------------------------------------------
+    # --- the signaling channel -------------------------------------------------------------------------------
 
-    async def _signalling_loop(self) -> None:
+    async def _signaling_loop(self) -> None:
         """Connected to the channel for the whole run, again and again if it drops."""
         while not self._is_stopping:
             try:
@@ -142,8 +142,8 @@ class WebRtcStreamer:
             except Exception as error:
                 if self._is_stopping:
                     return
-                logger.exception("signalling channel dropped")
-                print(f"[webrtc] signalling: {type(error).__name__}: {error} -- again in {RECONNECT_WAIT_S:.0f} s",
+                logger.exception("signaling channel dropped")
+                print(f"[webrtc] signaling: {type(error).__name__}: {error} -- again in {RECONNECT_WAIT_S:.0f} s",
                       flush=True)
                 await asyncio.sleep(RECONNECT_WAIT_S)
 
@@ -280,7 +280,7 @@ def pin_h264(peer: "RTCPeerConnection") -> None:
 
 
 def _decode_signal(message: str) -> Tuple[str, dict, str]:
-    """KVS wraps each signalling message's payload in base64'd JSON."""
+    """KVS wraps each signaling message's payload in base64'd JSON."""
     try:
         envelope = json.loads(message)
         payload = json.loads(b64decode(envelope["messagePayload"]).decode("utf-8"))

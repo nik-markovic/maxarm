@@ -227,8 +227,8 @@ class ReplProtocol:
         # The board answers OK, stdout, 0x04, stderr, 0x04, then the raw prompt.
         raw = self.transport.read_until(b"\x04>", COMMAND_TIMEOUT_S)
         if b"OK" not in raw:
-            _trace("!", f"no acknowledgement: {raw!r}", started)
-            raise ProtocolError(f"no acknowledgement from board: {raw!r}")
+            _trace("!", f"no acknowledgment: {raw!r}", started)
+            raise ProtocolError(f"no acknowledgment from board: {raw!r}")
         if b"\x04>" not in raw:
             _trace("!", f"timed out mid-reply: {raw!r}", started)
             raise ProtocolError(f"timed out mid-reply after {COMMAND_TIMEOUT_S}s: {raw!r}")

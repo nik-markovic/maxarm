@@ -2,19 +2,19 @@
 
 Each sample is what `applib/letters/face.py` hands the reader: a window of
 `WINDOW_MM` round a tile's top face, square-on, the tile's sides along the
-window's, turned by a quarter turn or not. The tiles (PILOT-hyena):
+window's, turned by a quarter turn or not. The tiles:
 
 - 25 x 25 mm, a light face with a slightly darker rounded rim, darker side faces;
 - one capital, printed by hand with a black marker, roughly in the middle;
 - a dot at the letter's bottom right on some, which says which way is up: the
-  owner dots M and W, whose shapes are each other's turned.
+  demo's tiles dot M and W, whose shapes are each other's turned.
 
 The letters are strokes, not a font: each capital is a few polylines in a unit
 box (`SKELETONS`), every point moved a little, the whole sheared, squeezed and
 drawn with a round pen of random width -- so no two are the same, as no two
 hand-written letters are. Everything else is random too: the face's tone and its
 lighting, the ink's, what lies beyond the face, blur, noise, and a pose error of
-a millimetre and a few degrees, so the reader learns the letter and nothing
+a millimeter and a few degrees, so the reader learns the letter and nothing
 about one camera, one desk or one hand.
 """
 
@@ -40,7 +40,7 @@ FACE_MM = 25.0
 # Undotted only: a dot that has turned away from the bottom right makes any of these "not upright".
 # An N turned a quarter is a Z only in outline: a printed N is taller than wide, so turned it is a Z far wider than
 # anyone prints one, and a U turned is a C with straight arms. Those are taught as "not upright", so that the reader
-# learns the proportions; labelled as the other letter, it read the owner's N as a Z (STATUS-hyena §8.3).
+# learns the proportions; labeled as the other letter, it read a printed N as a Z.
 TURNED_READS = {
     1: {"O": "O", "X": "X"},
     2: {"H": "H", "I": "I", "N": "N", "O": "O", "S": "S", "X": "X", "Z": "Z", "M": "W", "W": "M"},
@@ -236,7 +236,7 @@ WIDTHS.update(M=(0.8, 1.25), W=(0.9, 1.4), O=(0.7, 1.05), Q=(0.7, 1.05), C=(0.6,
 
 
 def letter_strokes(letter: str, r: random.Random, height: float) -> List[np.ndarray]:
-    """`letter`'s strokes, mm, centred on (0, 0): its skeleton, each point moved a little, sheared and sized."""
+    """`letter`'s strokes, mm, centered on (0, 0): its skeleton, each point moved a little, sheared and sized."""
     low, high = WIDTHS[letter]
     width = height * r.uniform(low, high) if high else height * r.uniform(0.3, 0.55)
     if letter == "I" and r.random() < 0.5:
@@ -275,7 +275,7 @@ def _smooth_bend(r: random.Random, amount: float) -> Callable[[np.ndarray], np.n
 
 def render(letter: Optional[str], turn: int, r: random.Random, is_dotted: bool = False,
            scribble: bool = False) -> np.ndarray:
-    """One SIZE x SIZE grey sample: `letter` on a tile (None for a blank face), turned `turn` quarter turns."""
+    """One SIZE x SIZE gray sample: `letter` on a tile (None for a blank face), turned `turn` quarter turns."""
     scale = SIZE * SUPERSAMPLE / WINDOW_MM
     size = SIZE * SUPERSAMPLE
     face_tone = r.randint(140, 255)
@@ -294,7 +294,7 @@ def render(letter: Optional[str], turn: int, r: random.Random, is_dotted: bool =
         shade = int(np.clip(beyond * r.uniform(0.6, 1.3), 0, 255))
         draw.rounded_rectangle([box[0] + min(0, dx), box[1] + min(0, dy), box[2] + max(0, dx), box[3] + max(0, dy)],
                                radius=2 * scale, fill=shade)
-    if r.random() < 0.25:                                   # a neighbour, close by
+    if r.random() < 0.25:                                   # a neighbor, close by
         offset = r.choice((-1, 1)) * (face + r.uniform(0.2, 3.0)) * scale
         horizontal = r.random() < 0.5
         draw.rounded_rectangle([box[0] + offset * horizontal, box[1] + offset * (not horizontal),
@@ -309,8 +309,8 @@ def render(letter: Optional[str], turn: int, r: random.Random, is_dotted: bool =
     pen = r.uniform(0.7, 1.9) * scale
     if letter:
         height = r.uniform(9.0, 19.0)
-        centre = np.array([WINDOW_MM / 2 + r.uniform(-1.8, 1.8), WINDOW_MM / 2 + r.uniform(-1.8, 1.8)])
-        strokes = [(points + centre) * scale for points in letter_strokes(letter, r, height)]
+        center = np.array([WINDOW_MM / 2 + r.uniform(-1.8, 1.8), WINDOW_MM / 2 + r.uniform(-1.8, 1.8)])
+        strokes = [(points + center) * scale for points in letter_strokes(letter, r, height)]
         for points in strokes:
             _pen(draw, points, pen, ink)
         if is_dotted:
@@ -345,7 +345,7 @@ def _texture(draw: ImageDraw.ImageDraw, size: int, tone: int, r: random.Random) 
 
 
 def _finish(image: np.ndarray, scale: float, turn: int, face_tone: int, r: random.Random) -> np.ndarray:
-    """Light across the face, pose error, the camera's softness, noise, exposure, the turn, the normalisation."""
+    """Light across the face, pose error, the camera's softness, noise, exposure, the turn, the normalization."""
     size = image.shape[0]
     if r.random() < 0.6:                                    # light falling off, or a shadow's soft edge
         angle = r.uniform(0, 2 * math.pi)
@@ -360,23 +360,23 @@ def _finish(image: np.ndarray, scale: float, turn: int, face_tone: int, r: rando
     image = image * r.uniform(0.8, 1.5) + r.uniform(-30, 30)       # over-exposed often: the faces clip at 255
     image += np.random.default_rng(r.randrange(1 << 30)).normal(0, r.uniform(0, 6), image.shape)
     image = np.rot90(np.clip(image, 0, 255), turn)
-    return normalise(image.astype(np.uint8))
+    return normalize(image.astype(np.uint8))
 
 
 def _pose_error(image: np.ndarray, scale: float, r: random.Random) -> np.ndarray:
     size = image.shape[0]
-    centre = (size / 2, size / 2)
-    matrix = cv2.getRotationMatrix2D(centre, r.uniform(-4, 4), r.uniform(0.96, 1.04))
+    center = (size / 2, size / 2)
+    matrix = cv2.getRotationMatrix2D(center, r.uniform(-4, 4), r.uniform(0.96, 1.04))
     matrix[:, 2] += (r.uniform(-1.0, 1.0) * scale, r.uniform(-1.0, 1.0) * scale)
     return cv2.warpAffine(image, matrix, (size, size), borderMode=cv2.BORDER_REFLECT)
 
 
-def normalise(grey: np.ndarray) -> np.ndarray:
+def normalize(gray: np.ndarray) -> np.ndarray:
     """Face near white, ink near black, whatever the exposure: the same function runs on the real faces."""
-    grey = grey.astype(np.float32)
-    middle = grey[SIZE // 4:3 * SIZE // 4, SIZE // 4:3 * SIZE // 4]
+    gray = gray.astype(np.float32)
+    middle = gray[SIZE // 4:3 * SIZE // 4, SIZE // 4:3 * SIZE // 4]
     low, high = np.percentile(middle, 1), np.percentile(middle, 90)
-    return np.clip((grey - low) / max(high - low, 1.0) * 255, 0, 255).astype(np.uint8)
+    return np.clip((gray - low) / max(high - low, 1.0) * 255, 0, 255).astype(np.uint8)
 
 
 def sample(r: random.Random) -> Tuple[np.ndarray, int]:

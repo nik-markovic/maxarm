@@ -1,4 +1,4 @@
-"""Words checked against the tiles' letters, in code: a model this size cannot count letters (STATUS-kiwi §5).
+"""Words checked against the tiles' letters, in code: a model this size cannot count letters.
 
     missing_letters("AVNETDEMO", "AEEHMORST")      # 'DNV': the letters the tiles lack, one for each short
     describe_missing("DNV", "AEEHMORST")            # 'no D, N, V'
@@ -45,7 +45,7 @@ NUMBER_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7
 
 def wanted_length(request: str) -> int:
     """How many letters the request asks the word to have -- '7-letter word', 'seven letters', 'of 5 letters' -- or 0:
-    read here, as the model passed on the wrong number (STATUS-kiwi §6)."""
+    read here, as the model passed on the wrong number."""
     found = re.search(r"\b(\d{1,2}|" + "|".join(NUMBER_WORDS) + r")[\s-]*letters?\b", request.lower())
     if not found:
         return 0
@@ -58,7 +58,7 @@ GIVING = re.compile(r"\b(?:spell|write|place|put|set|lay|make|show)\b", re.IGNOR
 
 def is_word_given(request: str) -> bool:
     """Whether the request asks to spell or set down a word of its own -- "spell AvnetDemo", "place HORSE" -- and not
-    for one: the model took "a fruit" for the word FRUIT (STATUS-kiwi §8)."""
+    for one: the model took "a fruit" for the word FRUIT."""
     return GIVING.search(request) is not None
 
 
@@ -76,7 +76,7 @@ REFUSED = re.compile(r"\b(?:don'?t|do\s+not|never|without|no\s+need\s+to|not)\s+
 
 def is_placing_refused(request: str) -> bool:
     """Whether the request says not to set the word down -- "don't place it", "without placing", "do not set it
-    down": read here, as the model passed place=false on "spell HAMSTER" (STATUS-kiwi §8)."""
+    down": read here, as the model passed place=false on "spell HAMSTER"."""
     return REFUSED.search(request) is not None
 
 
@@ -94,7 +94,7 @@ def meaningful_clue(clue: str) -> str:
 
 
 # What a clue says of the word beside its meaning. The search by meaning leaves it out -- "synonym" and "noun" are
-# near MEAN, NAME, DENOTE, and a list of those is no help -- and the model, choosing, reads it (STATUS-kiwi §13).
+# near MEAN, NAME, DENOTE, and a list of those is no help -- and the model, choosing, reads it.
 RELATION = re.compile(r"\b(?:(?:a|an|the|another|other)\s+)?(?:synonyms?|antonyms?|nouns?|verbs?|adjectives?|adverbs?"
                       r"|words?|terms?)\s+(?:for|of|meaning|that\s+means|which\s+means)\b|\b(?:the\s+)?opposite\s+of\b"
                       r"|\bsimilar\s+(?:to|for)\b", re.IGNORECASE)

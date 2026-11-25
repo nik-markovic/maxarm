@@ -48,11 +48,10 @@ from .tiles import Tile, find_tiles
 COUNTED = (areas.Status.READY, areas.Status.TOO_CLOSE, areas.Status.ELSEWHERE, areas.Status.OUT_OF_REACH)
 # A detection offers this many letters for a word, at random from those on tiles ready to pick up.
 OFFERED_LETTERS = 5
-# Where the cup lets a tile go: this far over its top, desk mm, where it let go while the library still sent the cup
-# 1 mm under the 3 mm over asked (the owner's, PILOT-hyena), so the tile falls no further than it did.
+# Where the cup lets a tile go: this far over its top, desk mm, so the tile falls no further than a short drop.
 DROP_OVER_MM = 2.0
 # A tile's grip is not retried: the library's seal verdict holds against the desk, not for a light tile lifted into
-# the cup, and a retry can shift the tile (STATUS-jackal §17). The camera tells the tiles that did not arrive.
+# the cup, and a retry can shift the tile. The camera tells the tiles that did not arrive.
 # What is kept of a tile a word carried off, to draw where it was and how its letter lay: until the next detection.
 CARRIED_KEYS = ("n", "x", "y", "corners", "letter", "is_read", "upright", "height")
 

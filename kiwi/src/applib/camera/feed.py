@@ -26,7 +26,7 @@ the camera's backlight compensation is put off: over a dark desk it lightens
 the picture until what is light on the desk is washed out, a tile's white
 letter with its face. The
 focus is held still: a camera focusing moves its picture, the C920's by up to
-4%, desk points up to 17 mm (STATUS-impala §11). It is the focus `camera.json`
+4%, desk points up to 17 mm. It is the focus `camera.json`
 was calibrated at, for the same camera; with none, the camera focuses itself
 once, watched until its picture keeps still, and is held there -- `lens` says
 at what, for CALIBRATE to keep. Nothing is shown until it is held. A camera that
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 Gst.init(None)
 
 VIEW_FPS = 5
-# A YUYV frame made a JPEG for the pages: about 6 ms at 2304 x 1536 (STATUS-impala §11).
+# A YUYV frame made a JPEG for the pages: about 6 ms at 2304 x 1536.
 VIEW_QUALITY = 90
 RETRY_S = 2.0
 # The camera has stopped giving frames when none has come for this long; the pipeline is asked this often meanwhile.
@@ -69,14 +69,14 @@ STARTING_FRAMES = 10
 AVERAGED_FRAMES = 5
 STILL_WAIT_S = 15.0
 # The camera focusing itself is watched until its picture has kept still this long, at least this long after it
-# starts, at most this long: then its focus is held. The C920 settled in 0.6 s from as far off as its focus goes
-# (STATUS-impala §11); another camera may take longer. Still: a frame differing from the one before by no more than
-# so many times the least difference seen, the camera's own noise, or by so many grey levels.
+# starts, at most this long: then its focus is held. The C920 settled in 0.6 s from as far off as its focus goes;
+# another camera may take longer. Still: a frame differing from the one before by no more than
+# so many times the least difference seen, the camera's own noise, or by so many gray levels.
 FOCUS_STILL_S = 0.5
 FOCUS_LEAST_S = 1.0
 FOCUS_MOST_S = 8.0
 FOCUS_NOISE_TIMES = 2.0
-FOCUS_STILL_GREY = 1.0
+FOCUS_STILL_GRAY = 1.0
 
 
 class Raw(NamedTuple):
@@ -87,8 +87,7 @@ class Raw(NamedTuple):
 
 def camera_source(device: str, mode: Mode) -> str:
     """The pipeline's start: the camera, named `camera`, in `mode`, at its fastest. The rate is pinned: left open,
-    the pipeline's `videorate` has the camera itself slow down, and a slowed camera can damage most frames
-    (STATUS-jackal §9)."""
+    the pipeline's `videorate` has the camera itself slow down, and a slowed camera can damage most frames."""
     caps = (f"image/jpeg,width={mode.width},height={mode.height}" if mode.fourcc == "MJPG"
             else f"video/x-raw,format=YUY2,width={mode.width},height={mode.height}")
     if mode.fps:
@@ -135,26 +134,26 @@ def settle_focus(next_frame: Callable[[], Raw]) -> None:
     started = time.monotonic()
     still_since, last, least = started, None, np.inf
     while time.monotonic() - started < FOCUS_MOST_S:
-        grey = small_grey(next_frame())
+        gray = small_gray(next_frame())
         now = time.monotonic()
         if last is not None:
-            difference = float(np.mean(np.abs(grey - last)))
+            difference = float(np.mean(np.abs(gray - last)))
             least = min(least, difference)
-            if difference > max(FOCUS_NOISE_TIMES * least, FOCUS_STILL_GREY):
+            if difference > max(FOCUS_NOISE_TIMES * least, FOCUS_STILL_GRAY):
                 still_since = now
             elif now - started >= FOCUS_LEAST_S and now - still_since >= FOCUS_STILL_S:
                 return
-        last = grey
+        last = gray
 
 
-def small_grey(raw: Raw) -> np.ndarray:
+def small_gray(raw: Raw) -> np.ndarray:
     """The frame's lightness at an eighth of its size."""
     if raw.mode.fourcc == "MJPG":
-        grey = cv2.imdecode(np.frombuffer(raw.data, np.uint8), cv2.IMREAD_REDUCED_GRAYSCALE_8)
+        gray = cv2.imdecode(np.frombuffer(raw.data, np.uint8), cv2.IMREAD_REDUCED_GRAYSCALE_8)
     else:
         luma = np.ascontiguousarray(_yuyv(raw)[:, :, 0])
-        grey = cv2.resize(luma, None, fx=1 / 8, fy=1 / 8, interpolation=cv2.INTER_AREA)
-    return grey.astype(np.float32)
+        gray = cv2.resize(luma, None, fx=1 / 8, fy=1 / 8, interpolation=cv2.INTER_AREA)
+    return gray.astype(np.float32)
 
 
 def to_image(raw: Raw) -> np.ndarray:

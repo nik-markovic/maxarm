@@ -39,7 +39,7 @@ class Step:
 
     index: int               # the tile's place in the finder's list
     letter: str
-    start: Position          # the tile's centre, at the grip's height
+    start: Position          # the tile's center, at the grip's height
     end: Position            # its slot, at the release's height
     upright: float           # where the letter's top points now, desk degrees: of its ways up, the nearest `facing`
     facing: float            # where it is to point once set down

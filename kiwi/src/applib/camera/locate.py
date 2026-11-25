@@ -1,13 +1,13 @@
 """The red cube, found by the calibrated camera: where it stands on the desk, and how it is turned.
 
     found = find_red_cube(frame, fit)       # fit: the calibration, store.load_camera()
-    found.x, found.y                        # desk mm: where the arm goes to be over the cube's centre
+    found.x, found.y                        # desk mm: where the arm goes to be over the cube's center
 
 The camera is known, so a 40 mm cube standing on the desk has one look for each
 place and turn. The cube is moved and turned until it looks like the frame's red
 blob, the way the calibration's fit moves its camera: first the cube's silhouette
-onto the blob's outline, then each edge it shows onto the strongest colour edge
-beside it (`edges.py`). Where it stands comes out in true millimetres, the cube's
+onto the blob's outline, then each edge it shows onto the strongest color edge
+beside it (`edges.py`). Where it stands comes out in true millimeters, the cube's
 own; the arm's x/y error, from the calibration, makes it the desk point the arm is
 sent to.
 
@@ -42,7 +42,7 @@ SAME_SHAPE = 0.01
 
 @dataclass(frozen=True)
 class FoundCube:
-    x: float                          # desk mm, under the cube's centre
+    x: float                          # desk mm, under the cube's center
     y: float
     turn_deg: float                   # its sides' direction on the desk, 0 to 90 degrees from desk x
     corners: np.ndarray               # 8 x 3, desk mm, as model.cube_corners() orders them
@@ -50,7 +50,7 @@ class FoundCube:
     hidden: List[Tuple[int, int]]     # and those the cube's own faces hide
     overlap: float                    # how much of the blob the cube drawn there covers, 0 to 1
     edge_px: float                    # how far its edges sit from the frame's: median, pixels of the frame
-    pixel: Tuple[float, float]        # where in the frame the desk under its centre is
+    pixel: Tuple[float, float]        # where in the frame the desk under its center is
     # For a refine point, not for the page: its turn, true mm, degrees, as its edges' corners are numbered, and the
     # edges found round it (sighting.py).
     true_turn_deg: float
@@ -81,8 +81,8 @@ def find_red_cube(frame: np.ndarray, fit: CameraFit) -> FoundCube:
         raise CameraNotFound(reasons[0])
     overlap, params, distances, found = max(tries, key=lambda tried: tried[0])
     if overlap < MIN_OVERLAP:
-        raise CameraNotFound(f"what is red in view is not a 40 mm cube standing on the desk (a cube drawn there "
-                             f"covers {overlap:.0%} of it): is it on something, on its side, or partly hidden?")
+        raise CameraNotFound(f"what is red in view does not look like the red cube standing on the desk (it covers "
+                             f"{overlap:.0%} of it): is it on something, on its side, or partly hidden?")
     return _found(fit, matrix, params, overlap, distances, found)
 
 

@@ -29,8 +29,8 @@ calibration for the page to draw by: desk space to shares of the live view's
 width and height, which hold at any size of the same picture; and the arm's x/y
 error, so that the cup is drawn its true size.
 
-A point is the red cube set down, centred under the cup -- FIND RED CUBE brings the
-cup near it, the person at the arm centres it -- and seen by the camera once the
+A point is the red cube set down, centered under the cup -- FIND RED CUBE brings the
+cup near it, the person at the arm centers it -- and seen by the camera once the
 arm is out of the way. Finding the red cube and coming over it is
 `applib/redcube.py`, which the /IOTCONNECT app's `find-cube` runs too; the cube is
 drawn over the live view by `applib/overlay`, a layer the page lays over it.
@@ -40,7 +40,7 @@ it: a new CALIBRATE sets them aside. The arm takes them on only with SAVE
 CALIBRATION; the state says whether they changed since (`refine.saved`).
 
 ARM TO DESK from a cup at a cube's top -- FIND RED CUBE's or a grid click's
-notch -- parks the arm first: straight across from there strains it (the owner's).
+notch -- parks the arm first: straight across from there strains it.
 """
 
 import math
@@ -71,14 +71,14 @@ from calibration.common.server import BadRequest, Server, number
 
 from . import record, refine
 
-# ARM TO DESK comes over the point clicked 14 mm over the desk (the owner's, PILOT-impala), then down to the desk
-# exactly, as the library lands (the owner's, 9 Nov; it was 2 mm over).
+# ARM TO DESK comes over the point clicked 14 mm over the desk, then down onto the desk exactly, as the library
+# lands.
 TOUCH_OVER_MM = 14.0
 TOUCH_MM = 0.0
 # RECORD POINT: the cup down on a cube's top may read up to this far under it -- the cup's give and the landing's own
 # spread.
 UNDER_TOP_MM = 2.0
-# The cup's skirt, its outside edge: 21 mm across (the owner's). The page draws it round the point clicked.
+# The cup's skirt, its outside edge: 21 mm across. The page draws it round the point clicked.
 CUP_RADIUS_MM = 10.5
 # RECORD POINT: further than half a cube from where the arm says the cup was, the cube was not under the cup.
 MAX_OFF_MM = CUBE_MM / 2
@@ -191,7 +191,8 @@ class TestsSession:
         here = motion.spaces.convert(motion.measured, Space.ARM, Space.DESK)
         if not CUBE_MM - UNDER_TOP_MM <= here[2] <= OVER_CUBES_MM:
             raise Refused(f"the cup is {here[2]:.0f} mm over the desk, not over a cube's top: FIND RED CUBE brings "
-                          f"it down to {NOTCH_MM - CUBE_MM:g} mm over the cube's top; centre the cube under it, then RECORD POINT")
+                          f"it down to {NOTCH_MM - CUBE_MM:g} mm over the cube's top; center the cube under it, "
+                          f"then RECORD POINT")
         sent = motion.position(Space.DESK)
         parked = motion.reset()                     # out of the picture
         if not parked:
@@ -279,7 +280,7 @@ class TestsSession:
         return {"status": "done", "detail": f"{count} point{'' if count == 1 else 's'} forgotten"}
 
     def save(self, body: dict) -> dict:
-        return self.worker.run("tests-save", "SAVE CALIBRATION: camera.json refined by the points",
+        return self.worker.run("tests-save", "SAVE CALIBRATION: the calibration from the points",
                                self._save, uses_arm=False)
 
     def _save(self, motion: Motion) -> str:
@@ -294,9 +295,8 @@ class TestsSession:
         store.save_camera(self.config_dir, refined)
         store.save_correction(self.config_dir, tie.mesh(f"SAVE {time.strftime('%d %b %H:%M')}, "
                                                         f"{len(tie.rows)} points") if tie else None)
-        misfits = "".join(f"Point {point} does not fit: its reach is {miss:.1f} mm off what the other points say, so "
-                          f"its cube moved after RECORD or the cup was off it. It is left out of the correction: "
-                          f"forget it and record it again. " for point, miss in (tie.misfits.items() if tie else ()))
+        misfits = "".join(f"Point {point} does not agree with the others and is left out: remove it and record it "
+                          f"again. " for point in (tie.misfits if tie else ()))
         typical, worst = check.difference_mm(fit, refined)
         what = (f"refined just now by {len(points)} points" if points
                 else "put back just now as the three cubes alone gave it")
@@ -310,8 +310,10 @@ class TestsSession:
                 if refined.refined and refined.refined.get("off_mm") else "")
         offs += (f"; their cubes' tops {heights[0]:.1f} mm from {CUBE_MM:.0f} typically, {heights[1]:.1f} at worst"
                  if heights else "")
-        return (misfits + f"config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the saved one did, "
-                f"{worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}")
+        print(f"camera     : config/{store.CAMERA_FILE} {what}: it puts the desk {typical:.1f} mm from where the "
+              f"saved one did, {worst:.1f} at worst{offs}; {store.describe_stretch(refined.measured_stretch)}",
+              flush=True)
+        return misfits + (f"saved, from {len(points)} points" if points else "saved, from the three cubes alone")
 
     def _keep(self, points: List[RefinePoint]) -> None:
         """The points, now and on file; the last point recorded forgotten with its point. Hold the lock."""
@@ -362,7 +364,7 @@ class TestsSession:
 
     def _refinement(self, fit: CameraFit) -> dict:
         """The points as `refine.describe()` has them, worked out again only when they or camera.json change, and by
-        one request at a time: the others wait for what it makes. Every page's poll asks for it (STATUS-kiwi), and
+        one request at a time: the others wait for what it makes. Every page's poll asks for it, and
         every request working them out for itself beside the others takes as many times longer as there are
         requests."""
         with self._describing:
@@ -417,9 +419,8 @@ def _point(point_id: int, here: Sequence[float], sent: Sequence[float], frame: n
 
 def _described(fit: CameraFit, point: RefinePoint) -> str:
     seen = off_by(fit, point.sighting)
-    return (f"point {point.id}: the arm said ({point.x:.1f}, {point.y:.1f}); the camera, through the saved "
-            f"calibration, sees the cube {seen.across:.1f} mm from there, its top {seen.height:+.1f} mm from "
-            f"{CUBE_MM:.0f}")
+    return (f"Point {point.id}: the camera sees the cube {seen.across:.1f} mm from where the arm said the cup was, "
+            f"{abs(seen.height):.1f} mm {'taller' if seen.height >= 0 else 'shorter'} than it is")
 
 
 def _tidy(value: float) -> float:

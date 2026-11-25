@@ -3,24 +3,25 @@
 // the check picture until the next, and the button says "!" when it failed or a cube did not fit. QUALITY or FPS
 // picks the camera's mode, where it has the choice; changing it sets the calibration aside, after a warning.
 //
-// Everything is desk space: millimetres, z the height over the desk. The arm's target is the grid point last
-// clicked and the height column; a grid click comes down to the notch, 1 mm over a cube's top. Whatever moves the arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the
-// target with it, and a move the arm refuses puts it back where the arm last went. The height column is shared
-// with the tests page (common/height.js).
+// Everything is desk space: millimeters, z the height over the desk. The arm's target is the grid point last
+// clicked and the height column; a grid click comes down to the notch, just over a cube's top. Whatever moves the
+// arm from elsewhere (a cube's "go", CALIBRATE, RESET) moves the target with it, and a move the arm refuses puts it
+// back where the arm last went. The height column is shared with the Fine Tune page (common/height.js).
 
 import { $, api, copyReadout, fmt, mountHeader, openModal, report, setText, showHeader, startPolling } from '/common/page.js';
-import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
+import { STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { HeightColumn, SAFE_MM, cubeIcon } from '/common/height.js';
+import { showHelp } from '/common/help.js';
 import { CubeGrid } from './grid.js';
-import { showGuide } from './guide.js';
 
 const SAME_MM = 0.005;
-// Where the cubes might go, desk mm (PILOT-gecko). Red goes on the side nearer the camera: either of its two.
+// Where the cubes might go, desk mm. Red goes on the side nearer the camera: either of its two.
 const SUGGESTED = [
-  { colour: 'blue', x: -140, y: -220 }, { colour: 'green', x: 140, y: -220 },
-  { colour: 'red', x: -140, y: 0 }, { colour: 'red', x: 140, y: 0 },
+  { color: 'blue', x: -140, y: -220 }, { color: 'green', x: 140, y: -220 },
+  { color: 'red', x: -140, y: 0 }, { color: 'red', x: 140, y: 0 },
 ];
-const GUIDE_SEEN = 'camera-guide-seen';
+// The help opens by itself on the first visit.
+const HELP_SEEN = 'camera-guide-seen';
 const FEED = '/api/camera/feed';
 const FEED_RETRY_MS = 3000;
 const FEED_NOTES = {
@@ -30,7 +31,7 @@ const FEED_BADGES = { live: '● LIVE', failed: 'NO CAMERA' };
 
 mountHeader('camera');
 const limits = await api('limits');
-const { notch: NOTCH, colours: COLOURS } = limits.camera;
+const { notch: NOTCH, colors: COLORS } = limits.camera;
 const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
@@ -139,19 +140,18 @@ function renderReadout() {
 }
 
 function renderView() {
-  $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
 }
 
 function renderCubes() {
   const { cubes } = state.camera;
-  const count = COLOURS.filter((colour) => cubes[colour]).length;
-  $('progress').innerHTML = `<span class="chip ${count === COLOURS.length ? 'ok' : ''}">${count} of
-    ${COLOURS.length} recorded</span>`;
+  const count = COLORS.filter((color) => cubes[color]).length;
+  $('progress').innerHTML = `<span class="chip ${count === COLORS.length ? 'ok' : ''}">${count} of
+    ${COLORS.length} recorded</span>`;
   for (const row of $('cube-rows').children) {
-    const cube = cubes[row.dataset.colour];
+    const cube = cubes[row.dataset.color];
     row.classList.toggle('recorded', Boolean(cube));
-    const tuned = fineTunePoint(row.dataset.colour);
+    const tuned = fineTunePoint(row.dataset.color);
     row.querySelector('.cube-at').innerHTML = (cube
       ? `X <b>${fmt(cube.x)}</b> Y <b>${fmt(cube.y)}</b> Z <b>${fmt(cube.z)}</b>` : 'not recorded yet')
       + (tuned ? `<small class="cube-tune ${tuned.isGone ? 'gone' : ''}">${tuned.text}</small>` : '');
@@ -163,12 +163,12 @@ function renderCubes() {
 }
 
 // The cube as CALIBRATE's point on the Fine Tune page: its number there, or forgotten there. Null with no calibration.
-function fineTunePoint(colour) {
+function fineTunePoint(color) {
   const refine = state.tests ? state.tests.refine : null;
   if (!refine) return null;
-  const point = refine.points.find((each) => each.cube === colour);
+  const point = refine.points.find((each) => each.cube === color);
   return point ? { text: `Fine Tune point ${point.id}`, isGone: false }
-    : { text: 'forgotten on Fine Tune: the calibration leaves it out', isGone: true };
+    : { text: 'removed on Fine Tune: not used', isGone: true };
 }
 
 function renderCamera() {
@@ -178,7 +178,7 @@ function renderCamera() {
   $('feed-note').textContent = feed.status === 'failed' ? feed.detail : FEED_NOTES[feed.status] || '';
   $('feed-device').textContent = feed.status === 'live' ? feed.detail : '';
   renderViewMode(feed, state.camera.view);
-  const missing = COLOURS.filter((colour) => !cubes[colour]);
+  const missing = COLORS.filter((color) => !cubes[color]);
   $('calibrate').disabled = missing.length > 0 || isBusy();
   $('calibrate').title = missing.length ? `Record ${missing.join(', ')} first`
     : 'Park the arm, take the frame, and fit the camera to the cubes in it';
@@ -188,10 +188,10 @@ function renderCamera() {
     $('check-image').src = `/api/camera/check.jpg?v=${check.stamp}`;
     checkShown = check.stamp;
   }
-  const saved = calibration.exists ? `Saved calibration: ${calibration.saved.replace(/^camera\.json, saved /, '')}.`
-    : 'No calibration saved yet.';
-  $('check-info').textContent = check ? `${saved} Check picture taken ${check.taken}: click it to see it full size.`
-    : `${saved} CALIBRATE takes a check picture, the arm out of the way.`;
+  const saved = calibration.exists ? `Calibrated ${calibration.saved.replace(/^camera\.json, saved /, '')}.`
+    : 'Not calibrated yet.';
+  $('check-info').textContent = check ? `${saved} Picture taken ${check.taken}: click it to see it larger.`
+    : `${saved} CALIBRATE takes a picture to check it by.`;
 }
 
 // What the last CALIBRATE came to, in words, until the next; and "!" on the button when it failed or a cube did not
@@ -243,20 +243,19 @@ function chooseViewMode(choice) {
   const mode = state.camera.feed.modes[choice];
   const [width, height] = mode.size;
   const warning = `Switch the camera to ${choice.toUpperCase()}, ${width} × ${height}?\n\n`
-    + 'The camera calibration, the cubes\' points and the Fine Tune points are put aside: record the cubes and '
-    + 'CALIBRATE again.';
+    + 'The calibration is put aside, Fine Tune\'s points too: record the cubes and CALIBRATE again.';
   const hasWork = state.camera.calibration.exists || Object.values(state.camera.cubes).some(Boolean);
   if (hasWork && !window.confirm(warning)) return;
   command('camera/view', { choice }, 'Camera mode').then(connectFeed);
 }
 
 function buildCubeRows() {
-  const where = (colour) => SUGGESTED.filter((spot) => spot.colour === colour)
+  const where = (color) => SUGGESTED.filter((spot) => spot.color === color)
     .map((spot) => `${spot.x}, ${spot.y}`).join(' or ');
-  $('cube-rows').innerHTML = COLOURS.map((colour) => `
-    <div class="cube-row" data-colour="${colour}">
-      ${cubeIcon(colour)}
-      <div class="cube-name"><b>${colour}</b><small>suggested ${where(colour)}</small></div>
+  $('cube-rows').innerHTML = COLORS.map((color) => `
+    <div class="cube-row" data-color="${color}">
+      ${cubeIcon(color)}
+      <div class="cube-name"><b>${color}</b><small>suggested ${where(color)}</small></div>
       <div class="cube-at num"></div>
       <div class="cube-actions">
         <button class="btn record" data-act="record" title="Keep where the arm says the cup is, over this cube">
@@ -302,10 +301,10 @@ buildCubeRows();
 $('cube-rows').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-act]');
   if (!button) return;
-  const { colour } = button.closest('.cube-row').dataset;
-  if (button.dataset.act === 'record') command('camera/record', { colour }, `RECORD ${colour}`);
-  if (button.dataset.act === 'visit') command('camera/visit', { colour }, `Back over ${colour}`);
-  if (button.dataset.act === 'forget') command('camera/forget', { colour }, `Forget ${colour}`);
+  const { color } = button.closest('.cube-row').dataset;
+  if (button.dataset.act === 'record') command('camera/record', { color }, `RECORD ${color}`);
+  if (button.dataset.act === 'visit') command('camera/visit', { color }, `Back over ${color}`);
+  if (button.dataset.act === 'forget') command('camera/forget', { color }, `Forget ${color}`);
 });
 
 $('calibrate').addEventListener('click', () => command('camera/calibrate', {}, 'CALIBRATE'));
@@ -314,10 +313,9 @@ $('view-mode').addEventListener('click', (event) => {
   if (button) chooseViewMode(button.dataset.choice);
 });
 $('check-box').addEventListener('click', () => { if (checkShown !== null) showCheck(); });
-$('guide').addEventListener('click', showGuide);
-if (!localStorage.getItem(GUIDE_SEEN)) {
-  localStorage.setItem(GUIDE_SEEN, '1');
-  showGuide();
+if (!localStorage.getItem(HELP_SEEN)) {
+  localStorage.setItem(HELP_SEEN, '1');
+  showHelp('help.md', 'Camera calibration');
 }
 
 $('feed').addEventListener('error', () => { if (!document.hidden) setTimeout(connectFeed, FEED_RETRY_MS); });

@@ -40,14 +40,14 @@ from .spaces import CONFIG_DIR, Space, Spaces, angle_from_desk, angle_to_desk
 from .transport import DEVICE, SerialTransport
 from .tunable import tunable
 
-# The owner's yardstick: about a second to cross the desk.
+# About a second to cross the desk.
 MOVE_FAST_MM_S = tunable("MOVE_FAST_MM_S", 200.0)
 # Slow enough not to yank a heavy piece; every move onto the desk in grab() and drop().
 MOVE_SLOW_MM_S = tunable("MOVE_SLOW_MM_S", 10.0)
 # Straight up: off the desk after a grip or a release, and to the travel height before a landing. Faster than
 # MOVE_SLOW_MM_S: going up, nothing is landed on.
 MOVE_LIFT_MM_S = 30.0
-# A few millimetres at travel speed would ask the servos for a jerk at full speed.
+# A few millimeters at travel speed would ask the servos for a jerk at full speed.
 MOVE_MIN_MS = 150
 # The command carries two decimals: a move shorter than this is the same command.
 # Anything longer is sent, so the arm's own response to tiny steps can be seen.
@@ -58,7 +58,7 @@ MOVE_MAX_MS = 30000
 
 # A grip and a release are waits, the servos and the supply read all through them (`seal.py`). The board's own
 # release vents the cup for 1 s and then shuts the valve, the bellows still springing back: a syringe pulled, a soft
-# re-grip of the piece (STATUS-condor §5), which SUCTION_RELEASE_MS waits out before the lift. Where the board's vent
+# re-grip of the piece, which SUCTION_RELEASE_MS waits out before the lift. Where the board's vent
 # can be held (`ReplProtocol.has_vent`) a drop holds it open itself, through the wait and the lift (`_let_go()`):
 # no closed cup near the piece, and the wait, SUCTION_VENTED_MS, is for the bellows to let the piece down.
 SUCTION_GRAB_MS = tunable("SUCTION_GRAB_MS", 1500.0)
@@ -70,8 +70,8 @@ SUCTION_VENTED_MS = 500.0
 # A step under RETRY_STEP_MIN_MM is refused: the servos would land the same, and the tries would be many.
 RETRY_STEP_MM = 0.5
 # Before a grip the cup's height is read until it has stopped creeping down: two GRIP_SETTLE_HALF_S of reads within
-# GRIP_SETTLED_MM of each other, at most GRIP_SETTLE_MAX_S. A late creep, up to ~0.7 mm after a landing reads steady
-# (6 Nov `descent` runs), would otherwise count as the seal pulling the cup down (`seal.PULLED_MM`).
+# GRIP_SETTLED_MM of each other, at most GRIP_SETTLE_MAX_S. A late creep, up to ~0.7 mm after a landing reads steady,
+# would otherwise count as the seal pulling the cup down (`seal.PULLED_MM`).
 GRIP_SETTLE_HALF_S = 0.5
 GRIP_SETTLED_MM = 0.1
 GRIP_SETTLE_MAX_S = 1.5
@@ -81,7 +81,7 @@ RETRY_DEEPER_MAX_MM = 2.0
 # Where the servos are, from their reads, which flicker by a pulse or more: once
 # they have stopped drifting -- from PRECISE_STEADY_FROM_S after the travel, the
 # mean of the last PRECISE_STEADY_HALF_S against that of the one before it, every
-# servo within PRECISE_STEADY_PULSES -- the mean of both (STATUS-impala §19). At
+# servo within PRECISE_STEADY_PULSES -- the mean of both. At
 # most PRECISE_SETTLE_MAX_S after the travel. From AT_REST_S after it, the mean of
 # PRECISE_STEADY_HALF_S of reads.
 PRECISE_STEADY_FROM_S = 1.0
@@ -140,7 +140,7 @@ class _Held:
     height: float            # the desk height it was picked up at
     offset: float            # which way it faces, less which way the cup does; arm degrees
     cup: float               # which way the cup faced as it gripped; arm degrees
-    miss: Tuple[float, float]  # where the cup came down, less the piece's centre; arm mm
+    miss: Tuple[float, float]  # where the cup came down, less the piece's center; arm mm
 
 
 class MaxArm:
@@ -177,7 +177,7 @@ class MaxArm:
     def connect(self) -> None:
         """Open the port and check the board can drive the arm.
 
-        Opening the port resets the board, which homes the arm and centres the
+        Opening the port resets the board, which homes the arm and centers the
         cup. Raises `BoardNotReadyError` naming the remedy. A port still open
         from before -- a connect that failed, a board that stopped answering --
         is let go first, and the port is let go again if this connect fails:
@@ -251,7 +251,7 @@ class MaxArm:
 
         One leg, or a few when it has to climb over the clearance or go round
         the arm-base limit. `angle` turns the cup -- or the piece it holds -- to
-        face that way, degrees from the space's +x towards its +y; the turn
+        face that way, degrees from the space's +x toward its +y; the turn
         rides on the leg that crosses the desk, and the move waits for it.
         """
         self._begin()
@@ -266,7 +266,7 @@ class MaxArm:
 
         `height` is where the cup is sent, exactly; nothing is added to it.
         Lets go of anything held, then: up to the travel height if below
-        it, fast across to beside the piece with the cup centring itself, the
+        it, fast across to beside the piece with the cup centering itself, the
         base turned onto it, slowly straight down (`landing.py`) and read there
         as PRECISE is, suction on and waited for, back up. The travel height is `clearance + height + 5 mm`,
         so the piece hangs 5 mm above the clearance.
@@ -296,7 +296,7 @@ class MaxArm:
         `grab()` in reverse: the piece is turned on the way across, and the
         release is waited out before the lift -- the cup's vent held open
         until it is up, where the board lets that be (`_let_go()`).
-        The cup turns 90 degrees either way from where `grab()` centred it; a
+        The cup turns 90 degrees either way from where `grab()` centered it; a
         bigger turn is refused before anything moves. `angle=None` leaves the
         cup alone, so the piece turns with the arm.
         """
@@ -331,11 +331,11 @@ class MaxArm:
         drop is checked before the grip, so a refusal means nothing moved.
         `angle` says which way the piece faces at the start, `facing` which way
         it is to face at the end. A turn bigger than the cup's 90 degrees from
-        centre is shared: the cup turns half of it the other way on its way over
+        center is shared: the cup turns half of it the other way on its way over
         the piece, and the other half after the lift. The piece hangs off the
-        cup by however far the grip missed its centre, read before the suction,
+        cup by however far the grip missed its center, read before the suction,
         and turns with the cup: the cup comes down that miss, turned as the
-        piece has turned, off `end`, so that the piece's centre lands on it.
+        piece has turned, off `end`, so that the piece's center lands on it.
 
         `retry_deeper_mm` and `retry_step_mm` are `grab()`'s, for the grip; nothing is set down
         after NOT_GRIPPED. The result's `deeper_mm` is the grip's.
@@ -759,7 +759,7 @@ class MaxArm:
         return self._clearance_mm + max(target[2], carried) + CLEARANCE_MARGIN_MM
 
     def _crossing_height(self) -> Optional[float]:
-        """How high anything travelling sideways must be, or None with no clearance to keep."""
+        """How high anything traveling sideways must be, or None with no clearance to keep."""
         if not self._clearance_mm or not self._spaces.is_desk_known:
             return None
         carried = self._held.height if self._held else 0.0
@@ -778,16 +778,16 @@ class MaxArm:
     def _hold(self, point: Position, angle: Optional[float], landed: Position) -> _Held:
         """The piece whose top is at `point`, just gripped by the cup at `landed`: how it sits under the cup.
         Its facing is taken as 0 off the cup's when not given."""
-        centre = self._position
+        center = self._position
         cup = geometry.bearing_degrees(landed[0], landed[1]) + self._servo_deg
         offset = 0.0 if angle is None else nozzle.offset_of(landed, self._to_arm(point, angle)[1], self._servo_deg)
-        miss = (landed[0] - centre[0], landed[1] - centre[1])
+        miss = (landed[0] - center[0], landed[1] - center[1])
         if IS_TRACED:
-            trace_note(f"grip missed the centre by x {miss[0]:+.1f}, y {miss[1]:+.1f} mm (arm)")
+            trace_note(f"grip missed the center by x {miss[0]:+.1f}, y {miss[1]:+.1f} mm (arm)")
         return _Held(self._space.to_desk(point)[2], offset, cup, miss)
 
     def _release_at(self, point: Position, angle: Optional[float]) -> Tuple[Position, Optional[float]]:
-        """Where the cup comes down to set the held piece's centre at `point`, desk space, and the cup's angle
+        """Where the cup comes down to set the held piece's center at `point`, desk space, and the cup's angle
         there: None leaves it alone. The grip's miss, turned as far as the piece has turned since."""
         target = self._spaces.arm.from_desk(self._space.to_desk(point))
         facing = self._to_arm(point, angle)[1] if angle is not None else None
@@ -883,7 +883,7 @@ def _position_of(pulses: Pulses) -> Position:
 
 
 def _turned_off(point: Position, miss: Tuple[float, float], turn_deg: float) -> Position:
-    """`point` moved by `miss`, turned `turn_deg` from +x towards +y."""
+    """`point` moved by `miss`, turned `turn_deg` from +x toward +y."""
     turn = math.radians(turn_deg)
     return (point[0] + miss[0] * math.cos(turn) - miss[1] * math.sin(turn),
             point[1] + miss[0] * math.sin(turn) + miss[1] * math.cos(turn), point[2])

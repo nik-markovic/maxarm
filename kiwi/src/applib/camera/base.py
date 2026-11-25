@@ -1,12 +1,12 @@
 """The arm's base found in a frame by its own edges: where the arm's axis stands, and which way the base is turned.
 
     found = find_base(frame, desk_to_pixel)      # desk_to_pixel: a 3x4 from desk mm, its origin near the axis
-    found.x, found.y, found.turn_deg             # the base's centre -- the arm's axis -- and its turn, desk mm
+    found.x, found.y, found.turn_deg             # the base's center -- the arm's axis -- and its turn, desk mm
     found.by_nuts, found.sure_mm                 # laid on its nuts (else the whole shape), and how far to trust it
     found.parts                                  # each nut and cup rim looked for alone
 
-The base's shape is the owner's (work/PILOT-kiwi-idea.md): four suction cups, 41 mm
-across, flush on the desk, their centres on a 120 mm square round the arm's axis,
+The base's shape, as measured: four suction cups, 41 mm
+across, flush on the desk, their centers on a 120 mm square round the arm's axis,
 its sides along the arm's x and y; over each, on the black plate's top 10 mm up, a
 steel nut 7 mm across its flats and 3 mm tall under a rounded tip, 5 mm across
 narrowing to 4, up to 18 mm; and the plate's four straight central edges, 124.5 mm
@@ -17,7 +17,7 @@ apart, straight for 28 mm either side of their middles.
    more than TRUNCATE_PX, so a part hidden by the arm or out of the picture costs the
    same wherever the base is. A coarse search round the start, a fine one round the
    best. It only brings the parts near: on two frames of one unmoved camera, the arm
-   parked differently, it moved 3.7 mm and 1.2 deg (13 Nov), and wood grain away
+   parked differently, it moved 3.7 mm and 1.2 deg, and wood grain away
    from the base fits the shape as well as the base does.
 2. **Each part alone.** Each nut, and each cup's rim, moved alone round where the
    whole shape put it, over edges found in a crop round it with Canny's thresholds
@@ -28,13 +28,13 @@ apart, straight for 28 mm either side of their middles.
    within 0.5 mm.
 3. **The base on its nuts.** Nuts found at two corners or more: the base moved and
    turned so that all of them together lie best on their own edges, held 120 mm
-   apart -- one nut alone can slide a millimetre or two over its highlight and hex,
+   apart -- one nut alone can slide a millimeter or two over its highlight and hex,
    the shape holds them to each other. The arm's axis to about NUTS_SURE_MM. Fewer:
    the whole shape's place, to about WHOLE_SURE_MM. The cups' rims are looked for and
    reported, not used: translucent on a grained desk they are found or not by the
    light.
 
-Nothing is assumed of the frame's colours or brightness: only its edges.
+Nothing is assumed of the frame's colors or brightness: only its edges.
 """
 
 import math
@@ -46,8 +46,8 @@ import numpy as np
 
 from .model import project
 
-# The base (the owner's, work/PILOT-kiwi-idea.md), mm, round the arm's axis, sides along its x and y.
-CUP_SPACING_MM = 120.0          # the nuts' centres, and the cups' under them
+# The base, mm, round the arm's axis, sides along its x and y.
+CUP_SPACING_MM = 120.0          # the nuts' centers, and the cups' under them
 BASE_SUCTION_CUP_RADIUS_MM = 20.5   # the base's four suction cups holding it to the desk (not the arm's cup): 41 mm,
                                    # 161 mm across their outer rims on the 120 mm square
 PLATE_TOP_MM = 10.0
@@ -86,7 +86,7 @@ class Part:
     name: str                   # "nut" or "cup", and its corner: "nut +x+y"
     corner: Tuple[int, int]
     found: bool
-    x: float                    # where it was found alone, desk mm (its centre); where the shape puts it if not found
+    x: float                    # where it was found alone, desk mm (its center); where the shape puts it if not found
     y: float
     contrast: float             # its best place's cost against the places round it: 0 none, 1 all
     off_mm: Optional[float] = None      # found: how far from where the base found puts it
@@ -98,7 +98,7 @@ class Part:
 
 @dataclass(frozen=True)
 class FoundBase:
-    x: float                    # the base's centre, the arm's axis, desk mm
+    x: float                    # the base's center, the arm's axis, desk mm
     y: float
     turn_deg: float             # the base turned this much from the desk's axes, + from +x toward +y
     by_nuts: bool               # laid on its nuts found alone; False: the whole shape's place
@@ -143,11 +143,11 @@ def find_base(frame: np.ndarray, desk_to_pixel: np.ndarray, start: Tuple[float, 
     whole = shape()
     best = (cost(whole, start), tuple(start))
     for step, span, turn_step, turn_span in WHOLE_SEARCH:
-        centre = best[1]
+        center = best[1]
         for dx in np.arange(-span, span + 1e-9, step):
             for dy in np.arange(-span, span + 1e-9, step):
                 for dt in np.radians(np.arange(-turn_span, turn_span + 1e-9, turn_step)):
-                    pose = (centre[0] + dx, centre[1] + dy, centre[2] + dt)
+                    pose = (center[0] + dx, center[1] + dy, center[2] + dt)
                     trial = cost(whole, pose)
                     if trial < best[0]:
                         best = (trial, pose)
@@ -186,9 +186,9 @@ def part_shapes() -> List[Tuple[str, Tuple[int, int], np.ndarray]]:
     return parts
 
 
-def ring(centre: Sequence[float], radius: float, z: float, count: int) -> np.ndarray:
+def ring(center: Sequence[float], radius: float, z: float, count: int) -> np.ndarray:
     turns = np.linspace(0.0, 2 * math.pi, count, endpoint=False)
-    return np.column_stack((centre[0] + radius * np.cos(turns), centre[1] + radius * np.sin(turns),
+    return np.column_stack((center[0] + radius * np.cos(turns), center[1] + radius * np.sin(turns),
                             np.full(count, z)))
 
 
@@ -240,7 +240,7 @@ def _part_alone(gray: np.ndarray, desk_to_pixel: np.ndarray, name: str, corner: 
                 pose: Sequence[float]) -> Part:
     """The part moved alone round where the shape at `pose` puts it."""
     placed = moved(points, pose)
-    centre = moved(np.array([[*_corner_mm(corner), 0.0]]), pose)[0, :2]
+    center = moved(np.array([[*_corner_mm(corner), 0.0]]), pose)[0, :2]
     cost, in_picture = _local_cost(gray, desk_to_pixel, placed)
     offsets = np.arange(-PART_SPAN_MM, PART_SPAN_MM + 1e-9, PART_STEP_MM)
     grid = np.array([[cost(placed, (dx, dy, 0.0)) for dx in offsets] for dy in offsets])
@@ -251,7 +251,7 @@ def _part_alone(gray: np.ndarray, desk_to_pixel: np.ndarray, name: str, corner: 
     is_inner = 0 < row < len(offsets) - 1 and 0 < column < len(offsets) - 1
     found = bool(is_inner and in_picture >= IN_PICTURE_SHARE and grid[row, column] <= FOUND_COST_SHARE * round_it)
     if not found:
-        return Part(name, corner, False, float(centre[0]), float(centre[1]), contrast)
+        return Part(name, corner, False, float(center[0]), float(center[1]), contrast)
     best = (grid[row, column], (offsets[column], offsets[row]))
     fine = np.arange(-PART_FINE_SPAN_MM, PART_FINE_SPAN_MM + 1e-9, PART_FINE_STEP_MM)
     for dx in fine + offsets[column]:
@@ -259,7 +259,7 @@ def _part_alone(gray: np.ndarray, desk_to_pixel: np.ndarray, name: str, corner: 
             trial = cost(placed, (dx, dy, 0.0))
             if trial < best[0]:
                 best = (trial, (dx, dy))
-    return Part(name, corner, True, float(centre[0] + best[1][0]), float(centre[1] + best[1][1]), contrast)
+    return Part(name, corner, True, float(center[0] + best[1][0]), float(center[1] + best[1][1]), contrast)
 
 
 def _on_nuts(gray: np.ndarray, desk_to_pixel: np.ndarray, nuts: List[Tuple[Part, np.ndarray]]
@@ -276,11 +276,11 @@ def _on_nuts(gray: np.ndarray, desk_to_pixel: np.ndarray, nuts: List[Tuple[Part,
 
     best = (cost(start), start)
     for step, span, turn_step, turn_span in NUTS_SEARCH:
-        centre = best[1]
+        center = best[1]
         for dx in np.arange(-span, span + 1e-9, step):
             for dy in np.arange(-span, span + 1e-9, step):
                 for dt in np.radians(np.arange(-turn_span, turn_span + 1e-9, turn_step)):
-                    pose = (centre[0] + dx, centre[1] + dy, centre[2] + dt)
+                    pose = (center[0] + dx, center[1] + dy, center[2] + dt)
                     trial = cost(pose)
                     if trial < best[0]:
                         best = (trial, pose)

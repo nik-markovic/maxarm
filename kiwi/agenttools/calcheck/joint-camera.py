@@ -6,7 +6,7 @@ CALIBRATE's three-cube camera; each judged by how the arm's formula readings lay
 
 Prints each camera's focal length, principal point and place, and for each the arm laid on its cubes by a turn,
 shift and one scale (and by a turn and shift alone): the scale, and the cubes' misses, mm. Also both with the
-principal point held at the frame's centre. STATUS-kiwi §8.
+principal point held at the frame's center. STATUS-kiwi §8.
 """
 
 import sys
@@ -46,14 +46,14 @@ def camera_of(numbers: np.ndarray) -> np.ndarray:
     return Pinhole(numbers[0], (numbers[1], numbers[2]), numbers[3:6], numbers[6:9]).matrix
 
 
-def joint_fit(matrix: np.ndarray, sightings: list, centre: Optional[Tuple[float, float]] = None) -> np.ndarray:
-    """One camera and every cube on all the sightings' edges, from `matrix`; the principal point held at `centre`
+def joint_fit(matrix: np.ndarray, sightings: list, center: Optional[Tuple[float, float]] = None) -> np.ndarray:
+    """One camera and every cube on all the sightings' edges, from `matrix`; the principal point held at `center`
     if given."""
     cubes = [place(matrix, s, start(matrix, s)[:3]) for s in sightings]
     numbers = np.concatenate([to_pinhole(matrix), *cubes])
     held = []
-    if centre is not None:
-        numbers[1:3], held = centre, [1, 2]
+    if center is not None:
+        numbers[1:3], held = center, [1, 2]
 
     def residuals(trial: np.ndarray) -> np.ndarray:
         camera = camera_of(trial[:9])
@@ -84,7 +84,7 @@ def describe(name: str, matrix: np.ndarray, sightings: list, readings: np.ndarra
                      for s in sightings])
     scale, scaled = similarity(readings, seen, True)
     _, rigid = similarity(readings, seen, False)
-    print(f"{name}: f {numbers[0]:.1f} px, centre ({numbers[1]:.1f}, {numbers[2]:.1f}), "
+    print(f"{name}: f {numbers[0]:.1f} px, center ({numbers[1]:.1f}, {numbers[2]:.1f}), "
           f"{np.linalg.norm(position):.1f} mm away, {position[2]:.1f} mm up")
     print(f"  the arm laid by turn+shift: cubes {np.median(rigid):.2f} mm median, {rigid.max():.2f} worst")
     print(f"  by turn+shift+scale: scale {scale:.4f} (camera mm per arm mm), cubes {np.median(scaled):.2f} median, "
@@ -104,10 +104,10 @@ def main() -> None:
     describe("one camera on every point's edges", joint, sightings, readings)
     width, height = fit.frame_size
     middle = ((width - 1) / 2, (height - 1) / 2)
-    held = camera_of(joint_fit(alone, sightings, centre=middle)[:9])
-    describe("the same, its principal point held at the frame's centre", held, sightings, readings)
-    three = camera_of(joint_fit(alone, sightings[:3], centre=middle)[:9])
-    describe("CALIBRATE's three cubes, principal point at the centre", three, sightings, readings)
+    held = camera_of(joint_fit(alone, sightings, center=middle)[:9])
+    describe("the same, its principal point held at the frame's center", held, sightings, readings)
+    three = camera_of(joint_fit(alone, sightings[:3], center=middle)[:9])
+    describe("CALIBRATE's three cubes, principal point at the center", three, sightings, readings)
 
 
 if __name__ == "__main__":

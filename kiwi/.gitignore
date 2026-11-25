@@ -7,7 +7,7 @@ config/*.jpg
 config/*.pem
 config/debug*/
 
-# A venv: on the board install.sh makes venv/, on a PC the owner makes their own; connector/install.sh its own.
+# A venv: on the board install.sh makes venv/, on a PC your own; connector/install.sh its own.
 .venv/
 venv/
 

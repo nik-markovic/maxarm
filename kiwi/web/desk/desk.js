@@ -1,25 +1,23 @@
-// The desk calibration page: bring the cup down onto the desk, record where it touched, fit the plane, try it out.
+// The desk page: the arm moved by hand, in its own coordinates, to get to know it.
 //
 // The arm's target: x, y the grid point last clicked plus the nudges since, z the height column. Whatever moves
-// the arm from elsewhere (a point, a desk test, RESET) becomes the target. A move the arm refuses puts every
+// the arm from elsewhere (a point, RESET) becomes the target. A move the arm refuses puts every
 // control back where it was when the arm last went where they said.
 //
 // Heights are true z here and in every request. TRUE / RAW only changes how arm z is shown and typed in: RAW is
 // the firmware's own. Heights above the desk are the same either way.
 
-import { $, api, copyReadout, fmt, mountHeader, report, setText, showHeader, startPolling, toast } from '/common/page.js';
-import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
-import { DeskGrid } from './grid.js';
+import { $, api, copyReadout, fmt, mountHeader, report, setText, showHeader, startPolling } from '/common/page.js';
+import { GridView, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 
 const SCREEN = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const ARROWS = { up: '▲', down: '▼', left: '◀', right: '▶' };
 // A press of the pad, mm: under TRUE along true x or y, under RAW along the firmware's.
 const NUDGE_MM = { true: 0.5, raw: 0.25 };
 const SAME_MM = 0.005;
-// The height column, the owner's (PILOT-falcon; top and SAFE 90 since 13 Nov): the slider runs from 90 down to 40
-// in 1 mm steps, for fine control near the desk and up to over a cube; SAFE sends the arm up to 90; each ▼ lets the
-// slider go 2 mm lower and each ▲ 20 mm higher, without end. The desk is at about 44 under most arms, so the slider
-// is yellow from 44 down to 42, and red below.
+// The height column: the slider runs from 90 down to 40 in 1 mm steps, for fine control near the desk and up to
+// over a cube; SAFE sends the arm up to 90; each ▼ lets the slider go 2 mm lower and each ▲ 20 mm higher, without
+// end. The desk is at about 44 under most arms, so the slider is yellow from 44 down to 42, and red below.
 const HEIGHT = { top: 90, bottom: 40, safe: 90, lower: 2, higher: 20, caution: 44, danger: 42 };
 // Whether the cup sealed when the pump went on (maxarm/seal.py), shown while it is on. Not known once the arm has
 // moved: the servos pull on the supply the seal is told by.
@@ -29,30 +27,24 @@ const SEAL = {
   uncertain: ['UNCERTAIN', 'bad', 'between sealed and loose: the cup may be only just touching'],
   unknown: ['UNKNOWN', 'bad', 'the arm\'s supply could not be read'],
 };
-const OFFSETS = {
-  fit: 'the plane fitted through the points', saved: 'the saved desk.json', default: 'the default desk',
-};
 
 mountHeader('desk');
 const limits = await api('limits');
-const remembered = { ...JSON.parse(localStorage.getItem('desk-view') || '{}'), ...rememberedView() };
+const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
   rotation: remembered.rotation || 0,
-  offsetsFrom: remembered.offsetsFrom in OFFSETS ? remembered.offsetsFrom : 'fit',
   isRaw: false,
   top: HEIGHT.top,
   bottom: HEIGHT.bottom,
   base: { x: limits.home[0], y: limits.home[1], z: Math.min(limits.home[2], HEIGHT.safe) },
-  testHeight: limits.desk.test_height,
 };
 let state = null;
 let inFlight = 0;
 let accepted = '';
 let isDragging = false;
-let pointsShown = '';
 
-const grid = new DeskGrid($('grid'), limits, pick);
+const grid = new GridView($('grid'), limits, pick);
 const target = () => [ui.base.x, ui.base.y, ui.base.z];
 const controls = () => JSON.stringify({ base: ui.base });
 accepted = controls();
@@ -166,8 +158,6 @@ const shownZ = (point) => shownPoint(point)[2];
 const typedZ = (x, y, z) => (ui.isRaw ? trueZ(x, y, z) : z);
 // What the arm says is out of date: a command is on its way, or the servos are still to be read after one.
 const isReading = () => inFlight > 0 || !state || state.is_reading;
-// The saved desk only while there is one.
-const offsetsFrom = () => (ui.offsetsFrom === 'saved' && !(state && state.desk.saved.exists) ? 'fit' : ui.offsetsFrom);
 
 // --- talking to the app ------------------------------------------------------------------------------
 
@@ -260,10 +250,8 @@ function render() {
   renderHeight();
   renderControls();
   renderReadout();
-  if (state) renderDesk();
   grid.update({
     step: ui.step, rotation: ui.rotation, target: target(), isReading: isReading(),
-    points: state ? state.desk.points.map((point) => ({ ...point, deviation: point.off[offsetsFrom()] })) : [],
     sent: state ? state.sent : null, says: state ? state.measured : null,
   });
 }
@@ -290,7 +278,6 @@ function renderControls() {
     button.textContent = `${ARROWS[button.dataset.dir]} ${dx > 0 ? '+X' : dx < 0 ? '−X' : dy > 0 ? '+Y' : '−Y'}`;
   }
   $('pad-hub').textContent = String(ui.isRaw ? NUDGE_MM.raw : NUDGE_MM.true);
-  $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
   for (const button of $('heights').children) {
     button.classList.toggle('on', (button.dataset.mode === 'raw') === ui.isRaw);
@@ -301,8 +288,6 @@ function renderControls() {
   }
   $('cup-out').textContent = `${fmt(Number($('cup').value), 0, true)}°`;
   renderSeal();
-  $('record').disabled = isReading();
-  $('save').disabled = isReading();
 }
 
 function renderSeal() {
@@ -336,84 +321,9 @@ function renderReadout() {
   $('readout').classList.toggle('stale', isReading());
   for (const axis of ['x', 'y']) setText($(`${axis}-head`), ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase());
   setText($('z-head'), ui.isRaw ? 'Z raw' : 'Z');
-  const desk = state ? state.desk : null;
-  const parts = [];
-  if (desk && desk.fit_height !== null) parts.push(`the fit of the points <b>${fmt(desk.fit_height, 1, true)}</b>`);
-  if (desk && desk.position) {
-    const which = desk.saved.exists ? 'the saved desk' : 'the default desk';
-    parts.push(`${which} <b>${fmt(desk.position[2], 1, true)}</b>`);
-  }
-  $('desk-line').innerHTML = parts.length ? `Cup above the desk, mm: ${parts.join(' · ')}` : '';
-}
-
-function renderDesk() {
-  const desk = state.desk;
-  const from = offsetsFrom();
-  renderPoints(desk.points, from);
-  const { x_span: xNeed, y_span: yNeed } = limits.desk;
-  $('span').innerHTML = desk.span ? ['x', 'y'].map((axis) => {
-    const [low, high] = desk.span[axis];
-    const need = axis === 'x' ? xNeed : yNeed;
-    return `${axis.toUpperCase()} ${fmt(low, 0)} … ${fmt(high, 0)}: <b>${fmt(high - low, 0)}</b> mm
-      <span class="chip ${high - low >= need ? 'ok' : 'bad'}">≥ ${need}</span>`;
-  }).join(' &nbsp; ') : 'Range covered: no points yet';
-  $('fit').innerHTML = desk.fit ? `Plane through the points: tilted <b>${fmt(desk.fit.tilt_deg, 2)}°</b>`
-    : 'Plane: needs 3 points, not in a row';
-  for (const button of $('offsets-from').children) {
-    button.classList.toggle('on', button.dataset.from === from);
-    button.disabled = button.dataset.from === 'saved' && !desk.saved.exists;
-  }
-  const spread = desk.off[from];
-  $('offsets').innerHTML = spread ? `<b>${fmt(spread.rms, 2)}</b> mm RMS, <b>${fmt(spread.worst, 2)}</b> at worst`
-    : from === 'fit' && desk.fit ? 'a 4th point shows how well they agree' : '';
-  const isLevel = desk.points.length === 0;
-  $('save').textContent = isLevel ? 'SAVE LEVEL DESK' : 'SAVE CALIBRATION';
-  $('save').title = isLevel ? `No touch points: write config/desk.json as the default desk, level at true z ${
-    fmt(limits.desk.default_z, 0)}` : 'Fit the plane and write config/desk.json';
-  $('save-state').innerHTML = isLevel
-    ? `<span class="chip">no points</span> the default desk, level at true z ${fmt(limits.desk.default_z, 0)}, `
-      + 'is saved after you confirm it; record touch points to fit a plane instead'
-    : desk.save_problem ? `<span class="chip bad">not ready</span> ${desk.save_problem}`
-      : '<span class="chip ok">ready to save</span>';
-  const ignored = desk.saved.summary ? `config/desk.json ${desk.saved.summary}` : 'nothing saved yet';
-  $('desk-file').textContent = desk.saved.exists ? `config/desk.json: ${desk.saved.summary}`
-    : `the default desk, arm z ${fmt(limits.desk.default_z, 0)} and level: ${ignored}`;
-  $('glide-hint').innerHTML = desk.is_gliding
-    ? `Next point test <b>glides</b> there, slowly and level at ${fmt(ui.testHeight)} mm.`
-    : 'Next point test comes down from above, the way grab() does.';
-  $('test-height-out').textContent = `${fmt(ui.testHeight)} mm`;
-  if (desk.position && !isDragging && inFlight === 0) {
-    ['x', 'y', 'z'].forEach((axis, index) => {
-      const field = $(`desk-${axis}`);
-      if (document.activeElement !== field) field.value = fmt(desk.position[index]);
-    });
-  }
-}
-
-function renderPoints(points, from) {
-  const shown = JSON.stringify([points, from, ui.isRaw]);
-  if (shown === pointsShown) return;
-  pointsShown = shown;
-  const [warn, bad] = limits.desk.deviation;
-  const rank = (value) => (value === null ? '' : Math.abs(value) <= warn ? 'ok' : Math.abs(value) <= bad ? 'warn' : 'bad');
-  for (const axis of ['x', 'y', 'z']) {
-    $(`points-${axis}`).textContent = ui.isRaw ? `${axis.toUpperCase()} raw` : axis.toUpperCase();
-  }
-  $('off-head').textContent = `off ${from}`;
-  $('off-head').title = `How far above ${OFFSETS[from]} each point is`;
-  $('points').tBodies[0].innerHTML = points.length ? points.map((point) => `
-    <tr>
-      <td><span class="badge ${rank(point.off[from])}">${point.id}</span></td>
-      ${shownPoint([point.x, point.y, point.z]).map((value) => `<td class="num">${fmt(value)}</td>`).join('')}
-      <td class="num faint">${point.sent ? fmt(shownZ(point.sent)) : '—'}</td>
-      <td class="num dev ${rank(point.off[from])}">${fmt(point.off[from], 2, true)}</td>
-      <td class="actions">
-        <button class="btn small" data-act="visit" data-id="${point.id}" title="Back to it in arm space, from above">arm</button>
-        <button class="btn small" data-act="test" data-id="${point.id}"
-          title="Over it in desk space, at the point test height">desk</button>
-        <button class="btn small ghost" data-act="delete" data-id="${point.id}" title="Forget it">×</button>
-      </td>
-    </tr>`).join('') : '<tr class="empty"><td colspan="7">Bring the cup down onto the desk, then RECORD.</td></tr>';
+  const height = state ? state.desk_height : null;
+  $('desk-line').innerHTML = height === null || height === undefined ? ''
+    : `Cup above the desk: <b>${fmt(height, 1, true)}</b> mm`;
 }
 
 // Screen direction to arm direction, undoing the view's quarter turn.
@@ -426,7 +336,6 @@ function armStep([sx, sy]) {
 
 function keepView() {
   rememberView(ui.step, ui.rotation);
-  localStorage.setItem('desk-view', JSON.stringify({ offsetsFrom: ui.offsetsFrom }));
 }
 
 // --- wiring ----------------------------------------------------------------------------------------
@@ -470,26 +379,9 @@ for (const button of $('heights').children) {
     render();
   });
 }
-const { per_mm_of_reach: perMm, level_reach: level, desk_z: deskZ, stack, tall_at_stack: tall } = TRUE_Z;
-const { reach_at_desk: outAtDesk, reach_less_per_mm: outLess, reach_top: outTop, turn } = TRUE_XY;
-$('heights-tip').innerHTML = `<b>True</b> is where the cup really is. <b>Raw</b> is the arm firmware's own
-  numbers, which are off. Heights: on the desk the firmware's depends on the distance from the base: 100 mm out it
-  says ${fmt(perMm * (level - 100))} mm higher than the cup is, at ${limits.reach} mm
-  ${fmt(perMm * (limits.reach - level))} mm lower, give or take up to a millimetre that waves from ring to ring out from
-  the base, measured by where the cup seals. Above the desk it reads too tall, the more the higher and the
-  further out: ${fmt(tall)} mm at ${stack} mm up, ${level} mm out. Across: the cup is ${fmt(outAtDesk)} mm further
-  out than the firmware says on the desk, less higher up, and the base points up to about
-  ${fmt(Math.max(...turn.map((row) => Math.abs(row[1]))))}° off, by an amount that changes over its turn. The library corrects
-  every position it sends and reads:
-  <code>true z = raw z + ${perMm} × (reach − ${level}) + wave(reach) − (h / ${stack})² × (${tall}
-  + ${TRUE_Z.tall_per_mm_of_reach} × (reach − ${level}))</code>
-  <code>true reach = reach + ${outAtDesk} − ${outLess} × min(h, ${outTop})</code>
-  <code>true bearing = bearing + turn(b)</code>
-  h is the height above the desk, true z − ${deskZ}; reach and bearing b are the firmware's, b in degrees from
-  straight out; turn(b) is measured, ${turn.map(([at, deg]) => `${fmt(deg, 2, true)}° at ${fmt(at, 0)}°`).join(', ')}, straight
-  between; wave(reach) runs from ${fmt(Math.min(...TRUE_Z.desk_wave.map((row) => row[1])))} to
-  ${fmt(Math.max(...TRUE_Z.desk_wave.map((row) => row[1])))} mm. RAW only changes the numbers shown: the arm moves the same, and touch points, offsets and SAVE always
-  use true positions.`;
+$('heights-tip').innerHTML = `<b>RAW</b> is where the arm reports the cup is. It is a few millimeters off, more so
+  far out and high up. <b>TRUE</b> is that corrected to real distances on the desk. Only the numbers shown change: the
+  arm moves the same either way.`;
 
 $('cup').min = -limits.cup;
 $('cup').max = limits.cup;
@@ -508,72 +400,6 @@ $('rotate').addEventListener('click', () => {
   ui.rotation = (ui.rotation + 90) % 360;
   keepView();
   render();
-});
-
-$('offsets-from').innerHTML = Object.entries(OFFSETS)
-  .map(([from, what]) => `<button data-from="${from}" title="How far above ${what} each point is">${from}</button>`)
-  .join('');
-for (const button of $('offsets-from').children) {
-  button.addEventListener('click', () => {
-    ui.offsetsFrom = button.dataset.from;
-    keepView();
-    render();
-  });
-}
-
-$('record').addEventListener('click', () => command('desk/record', {}, 'RECORD'));
-$('save').addEventListener('click', () => {
-  if (!state) return;
-  if (state.desk.points.length) {
-    command('desk/save', {}, 'SAVE CALIBRATION');
-    return;
-  }
-  const z = limits.desk.default_z;
-  if (window.confirm('Save the level desk, with no touch points?\n\nPlease confirm that:\n'
-    + "- The arm's base suction cups are pressed fully against the desk.\n"
-    + `- At far reach, all around the desk, the cup grips the desk at a reported height of ${fmt(z, 0)} mm, `
-    + `but not at ${fmt(z + 1, 0)} mm (TRUE heights, not RAW).`)) {
-    command('desk/save-level', {}, 'SAVE LEVEL DESK');
-  }
-});
-$('clear').addEventListener('click', () => {
-  const count = state ? state.desk.points.length : 0;
-  if (count && window.confirm(`Forget all ${count} touch points?`)) command('desk/clear', {}, 'CLEAR');
-});
-$('points').addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-act]');
-  if (!button) return;
-  const id = Number(button.dataset.id);
-  if (button.dataset.act === 'visit') command('desk/visit', { id }, `Back to #${id}`);
-  if (button.dataset.act === 'test') command('desk/test-point', { id, height: ui.testHeight }, `Point test #${id}`);
-  if (button.dataset.act === 'delete') command('desk/delete', { id }, `#${id}`);
-});
-
-const testHeight = $('test-height');
-testHeight.max = limits.desk.test_height;
-testHeight.value = ui.testHeight;
-onSlide(testHeight, (value) => { ui.testHeight = value; },
-  () => command('desk/test-height', { height: ui.testHeight }, 'Point test height'));
-
-// The desk fields as a point, or null while one is blank: an empty field must not read as 0.
-function deskPoint() {
-  const fields = ['x', 'y', 'z'].map((axis) => $(`desk-${axis}`).value);
-  if (fields.some((text) => text.trim() === '' || !Number.isFinite(Number(text)))) {
-    toast('Fill in X, Y and Z first', 'warn');
-    return null;
-  }
-  const [x, y, z] = fields.map(Number);
-  return { x, y, z };
-}
-for (const axis of ['x', 'y', 'z']) {
-  $(`desk-${axis}`).addEventListener('change', () => {
-    const point = deskPoint();
-    if (point) command('desk/move', point, 'Desk move');
-  });
-}
-$('test-input').addEventListener('click', () => {
-  const point = deskPoint();
-  if (point) command('desk/test-input', { ...point, hold: Number($('desk-hold').value) }, 'TEST INPUT');
 });
 
 render();

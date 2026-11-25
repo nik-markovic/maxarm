@@ -1,6 +1,6 @@
 """The word a request asks for, found in code: the user's own, the longest the tiles spell, one of a length, or one
 that fits a clue. The words are the dictionary's (`dictionary.py`); where more than one would do, the choice among a
-few is the model's -- it knows what a toad is, and cannot count letters (STATUS-kiwi §7, §9, §13).
+few is the model's -- it knows what a toad is, and cannot count letters.
 
     finder = WordFinder(Dictionary(), source)
     found = finder.find("AEEHMORST", clue="a large farm animal", given="", length=0, used=[], check=desk.check)
@@ -29,7 +29,7 @@ few is the model's -- it knows what a toad is, and cannot count letters (STATUS-
   search by meaning takes EVERYDAY words only: rarer ones come by WordNet and the model's ideas, not by their
   pieces (DONA for a gift). A word the model names that is
   not on the list -- LABYRINTH, for a list without MAZE -- is none: the list's first, set down in its place, was
-  TEST. How each part was chosen, and what it does: STATUS-kiwi §13.
+  TEST.
 
 A word set down before in this visit (`used`) is chosen again only when no other is there.
 """
@@ -45,14 +45,14 @@ from .dictionary import Dictionary
 from .words import content_words, describe_missing, joined_words, missing_letters, without_relation
 
 GIVEN, LONGEST, LENGTH, CLUE = "given", "longest", "length", "clue"
-SHORTLIST = 12              # the words put to the model, as tried (STATUS-kiwi §7)
-RELATED = 8                 # WordNet's words among them at most, the nearest the clue first (STATUS-kiwi §13)
+SHORTLIST = 12              # the words put to the model, as tried
+RELATED = 8                 # WordNet's words among them at most, the nearest the clue first
 IDEAS_KEPT = 4              # the model's own words among them at most
 IDEA_LETTERS = 6            # the model's own words are asked for, and kept, of this many letters or more: the long
                             # words the search by meaning misses, and the model cannot count, so code keeps them
 SHOWN = 8                   # the longest words the page shows beside the one chosen
 TRIED = 12                  # the longest words planned at most, for one the arm can set down
-LITTLE = 6.0                # Zipf: the commonest words of English, little ones mostly (STATUS-kiwi §9)
+LITTLE = 6.0                # Zipf: the commonest words of English, little ones mostly
 EVERYDAY = 3.0              # Zipf: the longest and a length take words this common or more, a clue rarer ones too
 NONE = "NONE"
 OPPOSITE = re.compile(r"\b(?:opposite|antonym|reverse|contrary)", re.IGNORECASE)    # a clue that asks for one
@@ -244,5 +244,5 @@ def _named(answer: str, words: Sequence[str]) -> str:
 
 def _spelled(word: str) -> str:
     """'TOAD (T-O-A-D, 4 letters)': spelled for the model, which copies it rather than spell it wrong (MEANT as
-    M-E-A-N-M-E-N-T, STATUS-kiwi §9)."""
+    M-E-A-N-M-E-N-T)."""
     return f"{word} ({'-'.join(word)}, {len(word)} letters)"

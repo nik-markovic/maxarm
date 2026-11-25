@@ -1,6 +1,5 @@
 """The agent's dictionary: which words there are, which of them the tiles spell, which of those are nearest a clue in
-meaning, and which WordNet ties to the clue's words. The words the arm sets down come from here, not from the model
-(STATUS-kiwi §7, §13).
+meaning, and which WordNet ties to the clue's words. The words the arm sets down come from here, not from the model.
 
     words = Dictionary()                                    # loads on a thread of its own: seconds
     words.spelled("AEEHMORST", length=7)                   # ['MOTHERS', 'THEOREM', ...]: commonest first
@@ -16,15 +15,15 @@ counted here.
 Meaning is told by a small embedding model on the CPU, potion-base-8M: a table of vectors for the pieces of words, a
 text's vector their average. Each word's vector is made once, at the start -- about a second on the board -- and a
 clue's when it is asked, a millisecond; the nearest words are those whose vectors point most the same way. A word
-the model holds only as pieces has their meaning, not its own -- VENDETTA is ve+nde+tta -- and so does a misspelt
+the model holds only as pieces has their meaning, not its own -- VENDETTA is ve+nde+tta -- and so does a misspelled
 one: hence `respelled()`, and WordNet beside it. `scripts/install.sh` puts the model in Hugging Face's cache at
 REVISION; it is read from there, never fetched.
 
 WordNet (Princeton's) knows what meaning cannot: that MAZE is another word for a labyrinth, NEW the opposite of
 old, DATE a fruit, a NEWT an animal. `related()` gives the words it ties to a clue's: the same sense, a similar one,
 the opposite, a form made from it, a kind of it. They are `files/words-wordnet.tsv`, made with the word list by
-`training/words/make-words.py` -- WordNet itself, through nltk, is far too slow to load on the board (STATUS-kiwi
-§13) -- and so are the words' base forms, `base()`. Without the file the dictionary works on, without them.
+`training/words/make-words.py` -- WordNet itself, through nltk, is far too slow to load on the board -- and so
+are the words' base forms, `base()`. Without the file the dictionary works on, without them.
 """
 
 from __future__ import annotations
@@ -121,7 +120,7 @@ class Dictionary:
         """`text` with each word of FIX_LETTERS or more that is not known -- in the word list, WordNet or the
         embedding model's own words -- in the one known word fewest edits away, at most FIX_EDITS: 'synonym for
         LABIRINTH' -> 'synonym for labyrinth'. A word with more than one as near is left out, not guessed: "witter" is
-        winter, wither, wetter, and neither the commonest nor the nearest in meaning was wither (STATUS-kiwi §13).
+        winter, wither, wetter, and neither the commonest nor the nearest in meaning was wither.
         Without the model, as it is: its words are the everyday ones WordNet lacks, SOMETHING among them."""
         self._loaded.wait(LOAD_WAIT_S)
         if self.meaning_problem:

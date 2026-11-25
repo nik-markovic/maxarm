@@ -14,7 +14,7 @@ pyserial==3.5               # the arm's serial port
 iotconnect-sdk-lite[aws-s3]==1.3.0
 
 # KVS WebRTC: aiortc sends the stream, with PyAV at the version aiortc takes, whose libx264 encodes it where there is
-# no hardware encoder; websockets for the signalling channel.
+# no hardware encoder; websockets for the signaling channel.
 aiortc==1.16.0
 websockets==17.4
 

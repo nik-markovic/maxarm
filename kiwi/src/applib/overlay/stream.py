@@ -56,7 +56,7 @@ MARGIN = 10.0
 GAP = 24.0                  # between the bar's pieces
 ANSWER_FONT = 15.0
 ANSWER_WIDTH = 760.0        # an answer's lines at most this wide
-ANSWER_LINES = 3            # the rest is in the command's acknowledgement
+ANSWER_LINES = 3            # the rest is in the command's acknowledgment
 ANSWER_S = 12.0             # an answer of one line stays this long,
 ANSWER_LINE_S = 4.0         # and this much longer for every line more
 REQUEST_CHARS = 48          # a request to the model, shown on the bar at most this long
@@ -66,7 +66,7 @@ GREEN = ink(inks.GREEN)
 YELLOW = ink(inks.YELLOW)
 ORANGE = ink(inks.REACH_MIN)
 RED = ink(inks.UNREAD)
-AGENT = ink("#6fd3ff")      # the language model's: a colour of its own, none of the tiles' or the areas'
+AGENT = ink("#6fd3ff")      # the language model's: a color of its own, none of the tiles' or the areas'
 
 # Beyond the font's ASCII: what the model and the app write that NFKD does not take apart.
 ASCII = str.maketrans({"·": "-", "—": "-", "–": "-", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "...",
@@ -140,7 +140,7 @@ class StreamOverlay:
     # --- what the bar says ------------------------------------------------------------------------------------
 
     def _rows(self, scene: dict) -> List[Tuple[List[Tuple[str, tuple]], List[Tuple[str, tuple]]]]:
-        """The bar's rows, top first: each its left and its right pieces, (text, colour)."""
+        """The bar's rows, top first: each its left and its right pieces, (text, color)."""
         activity = self.agent()
         thinking = activity and activity["thinking"]
         rows = []
@@ -148,8 +148,8 @@ class StreamOverlay:
             request = _ascii(" ".join(thinking["text"].split()))
             if len(request) > REQUEST_CHARS:
                 request = request[:REQUEST_CHARS - 3].rstrip() + "..."
-            colour = ORANGE if thinking["doing"] == "Stopping" else AGENT
-            rows.append(([(f'Ara240: "{request}"   {_ascii(thinking["doing"])}   {thinking["seconds"]} s', colour)],
+            color = ORANGE if thinking["doing"] == "Stopping" else AGENT
+            rows.append(([(f'Ara240: "{request}"   {_ascii(thinking["doing"])}   {thinking["seconds"]} s', color)],
                          []))
         right = [(self.cloud, ORANGE)] if self.cloud else []
         if activity and not thinking:
@@ -210,21 +210,21 @@ class StreamOverlay:
         for index, (left, right) in enumerate(rows):
             middle = top + (index + 0.5) * ROW_HEIGHT * self.scale
             end = DESIGN_WIDTH_PX - MARGIN
-            for text, colour in reversed(right):
+            for text, color in reversed(right):
                 end -= canvas.text_width(text, BAR_FONT)
-                canvas.text(text, (end * self.scale, middle), colour, BAR_FONT, anchor="left")
+                canvas.text(text, (end * self.scale, middle), color, BAR_FONT, anchor="left")
                 end -= GAP
             start = MARGIN
-            for text, colour in left:
+            for text, color in left:
                 text = _fitted(canvas, text, end - start)
-                canvas.text(text, (start * self.scale, middle), colour, BAR_FONT, anchor="left")
+                canvas.text(text, (start * self.scale, middle), color, BAR_FONT, anchor="left")
                 start += canvas.text_width(text, BAR_FONT) + GAP
         return top
 
     def _draw_answer(self, canvas: Canvas, lines: Tuple[str, ...], top: float) -> None:
         height = (22 + 1.5 * ANSWER_FONT * (len(lines) - 1)) * self.scale
-        colour = YELLOW if self.is_answer_ok else RED
-        canvas.label("\n".join(lines), (self.size[0] / 2, top - 8 * self.scale - height / 2), colour, ANSWER_FONT)
+        color = YELLOW if self.is_answer_ok else RED
+        canvas.label("\n".join(lines), (self.size[0] / 2, top - 8 * self.scale - height / 2), color, ANSWER_FONT)
 
 
 def _model_state(status: dict) -> List[Tuple[str, tuple]]:

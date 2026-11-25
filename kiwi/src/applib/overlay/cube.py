@@ -3,7 +3,7 @@
     draw_cube(canvas, view, found)            # found: FoundCube.to_json(), and where the arm was sent and landed
 
 - its edges, thin, yellow and half see-through, fainter where its own faces hide
-  them, and an X across its bottom under its centre: the cube's own edge shows
+  them, and an X across its bottom under its center: the cube's own edge shows
   beside them;
 - where the arm was sent over it: a small dot on the cube's top;
 - where the servos then said the cup was: the cup's rim, green, on the same
@@ -18,7 +18,7 @@ from applib.camera.model import BASE_DIAGONALS, CUBE_MM
 from . import inks
 from .canvas import Canvas, View
 
-# The cup's skirt, its outside edge: 21 mm across (the owner's).
+# The cup's skirt, its outside edge: 21 mm across.
 CUP_RADIUS_MM = 10.5
 # The cube's x, y are written this far over the cup's end, which comes down to `down_mm`, and at least so many
 # design px: the cup's end stays in sight.

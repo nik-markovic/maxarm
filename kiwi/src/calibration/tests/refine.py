@@ -27,12 +27,12 @@ from calibration.camera.anchor import Tie
 from calibration.camera.refine import Off, PointsDoNotFit, Sighting, off_by, refine_and_leave_out
 
 # SAVE CALIBRATION takes this many points at the least -- each is judged by the mesh of the others, and three are
-# needed to tell which of two disagreeing points is wrong -- and the page asks for this many (the owner's: 10 at
-# least; about 6 over the tile area beside CALIBRATE's three, HANDOFF-calibration).
+# needed to tell which of two disagreeing points is wrong -- and the page asks for this many: about 6 over the
+# tile area beside CALIBRATE's three.
 MIN_POINTS = 4
 SUGGESTED_POINTS = 10
 # How far off a point is, green to the first, yellow to the second, red beyond: a reading carries about 0.7-0.9 mm, a
-# point left out of the arm's laying about 0.9 typically and under 2 (3 Nov, the cup on grid paper).
+# point left out of the arm's laying about 0.9 typically and under 2, checked with the cup on grid paper.
 OFF_MM = (1.5, 2.5)
 
 

@@ -1,7 +1,7 @@
 // The Tiles page's view from above: the shared grid in desk space, with the work areas -- pickup green, dropoff
-// blue, the line between them and the arm's centre line dashed, the arc words go along dotted -- and each tile
-// LOCATE TILES found, its face in its status's colour, its letter at the letter's bottom right corner, as over the
-// picture, and in red with a '?' where the letter was not read; where a tile PLACE has carried off was, dotted, grey, its letter faint and a chevron to the letter's top,
+// blue, the line between them and the arm's center line dashed, the arc words go along dotted -- and each tile
+// LOCATE TILES found, its face in its status's color, its letter at the letter's bottom right corner, as over the
+// picture, and in red with a '?' where the letter was not read; where a tile PLACE has carried off was, dotted, gray, its letter faint and a chevron to the letter's top,
 // until LOCATE TILES. Where PLACE sets each letter of a word down: dashed until the tile is there, then filled. The
 // pointer picks out the tile under it; a click is that tile, for onPickTile(n).
 
@@ -133,7 +133,7 @@ export class TilesGrid extends GridView {
     }
   }
 
-  // The letter on a disc at its bottom right corner; '?' or '–', ringed, at the tile's centre.
+  // The letter on a disc at its bottom right corner; '?' or '–', ringed, at the tile's center.
   drawBadge(tile, ink) {
     const { ctx } = this;
     const { text, corner, isMarked } = letterBadge(tile);

@@ -2,10 +2,10 @@
 # Patch the connector installed here for OpenAI tool calls. install.sh runs it; it is separate to re-run after
 # reinstalling the connector by hand, or after the patch changed. Does nothing if the patch is already in.
 #
-# Without it, the connector (2.2 as 2.0.0, property-alarm's) returns tool calls with no "id" and no "type", drops the
+# Without it, the connector (2.2, as 2.0.0) returns tool calls with no "id" and no "type", drops the
 # "tool_call_id" of a tool's result, and gives no "finish_reason": an agent framework cannot tie a result back to its
 # call, drops the call, and the model asks for it again forever -- strands-agents logs "incomplete tool use block,
-# skipping". That much is property-alarm's patch (work/refs/iotc-eiq-imx95-property-alarm), models.py and Llm.py.
+# skipping". That much is the iotc-eiq-imx95-property-alarm demo's patch, models.py and Llm.py.
 # HfLlm.py is ours: the model's prompt shows an earlier call's arguments quoted and escaped, the model writes its next
 # call the same way, and the connector cannot read it back -- a second call with arguments, after a first with
 # arguments, comes back as text. So is Llm.py's repetition penalty: the config's and a request's repeat_penalty passed

@@ -39,9 +39,9 @@ FONT_CAP_PX = 22.0
 CAP_SHARE = 0.7
 
 
-def ink(colour: str) -> Ink:
+def ink(color: str) -> Ink:
     """'#41c363' as BGR."""
-    value = colour.lstrip("#")
+    value = color.lstrip("#")
     return int(value[4:6], 16), int(value[2:4], 16), int(value[0:2], 16)
 
 
@@ -78,7 +78,7 @@ class View:
 
 
 class Layer:
-    """A drawn layer: BGRA, straight alpha; burnt into frames of its size, its blend worked out once."""
+    """A drawn layer: BGRA, straight alpha; burned into frames of its size, its blend worked out once."""
 
     def __init__(self, image: np.ndarray) -> None:
         self.image = image
@@ -96,8 +96,8 @@ class Layer:
         if self._blend is None:
             weight = self.image[self.box][:, :, 3].astype(np.float32) / 255
             self._blend = (np.ascontiguousarray(self.image[self.box][:, :, :3]), weight, 1 - weight)
-        colour, weight, rest = self._blend
-        frame[self.box] = cv2.blendLinear(frame[self.box], colour, rest, weight)
+        color, weight, rest = self._blend
+        frame[self.box] = cv2.blendLinear(frame[self.box], color, rest, weight)
 
     def png(self) -> bytes:
         return cv2.imencode(".png", self.image, [cv2.IMWRITE_PNG_COMPRESSION, 1])[1].tobytes()
@@ -115,7 +115,7 @@ class Canvas:
 
     # --- marks --------------------------------------------------------------------------------------------------
 
-    def lines(self, points: Sequence[Point], colour: Ink, width: float, opacity: float,
+    def lines(self, points: Sequence[Point], color: Ink, width: float, opacity: float,
               dash: Optional[Tuple[float, float]] = None, closed: bool = False) -> None:
         """Points joined up, a gap wherever a point is behind the camera; dashed `dash` = (on, off), design px."""
         runs = _runs(list(points) + list(points[:1]) if closed and points else list(points))
@@ -124,52 +124,52 @@ class Canvas:
         thickness, opacity = self._thickness(width, opacity)
         for run in runs:
             if len(run) > 1:
-                self._mark(np.array(run), thickness + 2, opacity, colour,
+                self._mark(np.array(run), thickness + 2, opacity, color,
                            lambda mask, pts: cv2.polylines(mask, [pts], False, 255, thickness, cv2.LINE_AA, SHIFT))
 
-    def fill(self, points: Sequence[Point], colour: Ink, opacity: float) -> None:
+    def fill(self, points: Sequence[Point], color: Ink, opacity: float) -> None:
         """A shape filled, if every point of it is in front of the camera."""
         if len(points) < 3 or any(point is None for point in points):
             return
-        self._mark(np.array(points), 2, opacity, colour,
+        self._mark(np.array(points), 2, opacity, color,
                    lambda mask, pts: cv2.fillPoly(mask, [pts], 255, cv2.LINE_AA, SHIFT))
 
-    def disc(self, centre: Point, radius: float, colour: Ink, opacity: float) -> None:
+    def disc(self, center: Point, radius: float, color: Ink, opacity: float) -> None:
         """A filled circle, `radius` design px."""
-        if centre is None:
+        if center is None:
             return
         radius *= self.scale
-        self._mark(np.array([centre]), 2 * radius + 2, opacity, colour,
-                   lambda mask, pts: cv2.circle(mask, _centre(pts), round(radius * (1 << SHIFT)), 255, -1,
+        self._mark(np.array([center]), 2 * radius + 2, opacity, color,
+                   lambda mask, pts: cv2.circle(mask, _center(pts), round(radius * (1 << SHIFT)), 255, -1,
                                                 cv2.LINE_AA, SHIFT))
 
-    def circle(self, centre: Point, radius: float, colour: Ink, width: float, opacity: float) -> None:
+    def circle(self, center: Point, radius: float, color: Ink, width: float, opacity: float) -> None:
         """A circle's outline, `radius` and `width` design px."""
-        if centre is None:
+        if center is None:
             return
         radius *= self.scale
         thickness, opacity = self._thickness(width, opacity)
-        self._mark(np.array([centre]), 2 * radius + thickness + 2, opacity, colour,
-                   lambda mask, pts: cv2.circle(mask, _centre(pts), round(radius * (1 << SHIFT)), 255, thickness,
+        self._mark(np.array([center]), 2 * radius + thickness + 2, opacity, color,
+                   lambda mask, pts: cv2.circle(mask, _center(pts), round(radius * (1 << SHIFT)), 255, thickness,
                                                 cv2.LINE_AA, SHIFT))
 
-    def text(self, text: str, at: Point, colour: Ink, size: float, opacity: float = 1.0, bold: bool = False,
-             anchor: str = "centre") -> None:
-        """`text`, `size` design px, its capitals' middle at `at`: centred on it, or starting there ("left")."""
+    def text(self, text: str, at: Point, color: Ink, size: float, opacity: float = 1.0, bold: bool = False,
+             anchor: str = "center") -> None:
+        """`text`, `size` design px, its capitals' middle at `at`: centered on it, or starting there ("left")."""
         if at is None or not text:
             return
         scale, thickness = self._font(size, bold)
         (width, height), _ = cv2.getTextSize(text, FONT, scale, thickness)
-        left = at[0] - (width / 2 if anchor == "centre" else 0.0)
+        left = at[0] - (width / 2 if anchor == "center" else 0.0)
         origin = (round(left), round(at[1] + height / 2))
         box = np.array([(left, at[1] - height), (left + width, at[1] + height)])
-        self._mark(box, thickness + 2, opacity, colour,
+        self._mark(box, thickness + 2, opacity, color,
                    lambda mask, offset: cv2.putText(mask, text, (origin[0] - offset[0], origin[1] - offset[1]), FONT,
                                                     scale, 255, thickness, cv2.LINE_AA), is_offset=True)
 
-    def label(self, text: str, at: Point, colour: Ink, size: float = 12.0, anchor: str = "centre",
+    def label(self, text: str, at: Point, color: Ink, size: float = 12.0, anchor: str = "center",
               pill: Ink = (17, 13, 10)) -> None:
-        """`text`, lines apart by newlines, on a dark pill outlined in `colour`, kept inside the picture: centred on
+        """`text`, lines apart by newlines, on a dark pill outlined in `color`, kept inside the picture: centered on
         `at`, or starting there."""
         if at is None:
             return
@@ -177,15 +177,15 @@ class Canvas:
         step = 1.5 * size
         width = (max(self.text_width(line, size) for line in lines) + 14) * self.scale
         height = (22 + step * (len(lines) - 1)) * self.scale
-        left = at[0] - width / 2 if anchor == "centre" else at[0]
+        left = at[0] - width / 2 if anchor == "center" else at[0]
         left = min(max(left, 4 * self.scale), self.size[0] - width - 4 * self.scale)
         top = min(max(at[1] - height / 2, 4 * self.scale), self.size[1] - height - 4 * self.scale)
         outline = _rounded(left, top, width, height, 6 * self.scale)
         self.fill(outline, pill, 0.82)
-        self.lines(outline, colour, 1.0, 1.0, closed=True)
+        self.lines(outline, color, 1.0, 1.0, closed=True)
         for index, line in enumerate(lines):
             middle = top + (11 + step * index) * self.scale
-            self.text(line, (left + 7 * self.scale, middle), colour, size, anchor="left")
+            self.text(line, (left + 7 * self.scale, middle), color, size, anchor="left")
 
     def text_width(self, text: str, size: float, bold: bool = False) -> float:
         """How wide `text` is drawn, design px."""
@@ -203,9 +203,9 @@ class Canvas:
         cap = size * CAP_SHARE * self.scale
         return cap / FONT_CAP_PX, max(1, round(cap / (6.0 if bold else 9.0)))
 
-    def _mark(self, points: np.ndarray, margin: float, opacity: float, colour: Ink, draw, is_offset: bool = False):
+    def _mark(self, points: np.ndarray, margin: float, opacity: float, color: Ink, draw, is_offset: bool = False):
         """`draw(mask, points)` on a coverage mask over the points' box, `margin` px round it; then the mask laid
-        over the layer in `colour` at `opacity`. With `is_offset`, `draw` is given the box's corner instead."""
+        over the layer in `color` at `opacity`. With `is_offset`, `draw` is given the box's corner instead."""
         height, width = self.image.shape[:2]
         points = np.clip(points, -FAR_PX, FAR_PX)
         low = np.floor(points.min(axis=0) - margin).astype(int)
@@ -227,13 +227,13 @@ class Canvas:
         alpha = coverage + under
         shown = alpha > 0
         mixed = np.zeros(region.shape[:2] + (3,), np.float32)
-        mixed[shown] = ((np.array(colour, np.float32) * coverage[shown, None]
+        mixed[shown] = ((np.array(color, np.float32) * coverage[shown, None]
                          + region[shown][:, :3].astype(np.float32) * under[shown, None]) / alpha[shown, None])
         region[:, :, :3] = np.clip(np.round(mixed), 0, 255).astype(np.uint8)
         region[:, :, 3] = np.clip(np.round(alpha * 255), 0, 255).astype(np.uint8)
 
 
-def _centre(points: np.ndarray) -> Tuple[int, int]:
+def _center(points: np.ndarray) -> Tuple[int, int]:
     return int(points[0][0]), int(points[0][1])
 
 

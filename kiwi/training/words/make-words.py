@@ -10,17 +10,17 @@ How common: wordfreq's Zipf frequency -- 6 is "the", 4 "garden", 3 "toad" -- of 
 books and the web, a snapshot of about 2021 that is no longer updated. Which are words: the PC's Hunspell en_US
 dictionary, made from SCOWL (Fedora's hunspell-en-US, Debian's hunspell-en-us), asked in lower case, so that names
 drop out; and WordNet, words with a meaning of their own -- inflections taken -- so that THE, WITH, BECAUSE and
-GONNA drop out too, the commonest words of a length otherwise (STATUS-kiwi §7). Kept: 3 to 15 letters, A to Z,
+GONNA drop out too, the commonest words of a length otherwise. Kept: 3 to 15 letters, A to Z,
 Zipf MIN_ZIPF or more, but NOT_WORDS. A word's form, where it is one: the shortest of WordNet's base forms -- LIONS
 lion, MEANT mean -- so that a list shows one of them.
 
-WordNet's ties, for a clue's words (STATUS-kiwi §13): for each of WordNet's words, the list's words that share a
+WordNet's ties, for a clue's words: for each of WordNet's words, the list's words that share a
 sense with it, have a similar one, the opposite one, a form made from it, or are a kind of it, up to KINDS_DEPTH
 steps down -- not of one with more than KINDS_MOST kinds in the list ("entity", "object", "part"), which say nothing.
 Its names of more words too, joined by _, where the list's words tie to them: "a body part" is body_part, whose kinds
 are NOSE and TOE, where "part" is too wide. Every single word has its line, if only its name: the board knows from
 them which words are spelled right.
-Made here once: WordNet itself, through nltk, is far too slow to load on the board (STATUS-kiwi §13).
+Made here once: WordNet itself, through nltk, is far too slow to load on the board.
 
 Host-side only; the board reads the files (`src/applib/agent/dictionary.py`). wordfreq's data is CC BY-SA 4.0, with
 credits to the sources it was made from (https://github.com/rspeer/wordfreq); SCOWL's terms are MIT-like, and

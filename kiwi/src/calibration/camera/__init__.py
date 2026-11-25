@@ -9,6 +9,6 @@
 
 What the /IOTCONNECT app needs of the camera too is `applib/camera/`: which camera,
 the live view, the cubes in a frame, the fit and `camera.json`, the red cube found.
-The page itself -- `index.html`, `camera.css`, `camera.js`, `grid.js`, `guide.js` and
-`guide.md`, the GUIDE's plain text -- is in `web/camera/`.
+The page itself -- `index.html`, `camera.css`, `camera.js`, `grid.js` and `help.md`,
+its HELP -- is in `web/camera/`.
 """

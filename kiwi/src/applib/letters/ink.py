@@ -5,8 +5,8 @@ darkness under the brightest of the face within `PATCH_MM` (a morphological
 closing; Weber contrast), so a shadow or light falling off across the face
 cancels. A pixel is ink at half the face's own strongest contrast.
 
-On the owner's tiles the marker's strongest contrast is 0.56 to 0.77 and the
-bare face's about 0 (STATUS-hyena); a face whose strongest is under
+On the demo's tiles the marker's strongest contrast is 0.56 to 0.77 and the
+bare face's about 0; a face whose strongest is under
 `MIN_INK_CONTRAST` holds no letter.
 
 The dot is a small, round, separate blob of ink in a corner of the letter --
@@ -48,16 +48,16 @@ FAINT_SHARE = 0.25
 class Ink:
     is_blank: bool
     contrast: float                             # the face's strongest ink, against the face round it
-    dot: Optional[Tuple[float, float]]          # the dot, quarter turn 0's window, mm right and down of the centre
+    dot: Optional[Tuple[float, float]]          # the dot, quarter turn 0's window, mm right and down of the center
 
 
 def size_px() -> int:
     return round(WINDOW_MM * PX_PER_MM)
 
 
-def measure(grey: np.ndarray) -> Ink:
-    """`grey`: the face at quarter turn 0, `WINDOW_MM` square at `PX_PER_MM`."""
-    image = grey.astype(np.float32)
+def measure(gray: np.ndarray) -> Ink:
+    """`gray`: the face at quarter turn 0, `WINDOW_MM` square at `PX_PER_MM`."""
+    image = gray.astype(np.float32)
     patch = _odd(PATCH_MM * PX_PER_MM)
     lightest = cv2.morphologyEx(image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (patch, patch)))
     contrast = (lightest - image) / np.maximum(lightest, 1.0)
@@ -71,7 +71,7 @@ def measure(grey: np.ndarray) -> Ink:
 
 
 def _dot(ink: np.ndarray, faint: np.ndarray) -> Optional[Tuple[float, float]]:
-    count, labels, stats, centres = cv2.connectedComponentsWithStats(ink.astype(np.uint8), connectivity=8)
+    count, labels, stats, centers = cv2.connectedComponentsWithStats(ink.astype(np.uint8), connectivity=8)
     mm2 = PX_PER_MM ** 2
     size = ink.shape[0]
     dots = []
@@ -95,11 +95,11 @@ def _dot(ink: np.ndarray, faint: np.ndarray) -> Optional[Tuple[float, float]]:
     rows, columns = np.nonzero(letter)
     middle = np.array([(columns.min() + columns.max()) / 2, (rows.min() + rows.max()) / 2])
     half = np.array([max(columns.max() - columns.min(), 1) / 2, max(rows.max() - rows.min(), 1) / 2])
-    off = (centres[dots[0]] - middle) / half
+    off = (centers[dots[0]] - middle) / half
     if min(abs(off)) < DOT_OFF_MIDDLE:
         return None
-    centre = (size - 1) / 2
-    return (float((centres[dots[0]][0] - centre) / PX_PER_MM), float((centres[dots[0]][1] - centre) / PX_PER_MM))
+    center = (size - 1) / 2
+    return (float((centers[dots[0]][0] - center) / PX_PER_MM), float((centers[dots[0]][1] - center) / PX_PER_MM))
 
 
 def _odd(pixels: float) -> int:

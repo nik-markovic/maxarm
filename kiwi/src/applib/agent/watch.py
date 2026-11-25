@@ -7,7 +7,7 @@ A model call is kept as what the model wrote -- its text, each tool call as name
 written out as text and made all the same (`repair.py`) -- with its seconds; a tool call as what it gave back.
 
 An answer that says a word is set down when no tool has been called -- the model copying the recap's line, "FORSET
-(F-O-R-S-E-T), set down" -- is dropped and the model asked again, once (STATUS-kiwi §8). Not when the request asks
+(F-O-R-S-E-T), set down" -- is dropped and the model asked again, once. Not when the request asks
 to explain: the last word was set down, and saying so is right.
 """
 

@@ -1,8 +1,8 @@
 // The tests page's view from above: the shared grid in desk space, with where the camera found the red cube -- its
-// footprint, turned as it stands, an X under its centre -- and the point of desk last clicked in the live view, blue
+// footprint, turned as it stands, an X under its center -- and the point of desk last clicked in the live view, blue
 // as the live view has it.
 // And the red cube's points that refine the calibration, as on the desk page: each a numbered circle where the arm
-// said the cup was, coloured by how far off it is; and a dashed circle, a place for the next point.
+// said the cup was, colored by how far off it is; and a dashed circle, a place for the next point.
 
 import { CUBE_INK, GridView, INK } from '/common/grid.js';
 import { offShown, rank } from './refine.js';

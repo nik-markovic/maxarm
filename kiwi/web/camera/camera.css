@@ -25,18 +25,15 @@ main.camera {
 
 /* --- the cubes --------------------------------------------------------- */
 
-.btn.guide { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.45);
-  letter-spacing: 0.6px; }
-.btn.guide:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
 .hint.space { margin: 8px 2px 0; }
 
 .cube-rows { display: grid; gap: 8px; margin: 14px 0 12px; }
 .cube-row { --c: var(--faint); display: grid; grid-template-columns: 34px 1fr auto; align-items: center;
   grid-template-areas: "icon name actions" "icon at actions"; gap: 2px 12px; padding: 10px 12px;
   background: var(--bg); border: 1px solid var(--line); border-radius: 10px; transition: border-color 0.2s; }
-.cube-row[data-colour="blue"] { --c: var(--cube-blue); }
-.cube-row[data-colour="green"] { --c: var(--cube-green); }
-.cube-row[data-colour="red"] { --c: var(--cube-red); }
+.cube-row[data-color="blue"] { --c: var(--cube-blue); }
+.cube-row[data-color="green"] { --c: var(--cube-green); }
+.cube-row[data-color="red"] { --c: var(--cube-red); }
 .cube-row .cube-icon { grid-area: icon; opacity: 0.4; filter: grayscale(0.5); transition: opacity 0.2s; }
 .cube-row.recorded { border-color: color-mix(in srgb, var(--c) 45%, transparent); box-shadow: inset 3px 0 0 var(--c); }
 .cube-row.recorded .cube-icon { opacity: 1;
@@ -82,15 +79,7 @@ main.camera {
 .check-info { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
 .check-info b { color: var(--text); }
 
-/* --- the dialogs: the guide, and the check image full size ------------- */
-
-.modal.guide { width: 680px; }
-.modal.guide h2 { margin: 0 34px 6px 0; font-size: 18px; }
-.modal.guide p { margin: 12px 0 4px; }
-.modal.guide ul { margin: 4px 0 10px; padding-left: 20px; }
-.modal.guide li { margin: 7px 0; color: #c9d3dd; line-height: 1.5; }
-.modal.guide li::marker { color: var(--green); }
-.modal.guide b { color: var(--green-bright); }
+/* --- the check image full size ------------------------------------------ */
 
 .modal.viewer { max-width: calc(100vw - 48px); padding: 14px; }
 .modal.viewer img { display: block; max-width: calc(100vw - 80px); max-height: calc(100vh - 80px); cursor: zoom-in;

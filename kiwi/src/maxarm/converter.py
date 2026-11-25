@@ -31,7 +31,7 @@ from typing import Callable, Dict, Optional, Protocol, Tuple
 from . import mesh, raw
 from .geometry import Position
 
-CORRECTION_FILE = Path(__file__).resolve().parents[2] / "config" / "arm-true.json"   # the pilot's config/
+CORRECTION_FILE = Path(__file__).resolve().parents[2] / "config" / "arm-true.json"   # config/, beside src/
 LOOK_EVERY_S = 1.0          # how often the file is looked at for a change; reload() looks at once
 TO_RAW_ROUNDS = 8           # a correction changing 3 mm in 100 brings each round ~30 times closer
 

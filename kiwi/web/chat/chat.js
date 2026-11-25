@@ -1,5 +1,5 @@
-// The Chat page: a request to the language model on the board's Ara240 -- "go", "a 7-letter word", "an animal",
-// "spell AVNET", "elaborate" -- which reads what it wants; code finds the word in the tiles -- the longest, or for a
+// The Chat page: a request to the language model on the board's Ara240 -- "go", "a 5-letter word", "a farm animal",
+// "spell AVNET", "place it" -- which reads what it wants; code finds the word in the tiles -- the longest, or for a
 // clue those nearest it in meaning, the model choosing among them -- and the arm sets it down.
 //
 // On the left, the desk: the live view with the tiles drawn over it, as on the Tiles page; the letters on the tiles
@@ -19,8 +19,7 @@ const FEED = '/api/camera/feed';
 const FEED_RETRY_MS = 3000;
 const FEED_NOTES = { idle: 'starting the camera…', starting: 'starting the camera…' };
 const FEED_BADGES = { live: '● LIVE', failed: 'NO CAMERA' };
-const SUGGESTIONS = ['Go!', 'A 7-letter word', 'A large farm animal', 'Elaborate',
-  'Look at the tiles again, then a 5-letter word', "A word, but don't place it"];
+const SUGGESTIONS = ['Go!', 'A 5-letter word', 'A farm animal', "A word, but don't place it", 'Place it'];
 const MODEL_WORDS = {
   ready: 'ready', loading: 'loading', waiting: 'waiting for the Ara240', stopped: 'not running',
   'not installed': 'not installed', failed: 'not answering', checking: 'looking for it', off: 'off',
@@ -126,7 +125,7 @@ function renderDesk() {
   if ($('on-offer').dataset.key !== offerKey) {
     $('on-offer').dataset.key = offerKey;
     $('on-offer').innerHTML = offer ? [...offer].map((letter) => `<span class="tile">${letter}</span>`).join('')
-      : `<span class="hint">${result ? 'none: no tile ready to pick up has its letter read' : 'not looked at yet'}</span>`;
+      : `<span class="hint">${result ? 'none: no tile ready to pick up has a letter read' : 'not looked at yet'}</span>`;
   }
   const word = placing();
   $('word-row').hidden = !word;
@@ -146,10 +145,8 @@ function renderDesk() {
     }
     setText($('word-note'), word.status === 'placing' ? `${placed} of ${word.steps.length}` : word.detail || '');
   }
-  setText($('desk-note'), !result
-    ? 'LOCATE TILES, or ask the model to look: the arm moves out of the picture and the camera reads the tiles.'
-    : `${result.tiles.length} tiles in the snapshot of ${result.taken}; the tile offset and the reader are the Tiles `
-      + 'page\'s.');
+  setText($('desk-note'), !result ? 'LOCATE TILES to read the tiles: the arm moves out of the picture first.'
+    : `${result.tiles.length} tiles seen at ${result.taken}.`);
 }
 
 function renderModel() {
@@ -189,11 +186,9 @@ function renderMessages() {
       + `${thinking.steps ? ` · tool call ${thinking.steps}` : ''}</span></div>`);
   }
   if (!parts.length) {
-    parts.push('<div class="empty">Ask for a word. The model reads what you want, and code finds it among the words '
-      + 'the tiles spell -- the model cannot count letters: the longest, or for a clue those WordNet ties to it, '
-      + 'those nearest it in meaning and the model\'s own ideas, of which the model chooses one. The arm sets it '
-      + 'down. Try <b>go</b>, <b>a 7-letter word</b>, a clue like <b>a farm animal</b>, <b>spell</b> a word of yours, '
-      + 'then <b>elaborate</b>.</div>');
+    parts.push('<div class="empty">Ask for a word made of the tiles, and the arm sets it down. Try <b>go</b> for the '
+      + 'longest, <b>a 5-letter word</b>, or a hint like <b>a farm animal</b>. Add <b>don\'t place it</b> to see the '
+      + 'word first, then say <b>place it</b>.</div>');
   }
   box.innerHTML = parts.join('');
   if (isPinned) box.scrollTop = box.scrollHeight;
@@ -312,23 +307,21 @@ function renderAsk() {
   const { model } = chat();
   const isReady = isModelReady();
   $('text').disabled = !isReady;
-  $('text').placeholder = isReady ? 'go, a 7-letter word, an animal…' : 'the language model is not ready';
+  $('text').placeholder = isReady ? 'go, a 5-letter word, a farm animal…' : 'the language model is not ready';
   $('ask').disabled = !isReady || isThinking() || inFlight > 0;
   $('stop').hidden = !isThinking();
   $('forget').disabled = isThinking() || !chat().messages.length;
   for (const button of $('suggestions').children) button.disabled = !isReady || isThinking() || inFlight > 0;
-  setText($('talk-note'), isReady ? (chat().placing ? `The arm is setting down ${chat().placing}: words can be `
-    + 'checked meanwhile, not set down.' : '') : unreadyNote(model));
+  setText($('talk-note'), isReady ? (chat().placing ? `The arm is setting down ${chat().placing}: a word found `
+    + 'meanwhile is not set down.' : '') : unreadyNote(model));
 }
 
 function unreadyNote(model) {
   if (model.state === 'not installed') {
-    return 'The language model is not installed on this board: connector/install.sh, with an Ara240 (11 GB).';
+    return 'The language model is not installed. With an Ara240 in the board, run install.sh again.';
   }
-  if (model.state === 'stopped') {
-    return 'It is installed, not running: connector/run.sh, or connector/install-service.sh for every boot.';
-  }
-  if (model.state === 'loading') return 'The model loads onto the Ara240 for about 6 minutes after the connector starts.';
+  if (model.state === 'stopped') return 'The language model is installed but not running: connector/run.sh starts it.';
+  if (model.state === 'loading') return 'The model takes a few minutes to load after the board starts.';
   return model.detail ? `${model.detail[0].toUpperCase()}${model.detail.slice(1)}.` : '';
 }
 

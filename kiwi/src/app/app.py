@@ -5,7 +5,7 @@ with and calls out to it, and nothing calls into it but
 
     on_command(command)        one command, from C2D or the console        [a command thread]
 
-so the handlers below, read top to bottom, are the whole behaviour of the app:
+so the handlers below, read top to bottom, are the whole behavior of the app:
 
 - `detect`: park the arm, take the snapshot, find the tiles and read their
   letters; the stream shows them, and the dashboard is told the letters and which
@@ -152,8 +152,8 @@ class TilesApp:
             self._report()
 
     def _find_cube(self, command: Command) -> str:
-        colour = command.argument.strip().lower()
-        if colour not in ("", "red"):
+        color = command.argument.strip().lower()
+        if color not in ("", "red"):
             raise CommandError(f"Only the red cube is found, not {command.argument.strip()}.")
         fit = self._calibration()
         self.overlay.set_doing("Finding the red cube: the arm parks, the camera looks")

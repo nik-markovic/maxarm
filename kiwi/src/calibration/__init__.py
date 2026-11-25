@@ -4,7 +4,6 @@
 | directory | holds                                                                     |
 | --------- | ------------------------------------------------------------------------- |
 | `common/` | the web server, the arm's controls                                        |
-| `desk/`   | the desk calibration: touch points, the plane, `config/desk.json`         |
 | `camera/` | the camera calibration: the cubes' points, the fit that writes            |
 |           | `config/camera.json`, the check image, the refinement                     |
 | `tests/`  | Fine Tune: the red cube found and the arm brought over it, the arm sent   |
@@ -12,7 +11,7 @@
 | `tiles/`  | the 25 mm tiles found in the snapshot, read, and a word of them set down  |
 | `chat/`   | a request to the language model on the Ara240, which sets a word down     |
 
-Each page's HTML, scripts and styles are in the pilot's `web/`, a directory per
+Each page's HTML, scripts and styles are in `web/`, a directory per
 page. What the /IOTCONNECT app shares with these pages is in `applib/`.
 
 A package, rather than a plain directory, so that `calibration` imported from

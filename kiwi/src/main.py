@@ -43,7 +43,7 @@ The threads:
     camera     the camera's GStreamer pipeline; the newest frame, for commands   applib/camera/feed.py
     GStreamer  its own: the stream's branch -- the overlay, H.264 -- while watched   applib/stream.py
     pages      the web server, a thread per request                              calibration/common/server.py
-    webrtc     asyncio: the signalling channel, every viewer                      applib/webrtc.py
+    webrtc     asyncio: the signaling channel, every viewer                      applib/webrtc.py
     iotc       the telemetry publisher, and paho's own MQTT thread          applib/iotc.py
     command    two: each waits for the arm's worker (app/app.py)            applib/commands.py
     connector  where the language model is: installed, loading, ready        applib/agent/connector.py

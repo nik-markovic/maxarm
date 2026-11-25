@@ -25,6 +25,9 @@
 
 * { box-sizing: border-box; }
 
+/* Whatever is hidden stays hidden, whatever its own display says. */
+[hidden] { display: none !important; }
+
 html, body { margin: 0; min-height: 100%; }
 
 body {
@@ -58,9 +61,17 @@ nav.tabs { display: flex; gap: 4px; padding: 3px; background: var(--panel); bord
 nav.tabs a { padding: 6px 14px; border-radius: 7px; color: var(--muted); text-decoration: none; font-weight: 550; }
 nav.tabs a.active { background: var(--green-wash); color: var(--green-bright);
   box-shadow: inset 0 0 0 1px rgba(65, 195, 99, 0.35); }
-nav.tabs a.soon { opacity: 0.45; pointer-events: none; }
 nav.tabs a.unavailable:not(.active) { opacity: 0.4; cursor: not-allowed; }
-nav.tabs a.soon::after { content: " soon"; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+.btn.help-page { color: var(--green-bright); background: var(--green-wash); border-color: rgba(65, 195, 99, 0.45);
+  letter-spacing: 0.6px; }
+.btn.help-page:hover { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+
+/* The note on what the pages are for, until "Don't show again". */
+.intro { display: flex; align-items: center; gap: 14px; margin: 12px 20px 0; padding: 10px 14px;
+  border: 1px solid rgba(65, 195, 99, 0.35); border-radius: 10px; background: var(--green-wash); color: #c9d3dd; }
+.intro b { color: var(--text); font-weight: 600; }
+.intro .btn { margin-left: auto; flex: none; }
 
 .status { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
@@ -169,7 +180,7 @@ table.list td { text-align: right; padding: 5px 8px; border-bottom: 1px solid rg
 table.list th:first-child, table.list td:first-child { text-align: left; }
 table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 table.list .empty td { text-align: center; color: var(--faint); padding: 18px; }
-/* A point's number, coloured by how far off it is (desk, tests); the same colours for the number in its row. */
+/* A point's number, colored by how far off it is (desk, tests); the same colors for the number in its row. */
 .badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   font-size: 11.5px; font-weight: 700; background: #8d9aa9; color: #0b0f14; }
 .badge.ok { background: var(--green); }
@@ -205,4 +216,13 @@ td.actions .btn { margin-left: 3px; }
   background: linear-gradient(180deg, var(--panel-raised), var(--panel));
   border: 1px solid var(--line-strong); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: rise 0.18s ease-out; }
 .modal .close { position: absolute; top: 12px; right: 12px; font-size: 18px; line-height: 1; }
+/* A page's help (common/help.js). */
+.modal.help { width: 640px; }
+.modal.help h2 { margin: 0 34px 6px 0; font-size: 18px; }
+.modal.help h3 { margin: 18px 0 4px; font-size: 14px; color: var(--green-bright); }
+.modal.help p { margin: 10px 0 4px; color: #c9d3dd; line-height: 1.55; }
+.modal.help ul, .modal.help ol { margin: 4px 0 10px; padding-left: 22px; }
+.modal.help li { margin: 6px 0; color: #c9d3dd; line-height: 1.5; }
+.modal.help li::marker { color: var(--green); font-weight: 650; }
+.modal.help b { color: var(--text); font-weight: 600; }
 @keyframes fade { from { opacity: 0; } }

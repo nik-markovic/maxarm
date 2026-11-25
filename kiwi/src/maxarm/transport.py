@@ -3,11 +3,11 @@
 
 The board's micro-USB bridge carries a MicroPython REPL at 115200, and on stock
 firmware that is the only way in: the 0xAA 0x55 binary protocol has no parser
-on the board (`work/PROTOCOL-bin.md`), and BLE is a one-way jog protocol.
+on the board, and BLE is a one-way jog protocol.
 
 **Opening the port resets the ESP32.** DTR and RTS land on EN and BOOT through
 the bridge, and holding them low does not prevent it. So every connect re-runs
-the board's `main.py`, which homes the arm and centres the cup.
+the board's `main.py`, which homes the arm and centers the cup.
 """
 
 import errno

@@ -2,10 +2,10 @@
 // then the red cube's: their table, what SAVE CALIBRATION would change, and the place where the next point would
 // add most.
 //
-// Each point is off by how far the camera puts the cube's centre from where the arm says the cup was, across the
-// desk (XY), and by how far from 40 mm tall it sees the cube (Z), through the saved calibration ("now"); and, without
-// it, by how far the correction of the other points puts its reading from its cube ("without"). A point that does not fit
-// its neighbours is left out of the correction at SAVE. Z is none for a point kept before the cube's edges were.
+// Each point is off by how far the camera puts the cube's center from where the arm says the cup was, across the
+// desk (XY), and by how far from its real height it sees the cube (Z), through the saved calibration ("now"); and,
+// without it, by how far the correction of the other points puts its reading from its cube ("without"). A point that
+// does not fit its neighbors is left out of the correction at SAVE.
 
 import { fmt } from '/common/page.js';
 import { cubeIcon } from '/common/height.js';
@@ -22,7 +22,7 @@ export function rank(off, [warn, bad]) {
   return off <= warn ? 'ok' : off <= bad ? 'warn' : 'bad';
 }
 
-// What a point is coloured by: how far off it is now, through the saved calibration; red if it does not fit the others.
+// What a point is colored by: how far off it is now, through the saved calibration; red if it does not fit the others.
 export const offShown = (row) => (row.fits === false ? Infinity : row.off.now);
 
 export function tableRows(refine, offLimits) {
@@ -35,14 +35,14 @@ export function tableRows(refine, offLimits) {
     ${cell(point.off.now)}${heightCell(point.height.now)}
     ${cell(point.off.without)}<td class="actions">${tail}</td>`;
   const points = refine.points.map((point) => `<tr class="${point.cube ? 'cube' : ''}" title="${point.cube
-    ? `The ${point.cube} cube, recorded on the camera page and seen in CALIBRATE's frame, ${point.taken}`
-    : `Recorded ${point.taken}`}${point.fits === false ? '. Does not fit: its reach is far off what the other '
-      + 'points say. SAVE leaves it out; forget it and record it again' : ''}">
+    ? `The ${point.cube} cube, recorded on the camera page, ${point.taken}`
+    : `Recorded ${point.taken}`}${point.fits === false ? '. Does not agree with the other points: SAVE leaves it '
+      + 'out; remove it and record it again' : ''}">
     <td><span class="badge ${rank(offShown(point), offLimits)}">${point.id}</span>${point.cube ? cubeIcon(point.cube)
       : ''}</td>
-    ${row(point, `<button class="btn small ghost" data-id="${point.id}" title="Forget it">×</button>`)}</tr>`);
-  const empty = refine.points.length ? [] : ['<tr class="empty"><td colspan="9">No points: FIND RED CUBE, '
-    + 'centre the cube under the cup, RECORD POINT.</td></tr>'];
+    ${row(point, `<button class="btn small ghost" data-id="${point.id}" title="Remove it">×</button>`)}</tr>`);
+  const empty = refine.points.length ? [] : ['<tr class="empty"><td colspan="9">No points: bring the cup over the '
+    + 'red cube, center the cube under it, RECORD POINT.</td></tr>'];
   return [...points, ...empty].join('');
 }
 
@@ -50,43 +50,32 @@ export function tableRows(refine, offLimits) {
 export function fitLine(refine) {
   const { fit, problem } = refine;
   if (!fit) return `<span class="note">${problem}</span>`;
-  const change = fit.change_mm
-    ? `It puts the desk <b>${fmt(fit.change_mm[0])}</b> mm from the saved calibration, <b>${fmt(fit.change_mm[1])}</b>
-      at worst, in reach and in view.` : '';
-  if (fit.is_cubes_alone) {
-    return `No points: SAVE puts back the calibration of the three cubes alone. ${change}`;
-  }
-  const height = fit.height_mm ? ` Their cubes' tops are <b>${fmt(fit.height_mm[0])}</b> mm from 40 typically,
-    <b>${fmt(fit.height_mm[1])}</b> at worst.` : '';
-  const misfits = fit.does_not_fit.map(({ id, mm }) => `<b>Point ${id} does not fit</b>: its reach is ${fmt(mm)} mm
-    off what the others say, so SAVE leaves it out. Forget it and record it again.`).join(' ');
-  const without = fit.off_mm ? `Without it, each point is <b>${fmt(fit.off_mm[0])}</b> mm typically,
-    <b>${fmt(fit.off_mm[1])}</b> at worst, from where the others put it: how well the correction does between points.` : '';
-  const pattern = fit.pattern ? ` Their pattern over the whole desk: ${fit.pattern}.` : '';
-  return `${misfits} SAVE makes the correction of the points that fit: their pattern, and a mesh of what it leaves,
-    exact at each point.${pattern} ${without}${height} ${change} ${armLine(fit.arm)}`;
+  if (fit.is_cubes_alone) return 'No points: SAVE goes back to the calibration of the three cubes alone.';
+  const misfits = fit.does_not_fit.map(({ id, mm }) => `<b>Point ${id} does not agree</b> with the others, by
+    ${fmt(mm)} mm: SAVE leaves it out. Remove it and record it again.`).join(' ');
+  const without = fit.off_mm ? `Between points the calibration is off by <b>${fmt(fit.off_mm[0])}</b> mm
+    typically, <b>${fmt(fit.off_mm[1])}</b> at worst.` : '';
+  const change = fit.change_mm ? `SAVE moves it by <b>${fmt(fit.change_mm[0])}</b> mm typically,
+    <b>${fmt(fit.change_mm[1])}</b> at worst.` : '';
+  return [misfits, without, change].filter(Boolean).join(' ');
 }
 
 // How the arm measures against the camera: information, not counted against any point.
-function armLine(arm) {
+export function armLine(arm) {
   if (!arm) return '';
   const [low, high] = arm.stretch.map((scale) => 100 * (scale - 1));
   const apart = low >= 0 ? `${fmt(low, 1)} to ${fmt(high, 1)}% longer`
     : high <= 0 ? `${fmt(-high, 1)} to ${fmt(-low, 1)}% shorter`
       : `${fmt(-low, 1)}% shorter to ${fmt(high, 1)}% longer`;
-  return `<span class="note">The camera measures the arm's distances ${apart}, its x and y ${fmt(arm.skew_deg, 1)}
-    deg off square.</span>`;
+  return `The camera measures the arm's distances ${apart}, its x and y ${fmt(arm.skew_deg, 1)} deg off square.`;
 }
 
-// Whether the points are saved: the arm takes them on only with SAVE CALIBRATION.
+// Which calibration is in use, unless the points changed since it was saved (SAVE says so).
 export function savedLine(refine) {
-  if (refine.saved === false) {
-    return '<span class="unsaved-note">Not saved.</span> The points changed since the last SAVE: the arm takes them '
-      + 'on only with SAVE CALIBRATION.';
-  }
+  if (refine.saved === false) return '';
   const { refined } = refine;
-  const what = refined ? `the calibration of ${refined.points} points.` : 'the three cubes\' calibration alone.';
-  return refine.saved ? `Saved: ${what}` : `camera.json: ${what}`;
+  return refined ? `In use: the calibration of ${refined.points} points.`
+    : 'In use: the calibration of the three cubes alone.';
 }
 
 // Where the red cube would add most next: the place in reach, whole in view, furthest from every point.

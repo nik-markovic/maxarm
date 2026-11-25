@@ -12,7 +12,7 @@ main.chat .talk { grid-area: talk; display: grid; grid-template-rows: auto 1fr a
   height: calc(100vh - 96px); min-height: 520px; position: sticky; top: 72px; }
 
 @media (max-width: 1120px) {
-  main.chat { grid-template-columns: 1fr; grid-template-areas: "talk" "desk"; }
+  main.chat { grid-template-columns: 1fr; grid-template-areas: "desk" "talk"; }
   main.chat .talk { position: static; height: 640px; }
 }
 

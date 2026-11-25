@@ -4,7 +4,7 @@
 
 Qwen2.5-7B on the Ara240 makes a tool call by starting its answer with a `<tool_call>` tag, which the connector
 turns into a call. Often it writes the call out instead, as text, or the tag comes out as another token -- which,
-turns on the prompt's wording and on chance (STATUS-kiwi §6). The shapes it wrote, when find_word took guesses,
+turns on the prompt's wording and on chance. The shapes it wrote, when find_word took guesses,
 every one of them read here:
 
     find_word(guesses="ORES THEM HOME", place=true)          find_word guesses="ORES THEM HOME".

@@ -6,7 +6,7 @@ of its own -- the whole arm swings to reach a point -- so the cup faces the
 arm's bearing plus the servo's angle, and a piece held under it faces that
 plus however it was picked up: its offset.
 
-Directions here are arm-space degrees, from +x towards +y. With the cup at 0
+Directions here are arm-space degrees, from +x toward +y. With the cup at 0
 straight out in front, it faces +x: square to the arm's axes.
 """
 
@@ -39,7 +39,7 @@ def offset_of(point: Position, facing: float, servo: float) -> float:
 def grip_servo(start: Position, start_facing: float, end: Position, end_facing: float) -> float:
     """The servo angle to pick a piece up at, so that it can be set down at `end` facing `end_facing`.
 
-    Centred, if the turn left for `end` is within the range from there; else
+    Centered, if the turn left for `end` is within the range from there; else
     half that turn, taken the other way before the grip, leaving the end half.
     """
     turn = servo_for(end, end_facing, offset_of(start, start_facing, 0.0))
@@ -57,7 +57,7 @@ def problem_with(servo: Optional[float]) -> Optional[str]:
     if servo is None or abs(servo) <= NOZZLE_RANGE_DEG + NOZZLE_RANGE_SLACK_DEG:
         return None
     return (f"the cup would have to turn to {servo:+.0f} deg; it turns "
-            f"{NOZZLE_RANGE_DEG:.0f} either way from centre")
+            f"{NOZZLE_RANGE_DEG:.0f} either way from center")
 
 
 def _wrapped(angle: float) -> float:

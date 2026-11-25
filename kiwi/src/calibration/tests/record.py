@@ -9,8 +9,8 @@ the cube: what the camera made of it.
     png = zoomed(kept, width, height, scale)
 
 The zoomed picture, drawn through the calibration the cube was found with: the cube as found, yellow and half see-through as every cube's wireframe is drawn, fainter
-where hidden, an X under its centre; the points of the frame's edges the cube was fitted to, cyan; on its top, a
-yellow dot over its centre and a green one where the servos said the cup was.
+where hidden, an X under its center; the points of the frame's edges the cube was fitted to, cyan; on its top, a
+yellow dot over its center and a green one where the servos said the cup was.
 """
 
 import random
@@ -106,7 +106,7 @@ def zoomed(kept: Kept, width: int, height: int, scale: float) -> bytes:
                          interpolation=cv2.INTER_CUBIC)
 
     def at(points: np.ndarray) -> np.ndarray:
-        """Frame pixels to the picture's, pixel centres kept."""
+        """Frame pixels to the picture's, pixel centers kept."""
         return (np.asarray(points, float) - (x0, y0) + 0.5) * zoom - 0.5
 
     pixels = at(corners)
@@ -122,10 +122,10 @@ def zoomed(kept: Kept, width: int, height: int, scale: float) -> bytes:
         for point in found_points])
     top = at(project(matrix, np.array([[kept.found.x, kept.found.y, CUBE_MM],
                                                    [kept.here[0], kept.here[1], CUBE_MM]])))
-    for point, colour in zip(top, (YELLOW, GREEN)):
+    for point, color in zip(top, (YELLOW, GREEN)):
         cv2.circle(picture, _fixed(point), round((DOT_PX + 1) * scale * (1 << SHIFT)), (10, 7, 5), -1, cv2.LINE_AA,
                    SHIFT)
-        cv2.circle(picture, _fixed(point), round(DOT_PX * scale * (1 << SHIFT)), colour, -1, cv2.LINE_AA, SHIFT)
+        cv2.circle(picture, _fixed(point), round(DOT_PX * scale * (1 << SHIFT)), color, -1, cv2.LINE_AA, SHIFT)
     return cv2.imencode(".png", picture)[1].tobytes()
 
 

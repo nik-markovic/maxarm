@@ -4,7 +4,7 @@
 | module   | what it owns                                                                        |
 | -------- | ----------------------------------------------------------------------------------- |
 | `canvas` | the transparent layer marks are drawn on (`Canvas`), and desk space onto it (`View`) |
-| `inks`   | the colours, which the pages are given too                                          |
+| `inks`   | the colors, which the pages are given too                                          |
 | `tiles`  | the tiles found, their letters, the work areas, a word set down                     |
 | `cube`   | the red cube found, and where the arm came down over it                             |
 | `stream` | the app's own: the tiles, the cube and a status bar over every frame of the stream  |

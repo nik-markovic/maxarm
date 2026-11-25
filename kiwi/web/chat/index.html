@@ -29,7 +29,7 @@
       <span class="hint" id="feed-device"></span>
       <div class="tools">
         <button class="btn primary" id="locate"
-          title="Park the arm, take the snapshot at full size, find the tiles in it and read their letters"
+          title="Move the arm out of the way, find the tiles and read their letters"
           >◎ LOCATE TILES</button>
       </div>
     </div>
@@ -56,18 +56,18 @@
       <h2>Chat</h2>
       <div class="tools">
         <span class="pill" id="model"><span class="dot"></span><span></span></span>
-        <button class="btn small" id="forget" title="A new visitor: the conversation, and what the model is told of
-          it, start again">NEW VISITOR</button>
+        <button class="btn small" id="forget" title="Start the conversation again, for the next visitor"
+          >NEW VISITOR</button>
       </div>
     </div>
     <div class="messages" id="messages"></div>
     <div class="suggestions" id="suggestions"></div>
     <form class="ask-row" id="ask-form">
-      <input id="text" type="text" autocomplete="off" maxlength="300" placeholder="go, a 7-letter word, an animal…"
-        title="What to ask the model; Enter asks it">
+      <input id="text" type="text" autocomplete="off" maxlength="300"
+        placeholder="go, a 5-letter word, a farm animal…" title="What to ask the model; Enter asks it">
       <button class="btn primary" id="ask" type="submit" title="Ask the language model on the Ara240">ASK</button>
       <button class="btn stop" id="stop" type="button" hidden
-        title="Cut the model's answer short; RESET stops the arm">■ STOP</button>
+        title="Cut the answer short; RESET stops the arm">■ STOP</button>
     </form>
     <p class="hint talk-note" id="talk-note"></p>
   </section>

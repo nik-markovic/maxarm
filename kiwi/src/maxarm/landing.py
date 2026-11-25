@@ -3,7 +3,7 @@
 No board.
 
 A servo stops short of a command, in the direction it was moving, by an amount set by the move: how far, which
-way, which servo, and where it is (work/MAXARM_MECHANICS.md §4-7). A one-pulse correction is ignored. So a
+way, which servo, and where it is. A one-pulse correction is ignored. So a
 landing is made the same way every time, and aimed past by what that way falls short:
 
 1. across, at the travel height, to APPROACH_PULSES of the base to one side of the target: the side of lower
@@ -30,22 +30,22 @@ from . import geometry, raw
 from .geometry import Position
 
 # How far to one side of the target, in base pulses, the last turn starts: the same turn every time.
-# A short turn stops the same each time; a long one carries on by however it was moving (13 Nov,
-# `agenttools/probe/base-shortfall.py`: from 6 pulses aside it stops 1.5 short falling and 2.1 rising, 0.4-0.5 either
-# way; from 20, 0.75 and 1.5 short, 0.7-0.8 either way; from 60, round the command, 0.8 either way).
+# A short turn stops the same each time; a long one carries on by however it was moving (from 6 pulses aside it
+# stops 1.5 short falling and 2.1 rising, 0.4-0.5 either way; from 20, 0.75 and 1.5 short, 0.7-0.8 either way; from
+# 60, round the command, 0.8 either way).
 APPROACH_PULSES = 6
 # How far past the target the base is aimed, in pulses: turning onto it with its pulses falling, and rising. Rising
-# is the steadier (STATUS-jackal §25), so it is the first way down.
+# is the steadier, so it is the first way down.
 AIM_PAST_FALLING = 1
 AIM_PAST_RISING = 2
 # Servo 2's and servo 3's extra pulses on the way down, by the target's reach in mm: straight between rows, held
-# beyond the ends. The owner's arm, measured 6 Nov (MAXARM_MECHANICS.md §7).
+# beyond the ends, as measured on one arm.
 EXTRA_PULSES = ((120.0, 0.0, 3.1), (140.0, -0.25, 3.05), (160.0, -0.5, 2.9), (175.0, -0.5, 2.6),
                 (190.0, -0.5, 2.0), (205.0, -0.5, 2.0), (220.0, -0.5, 2.25), (235.0, -0.5, 2.1),
                 (250.0, -0.5, 2.0), (265.0, -0.5, 2.0))
 # A base turn is made again, once, when it settled further than RESETTLE_MM sideways at the cup from the target and a
 # whole pulse at least half a pulse nearer was there to be had: the base stops on whole pulses, so nothing nearer
-# than the nearest one is asked for (the owner's, 9 Nov).
+# than the nearest one is asked for.
 RESETTLE_MM = 0.75
 BASE_PULSE_DEG = 240.0 / 1000.0
 
@@ -90,7 +90,7 @@ def is_worth_again(way: Landing, base_read: float) -> bool:
 
 def again(way: Landing, base_read: float) -> Landing:
     """`way` after its turn settled at `base_read`: from the same start, aimed one pulse the other way from its miss.
-    The turn then settles about as far the other side of the target, within a pulse (STATUS-jackal §25)."""
+    The turn then settles about as far the other side of the target, within a pulse."""
     shift = -1 if base_read > way.base else 1
     over, down = _pulses(way.over), _pulses(way.down)
     return replace(way, over=_point((over[0] + shift, over[1], over[2])),

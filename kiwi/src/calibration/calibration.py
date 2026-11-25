@@ -9,7 +9,7 @@ commands are its commands alike, one at a time. The camera is the feed's: the
 pages' live view and the stream are two branches of its one pipeline. Ctrl-C,
 `main.py`'s, holds the arm where it is and closes the port.
 
-The pages' own files -- HTML, scripts, styles -- are in the pilot's `web/`.
+The pages' own files -- HTML, scripts, styles -- are in `web/`.
 """
 
 import fcntl
@@ -30,7 +30,6 @@ from calibration.camera.api import CameraSession
 from calibration.chat.api import ChatSession
 from calibration.common import arm_api
 from calibration.common.server import Server
-from calibration.desk.api import DeskSession
 from calibration.tests.api import TestsSession
 from calibration.tiles.api import TilesSession
 
@@ -42,7 +41,6 @@ def serve(host: str, port: int, worker: Worker, feed: Feed, work: TileWork, sett
     """The pages, served on a thread of their own from now on; that thread."""
     server = Server(WEB, home="desk", pages=["camera", "tests", "tiles", "chat"])
     arm_api.register(server, worker)
-    DeskSession(worker, config_dir).register(server)
     CameraSession(worker, feed, config_dir).register(server)
     TestsSession(worker, feed, cube, config_dir).register(server)
     tiles = TilesSession(worker, work, settings, config_dir)

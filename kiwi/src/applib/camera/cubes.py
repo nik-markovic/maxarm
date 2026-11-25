@@ -1,19 +1,19 @@
-"""The calibration cubes in a frame: the coloured blobs that could be them, and which colour each would be.
+"""The calibration cubes in a frame: the colored blobs that could be them, and which color each would be.
 
 Every decision is measured in the frame itself; nothing is tuned on a camera.
 
-1. **The desk's colour** is the frame's most common chroma (Lab a*, b*): the desk
+1. **The desk's color** is the frame's most common chroma (Lab a*, b*): the desk
    fills most of any frame worth calibrating on.
-2. **Colourful** is chroma far from the desk's. Where to cut is read off this
-   frame's own histogram (Otsu). It must be colour of its own, too, at least half
-   as far from grey: on a coloured desk, black, grey and white things -- a mouse
+2. **Colorful** is chroma far from the desk's. Where to cut is read off this
+   frame's own histogram (Otsu). It must be color of its own, too, at least half
+   as far from gray: on a colored desk, black, gray and white things -- a mouse
    mat, a keyboard -- are far from the desk's chroma but have next to none, where
    even a pale cube, or a dark side, has more.
-3. **Blobs.** A cube's shaded side keeps the cube's hue but has less colour, and
+3. **Blobs.** A cube's shaded side keeps the cube's hue but has less color, and
    can fall below the cut: each blob takes in the pixels round it of its own hue
    above part of the cut -- if that leaves it more convex, as a cube's missing side
    does and a glossy desk's tint or dark plastic beside it does not. A face facing
-   a bright light can lose its colour altogether, washed out to near white: each
+   a bright light can lose its color altogether, washed out to near white: each
    blob also takes in what joins it far lighter than the desk round it, if that
    leaves it more convex, the face is the size of a face, and a blob clear of the
    frame's edges stays clear of them.
@@ -40,14 +40,14 @@ from typing import Dict, Iterator, List
 import cv2
 import numpy as np
 
-COLOURS = ("blue", "green", "red")      # as the page lists them
+COLORS = ("blue", "green", "red")      # as the page lists them
 
 # A cube is convex: its blob covers most of its own convex hull, less where glare
 # washes a face out. Anything more ragged is not a cube.
 MIN_SOLIDITY = 0.6
 # The largest blobs that are tried as cubes; each naming of them costs a fit's start.
 MAX_BLOBS = 8
-# Hue windows from the colour names, in degrees from +a*: red is the warm side of
+# Hue windows from the color names, in degrees from +a*: red is the warm side of
 # the chroma plane, and green and blue lie across from it.
 RED_WITHIN_DEG = 75.0
 COOL_BEYOND_DEG = 90.0
@@ -56,16 +56,16 @@ JOIN_GAP = 0.08
 JOIN_HUE_DEG = 40.0
 # Anything joined to a blob by a neck thinner than this share of its size is cut off.
 TRIM = 0.15
-# A pixel nearer grey than this share of the cut has no colour of its own: black, grey and white things on a
-# coloured desk.
-GREY_SHARE = 0.5
+# A pixel nearer gray than this share of the cut has no color of its own: black, gray and white things on a
+# colored desk.
+GRAY_SHARE = 0.5
 # A blob grows into its shaded side: pixels within this many degrees of its hue, above
 # this share of the frame's cut, connected to it, within this share of its size round it.
 GROW_HUE_DEG = 30.0
 GROW_CUT = 0.6
 GROW_MARGIN = 0.3
 # A face washed out by a light: lighter than the desk round the blob by this share of the way from it to white, and
-# taking in at least this share of the blob's own coloured area -- a face, not a light speck of desk at its foot --
+# taking in at least this share of the blob's own colored area -- a face, not a light speck of desk at its foot --
 # and no more than this many times it.
 WASHED_SHARE = 0.5
 WASHED_MIN_SHARE = 0.1
@@ -82,7 +82,7 @@ class Blob:
     mask: np.ndarray        # the frame's size, 255 inside
     area: int
     centroid: np.ndarray    # px, py
-    hue: float              # degrees from +a* towards +b*, measured from the desk's colour
+    hue: float              # degrees from +a* toward +b*, measured from the desk's color
     solidity: float         # area over the area of its convex hull
 
     @property
@@ -91,7 +91,7 @@ class Blob:
 
 
 def find_blobs(frame: np.ndarray, is_warm_only: bool = False) -> List[Blob]:
-    """The coloured blobs that could be cubes, largest first.
+    """The colored blobs that could be cubes, largest first.
 
     `is_warm_only`: of the warm pixels only, the red cube's hue -- so that a red
     cube standing against a green or a blue one in the picture is a blob of its own.
@@ -102,7 +102,7 @@ def find_blobs(frame: np.ndarray, is_warm_only: bool = False) -> List[Blob]:
     scaled = np.clip(distance * 4.0, 0, 255).astype(np.uint8)     # chroma runs about 0-64
     cut, mask = cv2.threshold(scaled, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     own = np.clip(np.hypot(chroma[..., 0] + desk[0], chroma[..., 1] + desk[1]) * 4.0, 0, 255).astype(np.uint8)
-    mask[own <= GREY_SHARE * cut] = 0
+    mask[own <= GRAY_SHARE * cut] = 0
     if is_warm_only:
         hue = np.degrees(np.arctan2(chroma[..., 1], chroma[..., 0]))
         mask[np.abs(hue) > RED_WITHIN_DEG] = 0
@@ -144,9 +144,9 @@ def is_warm(blob: Blob) -> bool:
 def describe(blobs: List[Blob]) -> str:
     """What was found, for a message: how many blobs, and which are warm and which cool."""
     if not blobs:
-        return "no whole, cube-shaped coloured blob"
+        return "no whole, cube-shaped colored blob"
     kinds = ", ".join("warm" if is_warm(blob) else "cool" for blob in blobs)
-    return f"{len(blobs)} whole, cube-shaped coloured blob{'s' if len(blobs) > 1 else ''} ({kinds})"
+    return f"{len(blobs)} whole, cube-shaped colored blob{'s' if len(blobs) > 1 else ''} ({kinds})"
 
 
 def desk_chroma(frame: np.ndarray) -> np.ndarray:
@@ -259,7 +259,7 @@ def _grow_washed(blob: Blob, chroma: np.ndarray, lightness: np.ndarray) -> Blob:
     than the desk round it by WASHED_SHARE of the way to white.
 
     Kept only if the blob comes out more convex, the face is between WASHED_MIN_SHARE and WASHED_MAX_SHARE of what
-    kept its colour, and a blob clear of the frame's edges stays clear: a cube's lit top completes its silhouette,
+    kept its color, and a blob clear of the frame's edges stays clear: a cube's lit top completes its silhouette,
     where white beside it, or a light speck of desk at its foot, would not.
     """
     x, y, w, h = cv2.boundingRect(blob.contour)

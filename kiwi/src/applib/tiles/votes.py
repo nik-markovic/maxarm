@@ -1,15 +1,15 @@
-"""Where tiles may be: every colour edge votes for the centre of a square it could be a side of.
+"""Where tiles may be: every color edge votes for the center of a square it could be a side of.
 
-An edge point could be on the side of a tile whose centre is half a tile away
+An edge point could be on the side of a tile whose center is half a tile away
 along the edge's normal, on either side: which side the face is on is not known,
 nor whether it is lighter or darker than what lies beyond. A tile's four sides
-all vote for its centre, and the seam between two touching tiles votes for both
+all vote for its center, and the seam between two touching tiles votes for both
 of theirs.
 
 Wood grain votes as well, but its edges all run one way, while a square's run two
 ways at right angles. So each place counts its votes less the share that runs one
 way only, measured on the doubled angle: two directions at right angles cancel
-there, one direction does not. What is left peaks at the tiles' centres, and the
+there, one direction does not. What is left peaks at the tiles' centers, and the
 fit (`pose.py`) decides which peaks are tiles.
 """
 
@@ -42,7 +42,7 @@ class Candidate:
 
 
 def candidates(field: EdgeField, half_mm: float, limit: int) -> List[Candidate]:
-    """The places most voted for as the centre of a square `2 * half_mm` across, best first, at most `limit`."""
+    """The places most voted for as the center of a square `2 * half_mm` across, best first, at most `limit`."""
     view = field.view
     strength, direction = field.strongest()
     seen = strength[field.seen]

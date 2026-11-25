@@ -1,14 +1,14 @@
 """A tile's top face as a flat, square-on image, sampled straight from the camera frame.
 
 The camera maps the plane of the tiles' top faces, `Tile.height` up, to pixels by a homography, so
-a window laid out in desk millimetres on that plane -- centred on the tile,
+a window laid out in desk millimeters on that plane -- centered on the tile,
 turned to its sides -- is one resampling of the original frame. Quarter turn
 `quarter` lays the window out along the tile's sides turned by `quarter` x 90
 degrees, which shows the face turned a quarter turn each time.
 
 In a window, image right is desk direction `side`, the tile's turn plus
 `quarter` x 90 degrees, and image down is 90 degrees on from it; so a letter
-upright in that window has its top towards `side` - 90 degrees on the desk.
+upright in that window has its top toward `side` - 90 degrees on the desk.
 
 Nothing here can mirror a letter, and nothing guesses: the window is laid out in
 desk space, which is the arm's own -- +x to its right as it reaches out, straight
@@ -29,7 +29,7 @@ from maxarm import Camera
 
 from ..tiles import Tile
 
-# Sampled this much finer than asked, then averaged down: the frame has 2.5 to 5 px a millimetre.
+# Sampled this much finer than asked, then averaged down: the frame has 2.5 to 5 px a millimeter.
 SUPERSAMPLE = 4
 
 
@@ -48,8 +48,8 @@ def wrap_deg(angle: float) -> float:
 
 
 def window(frame: np.ndarray, camera: Camera, tile: Tile, quarter: int, window_mm: float, size: int,
-           grey: bool = True) -> np.ndarray:
-    """The face, `window_mm` square round its centre, `size` pixels square, at quarter turn `quarter`."""
+           gray: bool = True) -> np.ndarray:
+    """The face, `window_mm` square round its center, `size` pixels square, at quarter turn `quarter`."""
     fine = size * SUPERSAMPLE
     mm_per_px = window_mm / fine
     side = math.radians(side_deg(tile, quarter))
@@ -60,7 +60,7 @@ def window(frame: np.ndarray, camera: Camera, tile: Tile, quarter: int, window_m
     window_to_frame = camera.plane_to_pixel(tile.height) @ window_to_desk
     image = cv2.warpPerspective(frame, window_to_frame, (fine, fine), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP,
                                 borderMode=cv2.BORDER_REPLICATE)
-    if grey and image.ndim == 3:
+    if gray and image.ndim == 3:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     return cv2.resize(image, (size, size), interpolation=cv2.INTER_AREA)
 

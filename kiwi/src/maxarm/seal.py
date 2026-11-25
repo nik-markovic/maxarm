@@ -29,15 +29,15 @@ class SealState(Enum):
     UNKNOWN = "unknown"          # nothing to judge it by
 
 
-# The pump's dip, in the pin's counts, set from the owner's arm (STATUS-jackal §14): between them, uncertain.
+# The pump's dip, in the pin's counts, as measured on one arm: between them, uncertain.
 SEALED_BELOW = 10.0
 LOOSE_ABOVE = 12.0
 # Read at the top of the pin's range, the supply cannot show a dip.
 SUPPLY_TOP = 4080.0
-# Reads taken this long after the pump goes on judge the seal; the cup empties first (STATUS-jackal §14).
+# Reads taken this long after the pump goes on judge the seal; the cup empties first.
 PUMP_START_S = 0.75
 # How far down the cup must have pulled the arm, from where it stood before the pump, to have sealed: past the
-# most a loose cup's readings moved (STATUS-jackal §14).
+# most a loose cup's readings moved.
 PULLED_MM = 0.5
 # The board's vent valve draws from the same supply for a second after the pump goes off.
 VENT_S = 1.2

@@ -4,10 +4,10 @@
     for tile in find_tiles(frame, camera, height_mm=2.0):
         print(tile.x, tile.y, tile.turn)
 
-The work is done in desk millimetres, on the frame resampled onto the plane of
+The work is done in desk millimeters, on the frame resampled onto the plane of
 the tiles' top faces, `height_mm` up (`topdown`), where every tile is the same square:
 
-1. `votes` -- every colour edge votes for the centre of a 25 mm square it could
+1. `votes` -- every color edge votes for the center of a 25 mm square it could
    be a side of; the places most voted for are where tiles may be.
 2. `pose`  -- a square fitted to the edges round each of those places, its size
    a little free (`FACE_MM`).
@@ -15,12 +15,12 @@ the tiles' top faces, `height_mm` up (`topdown`), where every tile is the same s
    measured the same way; its whole outline is in view; and tiles cannot
    overlap, so of two fits that do, the one that stands out more is kept.
 
-Nothing assumes the tiles are lighter or darker than the desk, or any colour at
+Nothing assumes the tiles are lighter or darker than the desk, or any color at
 all. Tiles may touch: the seam between two counts for both. The letters on them
 are not read here.
 
 The fits are most of the time taken: a cluttered view has many places voted
-for, a handful of them tiles (STATUS-kiwi). A fit owes nothing to the fit at
+for, a handful of them tiles. A fit owes nothing to the fit at
 another place, so the places are dealt out, a few at a time, to worker
 processes on the other cores and to this one (`applib/crew.py`); the workers take the
 view's edges up from a folder in memory, where they are kept for them. The fits
@@ -53,8 +53,8 @@ TILE_MM = 25.0
 # what the heights the cup grips, lets go and visits at are counted from. A tile taken for thinner than it is is
 # placed further from the camera than it lies.
 TILE_HEIGHT_MM = 2.0
-# The top face as the camera sees it: larger than the tile, the more so the closer to the camera (STATUS-hyena
-# §10.2). The outline given (`Tile.corners`) stays the tile's own 25 mm.
+# The top face as the camera sees it: larger than the tile, the more so the closer to the camera.
+# The outline given (`Tile.corners`) stays the tile's own 25 mm.
 FACE_MM = (TILE_MM, TILE_MM + 2.5)
 # Where to look: round the arm, a little beyond its reach and its turn, so that tiles just out of reach are found
 # as well. Behind the arm there is its base, its cables and often the desk's edge.
@@ -85,7 +85,7 @@ class Tile:
     y: float
     turn: float                                 # -45 to 45: a square looks the same a quarter turn on
     corners: Tuple[Tuple[float, float], ...]    # the face as if its corners were sharp
-    pixel: Tuple[float, float]                  # where the frame shows the face's centre
+    pixel: Tuple[float, float]                  # where the frame shows the face's center
     contrast: float                             # how far its weakest side stands out from beyond it
     height: float                               # the tile's thickness it was looked for at
 
@@ -147,7 +147,7 @@ def _is_on(fits: List[pose.Fit], place: Tuple[float, float]) -> bool:
     """Whether `place` is well inside the face of a tile already fitted."""
     for fit in fits:
         turn = math.radians(fit.turn_deg)
-        dx, dy = place[0] - fit.centre[0], place[1] - fit.centre[1]
+        dx, dy = place[0] - fit.center[0], place[1] - fit.center[1]
         along, across = dx * math.cos(turn) + dy * math.sin(turn), -dx * math.sin(turn) + dy * math.cos(turn)
         if max(abs(along), abs(across)) < TILE_MM / 2 - SAME_TILE_MM:
             return True
@@ -165,11 +165,11 @@ def _without_overlaps(fits: List[pose.Fit]) -> List[pose.Fit]:
 
 
 def _face(fit: pose.Fit) -> np.ndarray:
-    return pose.square_corners(fit.centre, math.radians(fit.turn_deg), TILE_MM).astype(np.float32)
+    return pose.square_corners(fit.center, math.radians(fit.turn_deg), TILE_MM).astype(np.float32)
 
 
 def _tile(fit: pose.Fit, camera: Camera, height_mm: float) -> Tile:
-    px, py, _ = camera.from_desk((fit.centre[0], fit.centre[1], height_mm))
-    corners = pose.square_corners(fit.centre, math.radians(fit.turn_deg), TILE_MM)
-    return Tile(fit.centre[0], fit.centre[1], fit.turn_deg, tuple((float(x), float(y)) for x, y in corners),
+    px, py, _ = camera.from_desk((fit.center[0], fit.center[1], height_mm))
+    corners = pose.square_corners(fit.center, math.radians(fit.turn_deg), TILE_MM)
+    return Tile(fit.center[0], fit.center[1], fit.turn_deg, tuple((float(x), float(y)) for x, y in corners),
                 (px, py), fit.contrast, height_mm)

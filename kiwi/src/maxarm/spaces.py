@@ -2,7 +2,7 @@
 """Coordinate spaces: the arm takes points in whichever one the caller works in.
 
 Every space is defined by how its points map onto **desk space**, which is
-where the library plans: millimetres, with z the height above the desk and 0
+where the library plans: millimeters, with z the height above the desk and 0
 the cup snug on its surface.
 
 | space    | a point is           | onto desk space by                        | file          |
@@ -21,7 +21,7 @@ is not quite level under the arm or not quite where the default puts it.
 
 A `desk.json` that carries `joint_offsets_deg` was fitted to the firmware's
 own heights, before the library corrected them: it is not used, the default
-is, and `ignored_desk` says why. The desk page's SAVE rewrites it.
+is, and `ignored_desk` says why.
 
 All four files live in `config/` and hold one matrix each.
 """
@@ -37,7 +37,7 @@ import numpy as np
 from .geometry import Position
 from .raw import DESK_Z_MM
 
-CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"     # the pilot's config/, beside src/
+CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"     # config/, beside src/
 
 # The desk under an ideally placed arm, in true z: true z counts heights above the
 # desk from it.
@@ -127,7 +127,7 @@ Transform = Union[Affine, Camera]
 
 
 def angle_to_desk(space: Transform, point: Position, angle: float) -> float:
-    """A direction at `point`, degrees from the space's +x towards its +y, as desk space has it."""
+    """A direction at `point`, degrees from the space's +x toward its +y, as desk space has it."""
     return _direction(space.to_desk, point, angle)
 
 
@@ -183,7 +183,7 @@ class Spaces:
 def _why_unusable(desk_file: Path) -> Optional[str]:
     if any(json.loads(desk_file.read_text()).get("joint_offsets_deg", ())):
         return (f"{desk_file} was fitted to the firmware's heights, before the library corrected them, "
-                f"so the default desk is used; SAVE it again on the desk page")
+                f"so the default desk is used")
     return None
 
 

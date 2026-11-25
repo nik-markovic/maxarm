@@ -11,7 +11,7 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 
 UNIT=/etc/systemd/system/tiles.service
 
-# The two apps' own services, from before they were one.
+# Services of older packages, when the demo was two apps.
 for old in maxarm-calibration maxarm-app; do
   if [ -f "/etc/systemd/system/$old.service" ]; then
     systemctl disable --now "$old.service"

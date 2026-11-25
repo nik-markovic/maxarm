@@ -1,30 +1,31 @@
-// The tests page: does the camera calibration bring the arm to what the camera sees?
+// The Fine Tune page: does the camera calibration bring the arm to what the camera sees?
 //
 // ARM TO DESK sends the arm to the point of the desk clicked in the live view, shown full size. The grid, the height
 // column and the arrows move the arm by hand, in desk space, with the camera page's moves; a grid click comes down to
-// the notch, 1 mm over a cube's top. FIND RED CUBE, a helper, parks the arm, finds the red cube in the live view, and
-// brings the cup down over it. Over the live view: the reach, the arm, the cube found and where the arm landed over
+// the notch, just over a cube's top. FIND RED CUBE parks the arm, finds the red cube in the live view, and brings
+// the cup down over it. Over the live view: the reach, the arm, the cube found and where the arm landed over
 // it, the point clicked, drawn through the calibration; and, if asked, desk space itself every 10 mm.
 //
-// And the red cube's test in reverse: with the cube centred under the cup, RECORD POINT keeps a point that refines
-// the calibration, the cube seen in the snapshot; SAVE CALIBRATION writes it (refine.js). Until it does, SAVE stands
-// out and leaving the page is asked first; saved, SAVE is greyed out.
+// And the red cube's test in reverse: with the cube centered under the cup, RECORD POINT keeps a point that refines
+// the calibration, the cube seen in the snapshot; SAVE CALIBRATION writes it (refine.js). Until it does, SAVE glows
+// and leaving the page is asked first; saved, SAVE is grayed out.
 //
 // The arm's target is the grid point last clicked, the arrows' steps and the height column. Whatever moves the arm
 // from elsewhere (a test, RESET, another page) moves the target with it, and a move the arm refuses puts it back.
 
 import { $, api, copyReadout, fmt, mountHeader, openModal, report, setText, showHeader, startPolling } from '/common/page.js';
-import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
+import { STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { HeightColumn, SAFE_MM, cubeIcon } from '/common/height.js';
 import { TestsGrid } from './grid.js';
-import { fitLine, nextSpot, savedLine, tableRows } from './refine.js';
+import { armLine, fitLine, nextSpot, savedLine, tableRows } from './refine.js';
+import { showHelp } from '/common/help.js';
 import { openFullView } from '/common/fullview.js';
 import { PictureLayer } from '/common/layer.js';
 import { toDesk } from '/common/shares.js';
 import { LiveMarks } from './view.js';
 
 const SAME_MM = 0.005;
-// Further than this from where it was sent, desk mm across, and the arm has landed off (the owner's).
+// Further than this from where it was sent, desk mm across, and the arm has landed off.
 const LANDED_OFF_MM = 0.5;
 // RECORD POINT's dialog: the window's height less this is what it may take (the backdrop's padding round it, and a
 // little to spare); its picture is never smaller than this, CSS px.
@@ -45,7 +46,7 @@ const DESK_GRID_KEY = 'tests-desk-grid';
 
 mountHeader('tests');
 const limits = await api('limits');
-const { notch: NOTCH, touch: TOUCH, find: FIND, refine: REFINE } = limits.tests;
+const { notch: NOTCH, refine: REFINE } = limits.tests;
 const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
@@ -57,6 +58,8 @@ const ui = {
                                 // TO DESK there went: the reply's status, null until it comes
   findNote: '',                 // why the last FIND RED CUBE found nothing
   clearedFound: null,           // the stamp of the red cube found that ARM TO DESK has cleared from view
+  aim: null,                    // FIND RED CUBE's last landing, kept in ARM TO DESK's view until its first click:
+                                // { sent, landed, height }, desk mm, on the cube's top
 };
 let state = null;
 let inFlight = 0;
@@ -146,7 +149,7 @@ async function findRedCube() {
 
 function clearPoints() {
   const count = tests() && tests().refine ? tests().refine.points.length : 0;
-  if (count && window.confirm(`Forget all ${count} points, the cubes' too?`)) command('tests/clear', {}, 'CLEAR');
+  if (count && window.confirm(`Remove all ${count} points, the cubes' too?`)) command('tests/clear', {}, 'CLEAR');
 }
 
 // A click in the live view, full size: marked at once, then the arm is sent. A newer click replaces one still
@@ -155,6 +158,7 @@ async function touch(u, v) {
   const matrix = tests() ? tests().desk_to_view : null;
   if (!matrix) return;
   clearFound();
+  ui.aim = null;
   if (full && full.isOpen()) full.marks.update({ hover: null });
   const clicked = { u, v, desk: toDesk(matrix, [u, v]), status: null };
   ui.touch = clicked;
@@ -163,6 +167,15 @@ async function touch(u, v) {
   if (reply.point) clicked.desk = reply.point;
   clicked.status = reply.status;
   render();
+}
+
+// FIND RED CUBE's landing on the cube's top, to look at closely in ARM TO DESK's view: where the arm was sent, and
+// where its servos said the cup came down. Kept as it is when the view opens again with no new red cube found.
+function keepAim() {
+  const found = tests() ? tests().found : null;
+  if (!found || found.stamp === ui.clearedFound) return;
+  ui.aim = found.landed
+    ? { sent: found.sent || [found.x, found.y], landed: found.landed, height: limits.camera.cube } : null;
 }
 
 // The red cube found is not drawn again, until it is found anew.
@@ -188,7 +201,8 @@ function render() {
   }
   if (refine) renderRefine(refine, next);
   const view = {
-    matrix, deskToTrue: tests() ? tests().desk_to_true : null, limits, found, touch: touchMarks(), target: target(),
+    matrix, deskToTrue: tests() ? tests().desk_to_true : null, limits, found, touch: touchMarks(), aim: ui.aim,
+    target: target(),
     isReading: isReading(),
     showGuides: ui.showGuides, showDeskGrid: ui.showDeskGrid, refine, next,
   };
@@ -221,7 +235,6 @@ function renderReadout() {
 }
 
 function renderView() {
-  $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
   for (const button of document.querySelectorAll('.pad [data-dir]')) {
     const [dx, dy] = armStep(SCREEN[button.dataset.dir]);
@@ -237,22 +250,19 @@ function renderTests() {
   if (size) $('feed-box').style.aspectRatio = `${size[0]} / ${size[1]}`;
   const why = problem || viewProblem;
   $('find').disabled = Boolean(why) || isBusy();
-  const steps = `come over it at ${fmt(FIND.over, 0)} mm and down to ${fmt(FIND.down, 0)}`;
-  $('find').title = why || `Park the arm, find the red cube in the live view, ${steps}`;
+  $('find').title = why || 'Find the red cube in the picture and bring the cup over it';
   $('record').disabled = Boolean(why) || isBusy() || isReading();
-  $('record').title = why || 'Keep where the arm says the cup is, over the red cube centred under it; then park '
-    + 'the arm and see where the camera has the cube: a point to refine the calibration with';
+  $('record').title = why || 'Keep where the arm says the cup is, then let the camera see where the cube is';
   $('touch').disabled = Boolean(why);
-  $('touch').title = why || 'The live view full size: click a point of the desk to send the arm there';
+  $('touch').title = why || 'Click a point of the desk in the picture to send the arm there';
   $('find-result').innerHTML = found
-    ? `desk <b>${fmt(found.x)}, ${fmt(found.y)}</b> · turned ${fmt(found.turn_deg, 0)}° · edges within
-      ${fmt(found.edge_px, 1)} px · ${found.taken}` + (found.landed && found.sent
-      ? ` · the arm landed X <b>${fmt(found.landed[0] - found.sent[0], 1, true)}</b>, Y
-        <b>${fmt(found.landed[1] - found.sent[1], 1, true)}</b> mm from there, by its servos` : '')
+    ? `found at <b>${fmt(found.x)}, ${fmt(found.y)}</b>, ${found.taken}` + (found.landed && found.sent
+      ? ` · the cup landed X <b>${fmt(found.landed[0] - found.sent[0], 1, true)}</b>, Y
+        <b>${fmt(found.landed[1] - found.sent[1], 1, true)}</b> mm from there` : '')
     : `<span class="note">${ui.findNote || viewProblem || 'not looked for yet'}</span>`;
   const landed = landing();
   $('touch-result').innerHTML = ui.touch && ui.touch.desk
-    ? `desk <b>${fmt(ui.touch.desk[0])}, ${fmt(ui.touch.desk[1])}</b>, down to ${fmt(TOUCH.down, 0)} mm`
+    ? `<b>${fmt(ui.touch.desk[0])}, ${fmt(ui.touch.desk[1])}</b>`
       + (landed ? ` · <span class="${landed.isOff ? 'off' : 'on'}">${landed.text}</span>` : '')
     : `<span class="note">${ui.touch ? 'that point is not on the desk' : 'no point clicked yet'}</span>`;
 }
@@ -261,24 +271,23 @@ function renderRefine(refine, next) {
   const count = refine.points.length;
   $('refine-count').innerHTML = `<span class="chip ${count >= REFINE.suggested ? 'ok' : ''}">${count} of
     ${REFINE.suggested} points</span>`;
-  $('refine-ask').innerHTML = `At least <b>${REFINE.suggested}</b>, spread over where pieces will go: near the arm and
-    far out, left and right, as far as the desk allows. `
-    + (next ? `The dashed circle on the grid and in the live view is a place far from every point so far, around
-      (${fmt(next.x, 0)}, ${fmt(next.y, 0)}).` : 'Every place in reach and in view has a point near it.');
+  $('refine-ask').innerHTML = `Record points with the red cube all over the desk, near the arm and far out, left and
+    right: at least <b>${REFINE.suggested}</b>, then SAVE. `
+    + (next ? 'The dashed circle shows a good place for the next one.' : 'Every place in reach has a point near it.');
   const offLimits = REFINE.off;
   const shown = JSON.stringify(refine.points);
   if (shown !== pointsShown) {
     pointsShown = shown;
     $('points').tBodies[0].innerHTML = tableRows(refine, offLimits);
   }
-  $('refine-fit').innerHTML = fitLine(refine);
-  $('refine-saved').innerHTML = savedLine(refine);
+  $('refine-fit').innerHTML = `${fitLine(refine)} ${savedLine(refine)}`;
+  $('refine-fit').title = refine.fit ? armLine(refine.fit.arm) : '';
   isUnsaved = refine.saved === false && Boolean(refine.fit);
-  $('refine-save').classList.toggle('unsaved', isUnsaved);
-  $('save-alert').hidden = !isUnsaved;
+  $('save-note').parentElement.classList.toggle('unsaved', isUnsaved);
+  $('save-note').textContent = isUnsaved ? 'not saved' : refine.saved === true ? 'saved' : '';
   $('save').disabled = !refine.fit || isBusy() || refine.saved === true;
   $('save').title = !refine.fit ? refine.problem : refine.saved === true ? 'Saved: the points have not changed since'
-    : 'Write camera.json and the arm\'s correction these points make';
+    : 'Save the calibration these points make';
   $('clear').disabled = count === 0 || isBusy();
 }
 
@@ -314,7 +323,7 @@ function landing() {
   const sent = state.camera.position;
   const says = state.camera.measured;
   const off = Math.hypot(says[0] - sent[0], says[1] - sent[1]);
-  return off > LANDED_OFF_MM ? { text: `landed ${fmt(off)} mm off, by the arm's servos`, isOff: true }
+  return off > LANDED_OFF_MM ? { text: `the cup landed ${fmt(off)} mm off`, isOff: true }
     : { text: `landed within ${fmt(LANDED_OFF_MM)} mm`, isOff: false };
 }
 
@@ -344,14 +353,14 @@ function connectFeed() {
 function openFull() {
   const { frame_size: size, problem, view_problem: viewProblem } = tests() || {};
   if (!size || problem || viewProblem || (full && full.isOpen())) return;
+  keepAim();
   clearFound();
   full = openFullView({
     image: FEED,
     Marks: LiveMarks,
     aspect: size[0] / size[1],
     title: 'ARM TO DESK',
-    hint: `Click a point of the desk: the arm comes over it at ${fmt(TOUCH.over, 0)} mm, then down to
-      the desk itself -- the desk, not the top of whatever stands there.`,
+    hint: 'Click a point of the desk: the cup comes down onto the desk there. Anything in the way is pushed aside.',
     onPick: touch,
     onReset: async () => report(await api('reset', {}), 'RESET'),
     onClose: () => { connectFeed(); render(); },
@@ -370,9 +379,9 @@ function openRecordDialog(reply) {
   modal.body.innerHTML = `<p class="record-detail"></p>
     <img class="record-zoom" alt="">
     <div class="record-foot">
-      <p class="hint">Yellow: the cube as found, fainter where hidden. Cyan: the picture's edges it was fitted to. On
-        its top, yellow: its centre; green: where the arm read the cup. <b>REDO</b> looks again, the picture tweaked;
-        <b>UNDO</b> forgets the point.</p>
+      <p class="hint">Yellow: the cube as the camera found it, and its center. Cyan: the edges it was found by.
+        Green: where the arm says the cup was. Outline not on the cube? <b>REDO</b> looks again; <b>UNDO</b> removes
+        the point.</p>
       <div class="record-actions">
         <button class="btn ghost" data-act="undo">UNDO</button>
         <button class="btn" data-act="redo">↻ REDO</button>
@@ -441,7 +450,7 @@ $('desk-grid').addEventListener('change', () => {
   localStorage.setItem(DESK_GRID_KEY, ui.showDeskGrid ? 'on' : 'off');
   render();
 });
-for (const id of ['find-icon', 'find-head-icon']) $(id).innerHTML = cubeIcon('red');
+$('find-icon').innerHTML = cubeIcon('red');
 $('find').addEventListener('click', findRedCube);
 $('record').addEventListener('click', async () => {
   const reply = await command('tests/record', {}, 'RECORD POINT');
@@ -450,7 +459,7 @@ $('record').addEventListener('click', async () => {
 $('save').addEventListener('click', () => command('tests/save', {}, 'SAVE CALIBRATION'));
 
 // Leaving with points not saved is asked first: a link here in words, closing or reloading by the browser's own ask.
-const LEAVE_ASK = 'The points are not saved: the arm takes them on only with SAVE CALIBRATION. Leave without saving?';
+const LEAVE_ASK = 'The new points are not saved: they are used only after SAVE CALIBRATION. Leave without saving?';
 document.addEventListener('click', (event) => {
   const link = event.target.closest('a[href]');
   if (!isUnsaved || !link || event.defaultPrevented || event.button !== 0 || link.target === '_blank'
@@ -465,11 +474,11 @@ window.addEventListener('beforeunload', (event) => {
 });
 $('clear').addEventListener('click', clearPoints);
 for (const button of document.querySelectorAll('[data-help]')) {
-  button.addEventListener('click', () => { openModal('help').body.innerHTML = $(button.dataset.help).innerHTML; });
+  button.addEventListener('click', () => showHelp(button.dataset.help, button.dataset.title));
 }
 $('points').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-id]');
-  if (button) command('tests/forget', { id: Number(button.dataset.id) }, `Forget point ${button.dataset.id}`);
+  if (button) command('tests/forget', { id: Number(button.dataset.id) }, `Remove point ${button.dataset.id}`);
 });
 $('touch').addEventListener('click', openFull);
 $('feed-box').addEventListener('click', openFull);

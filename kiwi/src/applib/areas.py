@@ -4,20 +4,19 @@
     for tile, place in zip(tiles, place_tiles(tiles, arm.can_reach)):
         if place.status is Status.READY: ...
 
-Both areas are bands of the arm's reach, in desk mm round its base axis (the
-owner's, PILOT-hyena, until the final app settles them):
+Both areas are bands of the arm's reach, in desk mm round its base axis:
 
 - **pickup**: the outer two thirds of the reach, on both sides;
 - **dropoff**: the inner third, on both sides. A word is set down there along
-  an arc, `word_slots()`, centred on the arm's centre line, its letters turned
+  an arc, `word_slots()`, centered on the arm's center line, its letters turned
   and ordered for where the person reading it stands (`READERS`).
 
-A tile's centre is kept `REACH_MARGIN_MM` inside both of the arm's reach arcs,
+A tile's center is kept `REACH_MARGIN_MM` inside both of the arm's reach arcs,
 so that the cup is never sent to the very edge of what the arm can do, and the
 arm must be able to come down onto it: the library's `can_reach()`, at the tile's
 top and over it. Each tile gets one status, the first of these that holds:
 
-1. `OUT_OF_REACH` -- the arm cannot be sent to its centre;
+1. `OUT_OF_REACH` -- the arm cannot be sent to its center;
 2. `ELSEWHERE` -- in reach, but not in the pickup area;
 3. `TOO_CLOSE` -- in the pickup area, but nearer than `MIN_GAP_MM` to another
    tile, which the cup coming down might push: every tile's place is the one
@@ -40,13 +39,13 @@ from maxarm.path import REACH_MAX_MM, REACH_MIN_MM
 from .tiles import TILE_MM, Tile
 from .tiles.pose import square_corners
 
-# A tile's centre stays this far inside both reach arcs: at the arcs themselves the arm is at its limit.
+# A tile's center stays this far inside both reach arcs: at the arcs themselves the arm is at its limit.
 REACH_MARGIN_MM = 5.0
 TILE_REACH_MM = (REACH_MIN_MM + REACH_MARGIN_MM, REACH_MAX_MM - REACH_MARGIN_MM)
 # The dropoff area is this share of the reach, the inside of it; the pickup area the rest.
 DROPOFF_SHARE = 1.0 / 3.0
 DIVIDE_MM = TILE_REACH_MM[0] + (TILE_REACH_MM[1] - TILE_REACH_MM[0]) * DROPOFF_SHARE
-# Which side of the arm's centre line the pickup area is: -1 for x < 0, the arm's left; 0 for both sides.
+# Which side of the arm's center line the pickup area is: -1 for x < 0, the arm's left; 0 for both sides.
 PICKUP_SIDE = 0
 # Tiles in the pickup area are at least this far apart, edge to edge.
 MIN_GAP_MM = 2.0
@@ -58,11 +57,11 @@ WORD_ARC_MM = DIVIDE_MM - 25.0
 WORD_GAP_MM = 8.0
 WORD_STEP_DEG = math.degrees((TILE_MM + WORD_GAP_MM) / WORD_ARC_MM)
 WORD_MAX_LETTERS = int(2 * BASE_FAN_DEG / WORD_STEP_DEG) + 1
-# Where the person reading a word stands, round the arm (the owner's, PILOT-jackal); for each, how far each letter
+# Where the person reading a word stands, round the arm; for each, how far each letter
 # is turned from facing away from the arm, degrees, and which end of the arc the word starts at: 1 the arm's left
 # (x < 0), -1 its right.
 # - back: behind the arm, as words were first set down: each letter's top away from the arm, read from its left;
-# - front: in front, facing the arm: each letter's top towards it, read from the arm's right, the reader's left;
+# - front: in front, facing the arm: each letter's top toward it, read from the arm's right, the reader's left;
 # - left, right: at that side of the arm: each letter turned a quarter, its top away from the reader, the word read
 #   top to bottom -- from the far end of the arc to the near one. The arc stays, and so do the gaps along it.
 READERS = {"back": (0.0, 1), "front": (180.0, -1), "left": (90.0, -1), "right": (-90.0, 1)}
@@ -101,7 +100,7 @@ class Place:
 
     status: Status
     area: str                # "pickup", "dropoff", or "" for neither
-    reach_mm: float          # its centre from the arm's base axis
+    reach_mm: float          # its center from the arm's base axis
     detail: str              # why, in a few words, unless READY
     nearest: Optional[int]   # the closest other tile, its index, if any
     gap_mm: Optional[float]  # how far that one is, edge to edge; 0 if they touch or overlap
@@ -114,7 +113,7 @@ class Place:
 
 @dataclass(frozen=True)
 class Slot:
-    """Where a letter of a word is set down: its tile's centre, desk mm, and which way the letter's top points."""
+    """Where a letter of a word is set down: its tile's center, desk mm, and which way the letter's top points."""
 
     x: float
     y: float
@@ -164,7 +163,7 @@ def place_tiles(tiles: Sequence[Tile], can_reach: Callable[[float, float, float]
 
 
 def reach_problem(x: float, y: float, height_mm: float, can_reach: Callable[[float, float, float], bool]) -> str:
-    """Why the arm cannot take a tile `height_mm` thick from, or set one down at, a tile centre (x, y), desk mm; ""
+    """Why the arm cannot take a tile `height_mm` thick from, or set one down at, a tile center (x, y), desk mm; ""
     if it can."""
     reach = math.hypot(x, y)
     if reach < TILE_REACH_MM[0] or reach > TILE_REACH_MM[1]:

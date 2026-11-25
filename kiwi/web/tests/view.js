@@ -1,14 +1,14 @@
 // The live view's marks, drawn over the camera's picture through the calibration (common/shares.js):
 // - guides: the reach on the desk, 95 and 270 mm, orange and red as on the grid; the arm's target, the cup's rim
-//   there, faint green, with a line down to the desk under it: where it was sent, not where its servos say it is
-//   (the owner's, PILOT-impala). Not once the arm is down at ARM TO DESK's point: that point's marks say it;
+//   there, faint green, with a line down to the desk under it: where it was sent, not where its servos say it is.
+//   Not once the arm is down at ARM TO DESK's point: that point's marks say it;
 // - ARM TO DESK's point, blue as the ring under the pointer: a crosshair where the view was clicked, half
 //   see-through, the cup's rim round the point on the desk, a dot and its desk x, y; once the arm is down there, the
 //   dot alone. Once its servos are read there, the same in green where they say the cup is: the cup's rim at the
 //   height they say, the crosshair and the dot on the desk under it. The test is whether that rim sits on the cup in
-//   the picture, not whether the arm met the point (the owner's, 30 Oct);
-// - with the guides, the red cube's points: each a small ring, numbered, where the camera saw the cube's centre,
-//   coloured by how far off it is (refine.js), and a dot where the other points put its reading, a line to it: a bad
+//   the picture, not whether the arm met the point;
+// - with the guides, the red cube's points: each a small ring, numbered, where the camera saw the cube's center,
+//   colored by how far off it is (refine.js), and a dot where the other points put its reading, a line to it: a bad
 //   point's dot lies off its ring; and a dashed circle on the desk, a place for the next point;
 // - with the desk grid (off unless asked), desk space every 10 mm on the desk, thin and pale, under everything else:
 //   every 50 mm a little stronger, and the two lines through the arm's turning axis stronger still.
@@ -20,7 +20,7 @@ import { INK as SHARED_INK, MONO, ViewMarks } from '/common/marks.js';
 import { circle, toDesk } from '/common/shares.js';
 import { offShown, rank } from './refine.js';
 
-// The ring under the pointer is blue, to see against a pale desk (the owner's); so is ARM TO DESK's point, clicked.
+// The ring under the pointer is blue, to see against a pale desk; so is ARM TO DESK's point, clicked.
 export const INK = { ...SHARED_INK, cube: '#ff4df8', red: '#ff4d5e', pointer: '#3d9bff', desk: '#c9a4ff' };
 // The desk grid: a line every so many mm, a stronger one every so many, out to the reach and a little past it; each
 // line drawn through points this far apart, so that a part behind the camera is left out.
@@ -35,10 +35,12 @@ const SAYS_DOT_PX = 2;
 // A point's dot: where the other points put its reading.
 const PUT_DOT_PX = 2.5;
 export class LiveMarks extends ViewMarks {
-  // touch: { u, v, desk, phase, says }, as tests.js has it; hover: [u, v]; showGuides; refine: the red cube's points
+  // touch: { u, v, desk, phase, says }, as tests.js has it; aim: FIND RED CUBE's landing, { sent, landed, height };
+  // hover: [u, v]; showGuides; refine: the red cube's points
   // and the cubes, as the tests' state has them; next: { x, y }, desk mm; showDeskGrid.
   constructor(canvas) {
-    super(canvas, { touch: null, hover: null, showGuides: true, refine: null, next: null, showDeskGrid: false });
+    super(canvas, { touch: null, aim: null, hover: null, showGuides: true, refine: null, next: null,
+      showDeskGrid: false });
   }
 
   drawMarks() {
@@ -48,10 +50,29 @@ export class LiveMarks extends ViewMarks {
       this.drawReach();
       this.drawNext();
       this.drawPoints();
-      if (!touch || !['landed', 'read'].includes(touch.phase)) this.drawArm();
+      if (!this.marks.aim && (!touch || !['landed', 'read'].includes(touch.phase))) this.drawArm();
     }
+    this.drawAim();
     this.drawHover();
     this.drawTouch();
+  }
+
+  // FIND RED CUBE's landing, as ARM TO DESK's own marks are drawn, on the cube's top: blue where the arm was sent, the
+  // cube's center as the camera found it; green where its servos said the cup came down.
+  drawAim() {
+    const { aim } = this.marks;
+    if (!aim) return;
+    const sent = this.at([aim.sent[0], aim.sent[1], aim.height]);
+    if (sent) {
+      this.crosshair(sent, INK.pointer);
+      this.polyline(this.ring(aim.sent, aim.height), INK.pointer, 2, 0.95);
+      this.dot(sent, INK.pointer, CLICKED_DOT_PX);
+    }
+    const landed = this.at([aim.landed[0], aim.landed[1], aim.height]);
+    if (landed) {
+      this.polyline(this.ring(aim.landed, aim.height), INK.green, 2, 0.95);
+      this.dot(landed, INK.green, SAYS_DOT_PX);
+    }
   }
 
   // Desk space on the desk, x and y every 10 mm: lay grid paper along it, and its lines run with these all over the
@@ -163,7 +184,7 @@ export class LiveMarks extends ViewMarks {
     ctx.globalAlpha = 1;
   }
 
-  // Half a crosshair across: at least a twentieth of the view across (the owner's), a twelfth.
+  // Half a crosshair across: at least a twentieth of the view across, a twelfth.
   crosshairHalf() {
     return Math.max(this.width, this.height) / 24;
   }

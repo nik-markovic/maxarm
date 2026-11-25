@@ -1,7 +1,7 @@
-"""Where the top-down view's colour changes, how sharply, and which way.
+"""Where the top-down view's color changes, how sharply, and which way.
 
 Stored as the structure tensor summed over L, a and b: for any direction n, the
-colour gradient across an edge with that normal is sqrt(n' J n), so one lookup of
+color gradient across an edge with that normal is sqrt(n' J n), so one lookup of
 three numbers scores a point whichever way its edge runs, and whichever side is
 lighter. Nothing here knows whether a tile is lighter or darker than the desk.
 
@@ -32,7 +32,7 @@ class EdgeField:
         lab = cv2.cvtColor(cv2.GaussianBlur(view.image, (0, 0), SMOOTHING_MM * view.px_per_mm),
                            cv2.COLOR_BGR2LAB).astype(np.float32)
         tensor = np.zeros(view.image.shape[:2] + (3,), np.float32)
-        # A millimetre's colour change, wherever the view's scale: per pixel, times pixels per millimetre.
+        # A millimeter's color change, wherever the view's scale: per pixel, times pixels per millimeter.
         scale = view.px_per_mm / 32.0
         for channel in range(3):
             gx = cv2.Scharr(lab[..., channel], cv2.CV_32F, 1, 0) * scale
@@ -72,7 +72,7 @@ class EdgeField:
         return strength, 0.5 * np.arctan2(2.0 * jxy, jxx - jyy) % np.pi
 
     def across(self, points_mm: np.ndarray, normals: np.ndarray, is_exact: bool = True) -> np.ndarray:
-        """The colour gradient across each point's edge, the edge's normal given: colour units per mm.
+        """The color gradient across each point's edge, the edge's normal given: color units per mm.
 
         Not exact: the nearest pixel's, for a coarse search."""
         u, v = self.view.to_view(points_mm[..., 0], points_mm[..., 1])

@@ -2,13 +2,12 @@
 // Arm and desk x and y are the same, so it serves both spaces. A click picks the grid point nearest to it.
 // The view turns in quarters; at 0 the arm reaches up the screen, +x to the right.
 
-const CENTRE = [0, -65];      // mm: the middle of the reachable fan, which then fills the square
-const HALF = 290;             // mm from the centre to an edge
+const CENTER = [0, -65];      // mm: the middle of the reachable fan, which then fills the square
+const HALF = 290;             // mm from the center to an edge
 const TURNTABLE_MM = 30;      // the base's own disc, as drawn
 
 export const STEPS = [10, 20];
 export const STEP_DEFAULT = 20;
-export const FACINGS = ['arm up', 'arm right', 'arm down', 'arm left'];
 // The grid step and the view's turn are the same on every page: the arm stands the same way whichever is open.
 const VIEW_KEY = 'grid-view';
 
@@ -20,7 +19,7 @@ export function rememberView(step, rotation) {
   localStorage.setItem(VIEW_KEY, JSON.stringify({ step, rotation }));
 }
 
-// The cubes' colours, as the pages draw them (common/view.css has them for the page).
+// The cubes' colors, as the pages draw them (common/view.css has them for the page).
 export const CUBE_INK = { blue: '#4c8dff', green: '#2fd47a', red: '#ff4d5e' };
 
 export const INK = {
@@ -65,8 +64,8 @@ export class GridView {
   // Arm (x, y) to canvas pixels: the view's quarter turn is clockwise on screen.
   toScreen(x, y) {
     const [c, s] = this.turn();
-    const dx = x - CENTRE[0];
-    const dy = y - CENTRE[1];
+    const dx = x - CENTER[0];
+    const dy = y - CENTER[1];
     return [this.size / 2 + (dx * c - dy * s) * this.scale, this.size / 2 + (dx * s + dy * c) * this.scale];
   }
 
@@ -74,7 +73,7 @@ export class GridView {
     const [c, s] = this.turn();
     const rx = (px - this.size / 2) / this.scale;
     const ry = (py - this.size / 2) / this.scale;
-    return [CENTRE[0] + rx * c + ry * s, CENTRE[1] - rx * s + ry * c];
+    return [CENTER[0] + rx * c + ry * s, CENTER[1] - rx * s + ry * c];
   }
 
   turn() {
@@ -103,8 +102,8 @@ export class GridView {
 
   drawGrid() {
     const { ctx } = this;
-    const low = [CENTRE[0] - HALF, CENTRE[1] - HALF];
-    const high = [CENTRE[0] + HALF, CENTRE[1] + HALF];
+    const low = [CENTER[0] - HALF, CENTER[1] - HALF];
+    const high = [CENTER[0] + HALF, CENTER[1] + HALF];
     ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
     ctx.lineWidth = 1;
     for (const axis of [0, 1]) {
@@ -182,7 +181,7 @@ export class GridView {
     ctx.stroke();
   }
 
-  // A page's own marks, between the base and the arm: touch points, cubes. Nothing here.
+  // A page's own marks, between the base and the arm: cubes, points. Nothing here.
   drawMarks() {}
 
   drawArm() {

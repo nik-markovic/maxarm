@@ -15,7 +15,7 @@ last sentence says what it meant to do, not what it did. On top of it:
 **The model reads the request, code finds the word.** `find_word` takes what the request wants -- a clue, the user's
 own word, or neither for the longest -- and the word comes from the dictionary, the tiles' letters counted in code;
 for a clue the model chooses among the words nearest it in meaning (`finder.py`). Made by the model, the words were
-mostly none, or not of the tiles (STATUS-kiwi §5, §6).
+mostly none, or not of the tiles.
 
 **A word is set down while the model talks.** `find_word` starts the arm and returns: the model's last words -- the
 word and what it means -- come while the arm works, minutes. When it is done, the chat and `on_say` are told, which
@@ -226,7 +226,7 @@ class AgentService:
         """The tools, one set per request. Their docstrings are what the model reads, in every call: short."""
 
         # `place` is asked for, unused: without it, and the prompt's sentence on it, the model wrote most of its calls
-        # out as text; whether to set the word down is the request's, read in code (STATUS-kiwi §8).
+        # out as text; whether to set the word down is the request's, read in code.
         @tool
         def find_word(want: Literal["longest", "clue", "word"], clue: str = "", word: str = "",
                       place: bool = True) -> str:
@@ -275,7 +275,7 @@ class AgentService:
     def _find(self, request: _Request, want: str, clue: str, word: str) -> Tuple[str, dict]:
         """The word the request wants (`finder.py`), and set down unless the request says not to or the arm is busy.
         What the model fills in decides, `want` only between a word and a clue both given; the length, and whether
-        to set the word down, are read from the request in code (STATUS-kiwi §6, §9)."""
+        to set the word down, are read from the request in code."""
         tiles, why_none = self._letters_now()
         if tiles is None:
             return why_none, {}
@@ -286,7 +286,7 @@ class AgentService:
         clue = meaningful_clue(clue)
         relation = RELATION.search(request.text)
         if clue and relation and not RELATION.search(clue):
-            clue = f"{relation.group(0).lower()} {clue}"   # "noun for avenge", passed on as "avenge" (STATUS-kiwi §13)
+            clue = f"{relation.group(0).lower()} {clue}"   # "noun for avenge", passed on as "avenge"
         given = word if word and (want != "clue" or not clue) else ""
         place = not is_placing_refused(request.text)
         length = wanted_length(request.text)
@@ -304,7 +304,7 @@ class AgentService:
                 "said": found.said, "is_agreed": found.is_agreed, "missing": found.missing, "problem": found.problem,
                 "place": place}
         if not found.word and "in the way" in found.problem:     # PLACE's plan: tiles where the word would go
-            # Said so: told "not clear", the model called STEAMED too long, an N left in the dropoff area (STATUS §9).
+            # Said so: told "not clear", the model called STEAMED too long, an N left in the dropoff area.
             data["dropoff"] = (self.desk.seen() or {}).get("dropoff", "")
             held = f": {spaced(data['dropoff'])}" if data["dropoff"] else ""
             return (f"{found.problem.split(',')[0]} fits, but tiles lie where words are set down, in the dropoff "
@@ -337,7 +337,7 @@ class AgentService:
 
     def _look_again_if_due(self, request: _Request) -> None:
         """The tiles looked at again, before the model is asked, when nothing has looked since a word was set down:
-        the visitor has likely put them back (PILOT-kiwi, LLM Issues)."""
+        the visitor has likely put them back."""
         seen = self.desk.seen()
         if self._placing or not seen or self._placed_stamp is None or seen.get("stamp") != self._placed_stamp:
             return

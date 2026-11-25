@@ -1,5 +1,5 @@
 // The camera page's view from above: the shared grid in desk space, with where the cubes are suggested to go,
-// dashed -- fainter once that cube is recorded -- and where each one was recorded, solid, the cross at its centre
+// dashed -- fainter once that cube is recorded -- and where each one was recorded, solid, the cross at its center
 // where the cup was.
 
 import { CUBE_INK, GridView } from '/common/grid.js';
@@ -7,8 +7,8 @@ import { CUBE_INK, GridView } from '/common/grid.js';
 export class CubeGrid extends GridView {
   constructor(canvas, limits, onPick) {
     super(canvas, limits, onPick);
-    this.view.suggested = [];      // { colour, x, y }, desk mm
-    this.view.cubes = {};          // colour: { x, y, z } as recorded, or null
+    this.view.suggested = [];      // { color, x, y }, desk mm
+    this.view.cubes = {};          // color: { x, y, z } as recorded, or null
   }
 
   drawMarks() {
@@ -18,8 +18,8 @@ export class CubeGrid extends GridView {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const spot of this.view.suggested) {
-      const ink = CUBE_INK[spot.colour];
-      ctx.globalAlpha = this.view.cubes[spot.colour] ? 0.45 : 1;
+      const ink = CUBE_INK[spot.color];
+      ctx.globalAlpha = this.view.cubes[spot.color] ? 0.45 : 1;
       this.square(spot.x, spot.y, half);
       ctx.fillStyle = `${ink}1f`;
       ctx.fill();
@@ -29,12 +29,12 @@ export class CubeGrid extends GridView {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = ink;
-      ctx.fillText(spot.colour, ...this.toScreen(spot.x, spot.y));
+      ctx.fillText(spot.color, ...this.toScreen(spot.x, spot.y));
       ctx.globalAlpha = 1;
     }
-    for (const [colour, cube] of Object.entries(this.view.cubes)) {
+    for (const [color, cube] of Object.entries(this.view.cubes)) {
       if (!cube) continue;
-      const ink = CUBE_INK[colour];
+      const ink = CUBE_INK[color];
       this.square(cube.x, cube.y, half);
       ctx.fillStyle = `${ink}8c`;
       ctx.shadowColor = ink;

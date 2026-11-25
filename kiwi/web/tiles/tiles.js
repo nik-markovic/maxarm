@@ -1,12 +1,12 @@
-// The Tiles page: where the 25 mm tiles are, and which of them the arm can pick up.
+// The Tiles page: where the tiles are, and which of them the arm can pick up.
 //
 // LOCATE TILES parks the arm, takes the snapshot at the camera's full size and finds the tiles in it; each is placed
 // in the work areas -- ready to pick up, too close to another, outside the pickup area, or out of reach -- and shown
-// in that colour on the grid, over the camera's picture and in the table. Each tile's letter is read too: shown on a
+// in that color on the grid, over the camera's picture and in the table. Each tile's letter is read too: shown on a
 // badge at the letter's bottom right corner, '?' where it could not be read, '–' on a blank tile; the table has how
 // sure the reader is, its next best, the dot, and which way the letter's top points. The picture is the live view;
-// FULL SIZE shows it as large as the window allows. A tile clicked, anywhere, brings the cup over its centre and down
-// to 4 mm over its top, to see whether it is centred.
+// FULL SIZE shows it as large as the window allows. A tile clicked, anywhere, brings the cup over its center and down
+// to 4 mm over its top, to see whether it is centered.
 // Until letters are typed in the box beside PLACE, each LOCATE TILES -- not the one after PLACE -- puts five there at
 // random from the tiles ready to pick up; PLACE carries the tiles with the letters in the box, in order, to the
 // dropoff arc, each the right way up, the cup gripping each as far under its top as the tile offset says. Where each
@@ -18,7 +18,7 @@
 
 import { $, api, fmt, mountHeader, report, showHeader, startPolling } from '/common/page.js';
 import { openFullView } from '/common/fullview.js';
-import { FACINGS, STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
+import { STEPS, STEP_DEFAULT, rememberView, rememberedView } from '/common/grid.js';
 import { PictureLayer } from '/common/layer.js';
 import { toDesk } from '/common/shares.js';
 import { TilesGrid } from './grid.js';
@@ -28,7 +28,6 @@ const FEED = '/api/camera/feed';
 const FEED_RETRY_MS = 3000;
 const FEED_NOTES = { idle: 'starting the camera…', starting: 'starting the camera…' };
 const FEED_BADGES = { live: '● LIVE', failed: 'NO CAMERA' };
-const AREAS_KEY = 'tiles-areas';
 const STATUS_WORDS = {
   ready: 'ready', 'too close': 'too close', elsewhere: 'outside the pickup area', 'out of reach': 'out of reach',
 };
@@ -44,7 +43,6 @@ const remembered = rememberedView();
 const ui = {
   step: STEPS.includes(remembered.step) ? remembered.step : STEP_DEFAULT,
   rotation: remembered.rotation || 0,
-  showAreas: localStorage.getItem(AREAS_KEY) !== 'off',
   picked: null,                 // the tile last sent to, its number
   offered: null,                // the stamp of the snapshot whose letters were put in the box
   isTyped: false,               // letters typed in the box: LOCATE TILES leaves them
@@ -58,7 +56,7 @@ let rowsShown = '';
 
 const grid = new TilesGrid($('grid'), limits, visit);
 const marks = new TilesMarks($('marks'));
-const sceneAddress = (width, scale) => `/api/tiles/scene.png?w=${width}&s=${scale}&areas=${ui.showAreas ? 1 : 0}`;
+const sceneAddress = (width, scale) => `/api/tiles/scene.png?w=${width}&s=${scale}`;
 const scene = new PictureLayer($('scene'), sceneAddress);
 const tiles = () => (state ? state.tiles : null);
 const found = () => (tiles() ? tiles().found : null);
@@ -129,7 +127,7 @@ function sceneKey() {
   if (!tiles() || tiles().problem || tiles().view_problem) return null;
   const word = placing();
   return JSON.stringify([found() ? found().stamp : null, word ? [word.status, word.steps.map((step) => step.status)]
-    : null, ui.showAreas]);
+    : null]);
 }
 
 // --- drawing it all --------------------------------------------------------------------------------
@@ -137,7 +135,7 @@ function sceneKey() {
 function render() {
   const view = {
     matrix: tiles() ? tiles().desk_to_view : null, deskToTrue: tiles() ? tiles().desk_to_true : null, limits,
-    found: found(), word: placing(), moved: moved(), showAreas: ui.showAreas, picked: ui.picked,
+    found: found(), word: placing(), moved: moved(), picked: ui.picked,
     target: state ? state.camera.position : null, says: state ? state.camera.measured : null,
     isReading: !state || state.is_reading,
   };
@@ -159,15 +157,12 @@ function render() {
 }
 
 function renderView() {
-  $('facing').textContent = FACINGS[ui.rotation / 90];
   for (const button of $('steps').children) button.classList.toggle('on', Number(button.textContent) === ui.step);
   const [pickup, dropoff] = ['pickup', 'dropoff'].map((name) => TILES.areas.find((area) => area.name === name));
-  $('areas-line').textContent = `Tile centres ${fmt(dropoff.inner, 0)} to ${fmt(pickup.outer, 0)} mm from the base `
-    + `axis, ${fmt(TILES.margin, 0)} mm inside the reach. Pickup: ${fmt(pickup.inner, 0)} to ${fmt(pickup.outer, 0)} `
-    + `mm${pickup.side < 0 ? ', left of the arm\'s centre line (x < 0)' : ''}`
-    + `${pickup.side > 0 ? ', right of the arm\'s centre line (x > 0)' : ''}`
-    + `; dropoff: ${fmt(dropoff.inner, 0)} to ${fmt(dropoff.outer, 0)} mm. Tiles in the pickup area at least `
-    + `${fmt(TILES.gap, 0)} mm apart.`;
+  const side = pickup.side < 0 ? ', on the arm\'s left' : pickup.side > 0 ? ', on the arm\'s right' : '';
+  $('areas-line').textContent = `Set the tiles down in the green pickup area, ${fmt(pickup.inner, 0)} to `
+    + `${fmt(pickup.outer, 0)} mm from the arm${side}, at least ${fmt(TILES.gap, 0)} mm apart. Keep the blue dropoff `
+    + `area, ${fmt(dropoff.inner, 0)} to ${fmt(dropoff.outer, 0)} mm, clear: the words are set down there.`;
 }
 
 // A setting's choices, from `low` to `high` in `step`, each [value, label].
@@ -204,16 +199,14 @@ function renderPage() {
   $('locate').disabled = Boolean(problem) || isBusy();
   const result = found();
   $('locate-line').innerHTML = result
-    ? `${countsLine(result)}${lettersLine(result)} <span class="note">· found in ${fmt(result.seconds, 1)} s, read in
-      ${fmt(result.reading, 1)} s, in the snapshot of ${result.taken}, ${result.frame[0]} x ${result.frame[1]}</span>`
-    : '<span class="note">Set the tiles down, then LOCATE TILES: the arm moves out of the picture, the camera takes '
-      + 'its full-size snapshot and the tiles are found in it, a few seconds.</span>';
+    ? `${countsLine(result)}${lettersLine(result)} <span class="note">· ${result.taken}, in
+      ${fmt(result.seconds + result.reading, 0)} s</span>`
+    : '<span class="note">Set the tiles down, letters up, in the green pickup area, then LOCATE TILES.</span>';
   $('counts').innerHTML = result ? Object.entries(STATUS_WORDS).filter(([status]) => result.counts[status])
     .map(([status, words]) => `<span class="chip tile-chip" style="--ink: ${STATUS_INK[status]}">
       ${result.counts[status]} ${words}</span>`).join('') : '';
   $('visit-hint').textContent = result && result.tiles.length
-    ? `go, or a click on a tile in the grid or the picture: the cup over its centre at ${fmt(TILES.visit.over, 0)} mm, `
-      + `down to ${fmt(TILES.visit.above, 0)} mm over its top` : '';
+    ? 'Click a tile, or its go, to bring the cup over its center' : '';
   if (result && ui.offered !== result.stamp) {
     if (!ui.isTyped && !result.placed) $('word').value = result.offer;     // not after PLACE, nor over letters typed
     ui.offered = result.stamp;
@@ -235,11 +228,9 @@ function wordLine(result, word) {
   const again = ' <span class="note">· LOCATE TILES again before the next PLACE</span>';
   if (!word) {
     const before = result.placed ? `${escaped(result.placed)}; the tiles found again. ` : '';
-    return before + (result.on_offer ? `On the tiles ready to pick up: <b class="letters">${result.on_offer}</b> <span `
-      + `class="note">· PLACE carries the letters typed, in order, to the arc ${fmt(TILES.word.arc, 0)} mm out, `
-      + `${fmt(TILES.word.gap, 0)} mm apart, each letter turned for a reader ${READER_WORDS[$('reader').value]}; `
-      + `the cup grips each tile as far in as tile offset says and lets it go ${fmt(TILES.word.drop_over, 0)} mm `
-      + 'over its top</span>'
+    return before + (result.on_offer ? `Ready to pick up: <b class="letters">${result.on_offer}</b> <span `
+      + 'class="note">· type letters of them and PLACE: the arm sets them down in the dropoff area, in order, for '
+      + `a reader ${READER_WORDS[$('reader').value]}</span>`
       : '<span class="note">No letters on tiles ready to pick up: nothing for PLACE to carry.</span>');
   }
   if (word.status === 'placing') {
@@ -319,7 +310,7 @@ function renderTable() {
         ${tile.detail && tile.status !== 'elsewhere' ? `<small>${tile.detail}</small>` : ''}${wordNote(word, tile)}</td>
       <td class="actions"><button class="btn small" data-n="${tile.n}"
         ${tile.status === 'out of reach' || isBusy() || carried.has(tile.n) ? 'disabled' : ''}
-        title="The cup over this tile's centre, down to ${fmt(TILES.visit.above, 0)} mm over its top">go</button></td>
+        title="The cup over this tile's center">go</button></td>
     </tr>`) : [];
   const empty = result && !result.tiles.length ? '<tr class="empty"><td colspan="12">No tiles found.</td></tr>'
     : !result ? '<tr class="empty"><td colspan="12">LOCATE TILES to find them.</td></tr>' : '';
@@ -362,7 +353,7 @@ function openFull() {
     overlay: sceneAddress,
     aspect: size[0] / size[1],
     title: 'THE LIVE VIEW',
-    hint: `Click a tile: the cup comes over its centre and down to ${fmt(TILES.visit.above, 0)} mm over its top.`,
+    hint: `Click a tile: the cup comes over its center and down to ${fmt(TILES.visit.above, 0)} mm over its top.`,
     onPick: (u, v) => {
       const desk = toDesk(tiles().desk_to_view, [u, v], tileHeight());
       const tile = desk && found() ? tileAt(found().tiles, desk) : null;
@@ -389,12 +380,6 @@ for (const button of $('steps').children) {
 $('rotate').addEventListener('click', () => {
   ui.rotation = (ui.rotation + 90) % 360;
   rememberView(ui.step, ui.rotation);
-  render();
-});
-$('guides').checked = ui.showAreas;
-$('guides').addEventListener('change', () => {
-  ui.showAreas = $('guides').checked;
-  localStorage.setItem(AREAS_KEY, ui.showAreas ? 'on' : 'off');
   render();
 });
 $('locate').addEventListener('click', locate);

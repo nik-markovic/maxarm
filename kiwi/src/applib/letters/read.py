@@ -7,7 +7,7 @@
 For each tile:
 
 1. The ink (`ink.py`): none, and the tile is blank; a dot, and the letter's
-   bottom right is that corner -- the owner's mark on the letters that are
+   bottom right is that corner -- the mark on the letters that are
    others turned, M and W.
 2. The reader (`reader.py`) on the face at its four quarter turns: each
    capital's probability that turn is upright.

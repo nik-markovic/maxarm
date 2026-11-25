@@ -2,7 +2,7 @@
 `find-cube`, the same way.
 
     cube = RedCube(feed)
-    cube.find(motion, fit)          # park, look, come over the cube at 54 mm and down to the notch, 41
+    cube.find(motion, fit)          # park, look, come over the cube at OVER_MM, down to NOTCH_MM
     cube.found                      # what the overlay draws: overlay.draw_cube()
 
 The camera is the calibration's, held still (`camera/locate.py`). Once the arm
@@ -28,11 +28,10 @@ from .camera.locate import FoundCube, find_red_cube
 from .camera.model import CUBE_MM
 from .motion import Motion, Refused
 
-# Where the cup is lowered to over a cube, to centre the cube under it: 1 mm over its top, now that the cup lands
-# where it is sent -- close, but not pressing, so the cube can be moved by hand without moving the arm (the owner's,
-# 9 Nov; it was 2 mm over, PILOT-impala). The camera page's too.
+# Where the cup is lowered to over a cube, to center the cube under it: 1 mm over its top -- close, but not
+# pressing, so the cube can be moved by hand without moving the arm. The camera page's too.
 NOTCH_MM = CUBE_MM + 1.0
-# The cup comes over the cube 54 mm over the desk, 14 over its top, then down to the notch (the owner's).
+# The cup comes over the cube 54 mm over the desk, 14 over its top, then down to the notch.
 OVER_MM = 54.0
 
 

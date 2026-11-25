@@ -36,11 +36,11 @@ from .spaces import CONFIG_DIR, Space, Spaces, angle_from_desk, angle_to_desk
 from .transport import DEVICE, SerialTransport
 from .tunable import tunable
 
-# The owner's yardstick: about a second to cross the desk.
+# About a second to cross the desk.
 MOVE_FAST_MM_S = tunable("MOVE_FAST_MM_S", 200.0)
 # Slow enough not to yank a heavy piece; every move onto or off the desk in grab() and drop().
 MOVE_SLOW_MM_S = tunable("MOVE_SLOW_MM_S", 10.0)
-# A few millimetres at travel speed would ask the servos for a jerk at full speed.
+# A few millimeters at travel speed would ask the servos for a jerk at full speed.
 MOVE_MIN_MS = 150
 # The command carries two decimals: a move shorter than this is the same command.
 # Anything longer is sent, so the arm's own response to tiny steps can be seen.
@@ -60,8 +60,8 @@ SUCTION_RELEASE_MS = tunable("SUCTION_RELEASE_MS", 3000.0)
 # for one a few pulses from where it is -- by how much depends on the servo and on
 # which way it turns. A precise move nudges each servo that landed off its target:
 # sends it past the target, quickly, so that it moves, and then the target itself,
-# which it comes back to; the servos on their target are held there (the owner's
-# nudge; STATUS-impala §19.2).
+# which it comes back to; the servos on their target are held there (the
+# nudge).
 # Landed is every servo within this many pulses of the target's own: the base,
 # servo 2, servo 3 (whose nudges move it least often).
 PRECISE_TOLERANCE_PULSES = (0.75, 0.75, 1.25)
@@ -77,7 +77,7 @@ PRECISE_CAP_MM = 4.0
 # Where the servos are, from their reads, which flicker by a pulse or more: once
 # they have stopped drifting -- from PRECISE_STEADY_FROM_S after the travel, the
 # mean of the last PRECISE_STEADY_HALF_S against that of the one before it, every
-# servo within PRECISE_STEADY_PULSES -- the mean of both (STATUS-impala §19). At
+# servo within PRECISE_STEADY_PULSES -- the mean of both. At
 # most PRECISE_SETTLE_MAX_S after the travel. From AT_REST_S after it, the mean of
 # PRECISE_STEADY_HALF_S of reads.
 PRECISE_STEADY_FROM_S = 1.0
@@ -162,7 +162,7 @@ class MaxArm:
     def connect(self) -> None:
         """Open the port and check the board can drive the arm.
 
-        Opening the port resets the board, which homes the arm and centres the
+        Opening the port resets the board, which homes the arm and centers the
         cup. Raises `BoardNotReadyError` naming the remedy.
         """
         self._protocol.connect()
@@ -225,7 +225,7 @@ class MaxArm:
 
         One leg, or a few when it has to climb over the clearance or go round
         the arm-base limit. `angle` turns the cup -- or the piece it holds -- to
-        face that way, degrees from the space's +x towards its +y; the turn
+        face that way, degrees from the space's +x toward its +y; the turn
         rides on the leg that crosses the desk, and the move waits for it.
         """
         self._begin()
@@ -238,7 +238,7 @@ class MaxArm:
         """Pick up the piece whose top face is at (x, y, height).
 
         Lets go of anything held, then: slowly up to the travel height if below
-        it, fast across with the cup centring itself, slowly down onto the
+        it, fast across with the cup centering itself, slowly down onto the
         piece and corrected there as PRECISE is, suction on and waited for,
         slowly back up. The travel height is `clearance + height + 5 mm`, so
         the piece hangs 5 mm above the clearance.
@@ -255,7 +255,7 @@ class MaxArm:
 
         `grab()` in reverse: the piece is turned on the way across, and the
         release is waited out -- longer than a grip -- before the slow lift.
-        The cup turns 90 degrees either way from where `grab()` centred it; a
+        The cup turns 90 degrees either way from where `grab()` centered it; a
         bigger turn is refused before anything moves. `angle=None` leaves the
         cup alone, so the piece turns with the arm.
         """
@@ -271,7 +271,7 @@ class MaxArm:
         drop is checked before the grip, so a refusal means nothing moved.
         `angle` says which way the piece faces at the start, `facing` which way
         it is to face at the end. A turn bigger than the cup's 90 degrees from
-        centre is shared: the cup turns half of it the other way on its way over
+        center is shared: the cup turns half of it the other way on its way over
         the piece, and the other half after the lift.
         """
         self._begin()
@@ -551,7 +551,7 @@ class MaxArm:
         return self._clearance_mm + max(target[2], carried) + CLEARANCE_MARGIN_MM
 
     def _crossing_height(self) -> Optional[float]:
-        """How high anything travelling sideways must be, or None with no clearance to keep."""
+        """How high anything traveling sideways must be, or None with no clearance to keep."""
         if not self._clearance_mm or not self._spaces.is_desk_known:
             return None
         carried = self._held.height if self._held else 0.0

@@ -3,15 +3,14 @@
     refined, tie, put = refine_and_leave_out(fit, points, frame)   # points: RefinePoints; frame: CALIBRATE's
     off = off_by(refined, point.sighting)    # how far its reading is from its cube as seen; how tall it looks
 
-A point is a cube set down in place after place, centred under the cup, and seen:
+A point is a cube set down in place after place, centered under the cup, and seen:
 the firmware's position over it, and the edges found round it in the snapshot
 (`sighting.py`). Neither depends on a camera. SAVE fits one camera to all the
 points' cubes at once, as CALIBRATE does to its three: the 40 mm cubes its only
-length, the arm aside -- reality, not bent onto the arm (the owner, 13 Nov) -- from
-their bottom and vertical edges, the tops' being found inside the cube (STATUS-kiwi
-§8). Through it the base is found again in CALIBRATE's frame and the arm laid as
-CALIBRATE lays it (`anchor.fit_tie()`): its axis by the base, its turn by the
-points' bearings. What is left at each point is a row of the arm's correction, the
+length, the arm aside -- reality, not bent onto the arm -- from their bottom and
+vertical edges, the tops' being found inside the cube. Through it the base is found
+again in CALIBRATE's frame and the arm laid as CALIBRATE lays it (`anchor.fit_tie()`):
+its axis by the base, its turn by the points' bearings. What is left at each point is a row of the arm's correction, the
 mesh (`anchor.py`): SAVE writes `arm-true.json`, which the library reads on the fly
 (`maxarm/converter.py`), and camera.json with its report. With fewer than
 MIN_CAMERA_POINTS points with edges, or without CALIBRATE's frame, the camera and
@@ -19,7 +18,7 @@ the arm's frame stay CALIBRATE's.
 
 A point's miss without it is its reading through the mesh of the other points,
 against its cube as the camera sees it: how far the arm would land from the cube,
-had the point not been taken. A point its neighbours put further than
+had the point not been taken. A point its neighbors put further than
 `anchor.DOES_NOT_FIT_MM` from its cube does not fit: it is left out of the mesh and
 named. At the points in the mesh the correction is exact.
 
@@ -40,7 +39,7 @@ import numpy as np
 import cv2
 
 from applib.camera.base import find_base
-from applib.camera.fit import CENTRE_SPREAD, EDGE_HUBER_PX, CameraFit, arm_measure, without_top
+from applib.camera.fit import CENTER_SPREAD, EDGE_HUBER_PX, CameraFit, arm_measure, without_top
 from applib.camera.model import CUBE_MM, Pinhole, least_squares
 from applib.camera.sighting import Sighting, in_frame, measure, misses, on_desk, place, start
 from maxarm import raw
@@ -60,7 +59,7 @@ class PointsDoNotFit(Exception):
 
 @dataclass(frozen=True)
 class Off:
-    seen: np.ndarray                 # desk x, y of the cube's centre, as the calibration sees it
+    seen: np.ndarray                 # desk x, y of the cube's center, as the calibration sees it
     across: float                    # mm from where the arm says the cup was, across the desk
     height: Optional[float]          # mm the cube's top is from 40: + taller; None for a point without edges
 
@@ -69,10 +68,10 @@ def off_by(fit: CameraFit, point: Sighting) -> Off:
     """Where the calibration sees the point's cube, a 40 mm one, how far that is from where the arm says the cup was,
     and how tall the cube looks."""
     matrix = in_frame(fit.true_to_pixel, fit.frame_size, point)
-    centre, height = _seen(matrix, point), None
+    center, height = _seen(matrix, point), None
     if point.edges is not None:
         height = float(measure(matrix, point, start(matrix, point))[3] - CUBE_MM)
-    seen = np.linalg.solve(fit.desk_to_true, centre)
+    seen = np.linalg.solve(fit.desk_to_true, center)
     return Off(seen, float(math.dist(seen, (point.x, point.y))), height)
 
 
@@ -134,7 +133,7 @@ def _points_camera(alone: CameraFit, points) -> Optional[CameraFit]:
         camera = _camera(trial)
         parts = [misses(camera, sighting, np.append(trial[9 + 3 * index:12 + 3 * index], CUBE_MM))
                  for index, sighting in enumerate(fitted)]
-        parts.append((trial[1:3] - middle) / (CENTRE_SPREAD * alone.frame_size[0]))     # as CALIBRATE holds it
+        parts.append((trial[1:3] - middle) / (CENTER_SPREAD * alone.frame_size[0]))     # as CALIBRATE holds it
         return np.concatenate(parts)
 
     steps = np.array(CAMERA_STEPS + CUBE_STEPS * len(fitted))

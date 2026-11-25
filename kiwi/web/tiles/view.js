@@ -1,12 +1,12 @@
 // The Tiles page's marks over the camera's live picture, and what its views draw tiles with.
 //
-// What the picture shows of the tiles -- the work areas and the reach; each tile in its status's colour with its
+// What the picture shows of the tiles -- the work areas and the reach; each tile in its status's color with its
 // letter on a badge, a letter not read in red; where the tiles a word carried were; where a word's letters go -- is
 // drawn in Python (applib/overlay/tiles.py), as the app's stream shows it, and laid over the picture as a layer
 // (common/layer.js). Drawn here, over that layer:
 // - the arm: where it was sent, and where its servos say the cup is;
 // - the tile last clicked, and in the full-size view the tile under the pointer, picked out.
-// The colours are Python's too (applib/overlay/inks.py), given with the limits: useInks(limits.tiles.ink).
+// The colors are Python's too (applib/overlay/inks.py), given with the limits: useInks(limits.tiles.ink).
 
 import { ViewMarks } from '/common/marks.js';
 import { toDesk } from '/common/shares.js';
@@ -28,7 +28,7 @@ export function useInks(ink) {
 // A letter of the word by how its tile is doing: to come, being carried, set down; stopped, refused or failed.
 export const wordInk = (status) => WORD_INK[status] || WORD_INK.failed;
 export const isUnread = (tile) => Boolean(tile.letter) && !tile.is_read;
-// A tile's colour: its status's, or red for a letter not read (the owner's, PILOT-jackal).
+// A tile's color: its status's, or red for a letter not read.
 export const tileInk = (tile) => (isUnread(tile) ? UNREAD_INK : STATUS_INK[tile.status]);
 
 export class TilesMarks extends ViewMarks {
@@ -80,7 +80,7 @@ export function letterBadge(tile) {
   return { text: tile.letter, corner, isMarked: false };
 }
 
-// A chevron on a tile's face, its tip towards where the letter's top points, desk mm; none for a letter not read
+// A chevron on a tile's face, its tip toward where the letter's top points, desk mm; none for a letter not read
 // or a blank tile.
 export function chevronUp(tile) {
   if (!tile.letter || !tile.is_read) return [];

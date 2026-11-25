@@ -1,4 +1,4 @@
-"""The overlay's colours, as the pages had them: given to the pages too (`to_json()`), so that the view from above,
+"""The overlay's colors, as the pages had them: given to the pages too (`to_json()`), so that the view from above,
 the tables and the picture keep to one set."""
 
 from .canvas import ink
@@ -9,10 +9,10 @@ AREA = {"pickup": "#41c363", "dropoff": "#4c8dff"}
 # failed, red.
 WORD = {"waiting": "#ffffff", "carrying": "#ffd23f", "placed": "#4c8dff", "failed": "#f0524a"}
 CARRIED = "#9db0c8"
-UNREAD = "#f0524a"         # a letter not read: its tile's outline and its '?' (the owner's, PILOT-jackal)
+UNREAD = "#f0524a"         # a letter not read: its tile's outline and its '?'
 REACH = "#f0524a"
 REACH_MIN = "#f08c3c"
-YELLOW = "#ffd23f"             # also every cube's wireframe, half see-through (the owner's, PILOT-jackal)
+YELLOW = "#ffd23f"             # also every cube's wireframe, half see-through
 GREEN = "#41c363"
 WHITE = "#ffffff"
 SHADOW = "#05070a"

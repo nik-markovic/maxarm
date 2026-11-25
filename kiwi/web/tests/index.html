@@ -24,25 +24,23 @@
 
   <section class="card view">
     <div class="card-head">
-      <h2>Desk space, from above</h2>
+      <h2>The desk, from above</h2>
       <div class="tools">
         <span class="hint">grid, mm</span>
         <div class="seg" id="steps"></div>
         <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
           ⟳ Rotate view</button>
-        <span class="hint" id="facing"></span>
       </div>
     </div>
     <div class="view-body">
-      <canvas id="grid" title="Click to send the arm over that grid point, clear of the cubes, and down to the notch"
-        ></canvas>
+      <canvas id="grid" title="Click to bring the cup over that point, just over a cube's height"></canvas>
       <div class="zcol">
         <span class="zlabel">HEIGHT <em>desk</em></span>
         <output class="num" id="z-out" title="The height over the desk the arm is sent to"></output>
         <button class="btn higher" id="z-higher"
-          title="Let the slider go 20 mm higher, as often as wanted. Only the arm's limits stop it">▲ 20 mm</button>
-        <button class="btn safe" id="z-safe" title="Up to a height well clear of the cubes"></button>
-        <button class="btn notch" id="z-notch" title="Down to 2 mm over a cube's top"></button>
+          title="Let the slider go 20 mm higher">▲ 20 mm</button>
+        <button class="btn safe" id="z-safe" title="Up, well clear of the cubes"></button>
+        <button class="btn notch" id="z-notch" title="Down to just over a cube's top"></button>
         <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
         <div class="zbar">
           <input type="range" class="vertical" id="z-slider" step="1">
@@ -53,7 +51,7 @@
         </div>
         <button class="btn zstep" id="z-down" title="1 mm down">Z−</button>
         <button class="btn lower" id="z-lower"
-          title="Let the slider go 2 mm lower, as often as wanted. Below the desk the cup presses into it"
+          title="Let the slider go 2 mm lower: below 0 the cup presses into the desk"
           >▼ 2 mm</button>
       </div>
     </div>
@@ -68,7 +66,7 @@
         <span class="num says" id="says-z"></span>
       </div>
       <button class="btn small" id="copy" title="Copy the target and what the arm says as one line">COPY</button>
-      <div class="pad" title="1 mm the way the view shows, in desk space">
+      <div class="pad" title="1 mm the way the view shows">
         <button class="btn" data-dir="up"></button>
         <button class="btn" data-dir="left"></button>
         <span class="hub">1 mm</span>
@@ -77,19 +75,18 @@
       </div>
       <button class="btn primary record" id="record">● RECORD<br>POINT</button>
     </div>
-    <p class="hint space">Desk space, mm: z is the height over the desk. A grid click comes over the point 60 mm up,
-      clear of the cubes, and down to the notch, 2 mm over a cube's top; the arrows move the cup 1 mm the way the view
-      shows. The cube centred under the cup, <b>RECORD POINT</b>: a point to refine the calibration with, below.</p>
+    <p class="hint space">Click the grid where the red cube stands: the cup comes down just over it. Center the cube
+      under the cup with the arrows, then <b>RECORD POINT</b>.</p>
 
     <div class="legend">
-      <span><i class="swatch reach"></i>reach: 270 mm, ±120°</span>
-      <span><i class="swatch reach-min"></i>nearest target: 95 mm</span>
+      <span><i class="swatch reach"></i>furthest reach</span>
+      <span><i class="swatch reach-min"></i>nearest reach</span>
       <span><i class="swatch target"></i>target</span>
       <span><i class="swatch says"></i>arm says</span>
       <span><i class="swatch found"></i>red cube, as the camera found it</span>
-      <span><i class="swatch touch"></i>desk point clicked</span>
-      <span><i class="swatch point"></i>red cube point</span>
-      <span><i class="swatch next"></i>a place for the next point</span>
+      <span><i class="swatch touch"></i>ARM TO DESK's point</span>
+      <span><i class="swatch point"></i>a point</span>
+      <span><i class="swatch next"></i>a good place for the next point</span>
     </div>
   </section>
 
@@ -98,17 +95,24 @@
       <h2>Camera</h2>
       <span class="hint" id="feed-device"></span>
       <div class="tools">
-        <label class="switch" title="The reach on the desk, and where the arm is, drawn over the live view">
+        <label class="switch" title="The arm's reach and where it is, drawn over the picture">
           <input type="checkbox" id="guides" checked><span class="track"></span>Guides</label>
-        <label class="switch" title="Desk space every 10 mm on the desk, through the calibration: lay grid paper along it"
+        <label class="switch" title="A 10 mm grid on the desk, drawn through the calibration"
           ><input type="checkbox" id="desk-grid"><span class="track"></span>Desk grid</label>
       </div>
     </div>
     <div class="actions">
-      <button class="btn primary" id="touch">⛶ CLICK THE DESK</button>
-      <span class="trial-result" id="touch-result"></span>
-      <span class="helper"><span class="helper-label">helpers</span>
-        <button class="btn" id="find"><span id="find-icon"></span>FIND RED CUBE</button></span>
+      <button class="btn" id="touch"><svg class="touch-icon" viewBox="0 0 32 32" aria-hidden="true">
+        <ellipse cx="16" cy="18" rx="11" ry="6.5"/><path d="M16 3v10M16 23v6M2 18h8M22 18h8"/>
+        <circle cx="16" cy="18" r="1.8"/></svg>ARM TO DESK</button>
+      <button class="btn help-dot" data-help="help-touch.md" data-title="Arm to desk" title="What it is for">?</button>
+      <button class="btn" id="find"><span id="find-icon"></span>FIND RED CUBE</button>
+      <button class="btn help-dot" data-help="help-find.md" data-title="Find the red cube" title="What it is for"
+        >?</button>
+      <span class="save-side">
+        <span class="save-note" id="save-note"></span>
+        <button class="btn primary" id="save">SAVE CALIBRATION</button>
+      </span>
     </div>
     <div class="feed-box" id="feed-box">
       <img id="feed" alt="">
@@ -118,46 +122,9 @@
       <span class="feed-note" id="feed-note"></span>
     </div>
 
-    <div class="trials">
-      <div class="trial touch">
-        <div class="trial-head">
-          <svg class="touch-icon" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="18" rx="11" ry="6.5"/>
-            <path d="M16 3v10M16 23v6M2 18h8M22 18h8"/><circle cx="16" cy="18" r="1.8"/></svg>
-          <b>Arm to the desk</b>
-          <button class="btn small help" data-help="touch-help" title="More about it">?</button></div>
-        <p><b>CLICK THE DESK</b>, then a point in the live view: the cup comes down to 2 mm over the desk there.</p>
-        <div class="help-text" id="touch-help" hidden>
-          <h2>Arm to the desk</h2>
-          <p><b>CLICK THE DESK</b> shows the live view full size; click a point of the desk in it. The arm comes over
-            the point at 14 mm and down to 2 mm over <b>the desk</b> -- not over the top of whatever stands there.
-            Anything in its way is knocked aside.</p>
-          <p>From a cup at a cube's top, as FIND RED CUBE or a grid click leaves it, the arm parks first; clicks after
-            that go straight there.</p>
-          <p>The point clicked is marked in blue: a crosshair, the cup's rim round it on the desk, a dot. Once the arm
-            is down only the dot is left; once its servos are read, the same in green where they say the cup is, the
-            rim at the height they say. <b>The green rim should sit on the cup in the picture</b>: that tests the
-            calibration, wherever the arm came down.</p>
-        </div>
-      </div>
-      <div class="trial find">
-        <div class="trial-head">
-          <span id="find-head-icon"></span><b>Find the red cube</b><span class="chip">helper</span>
-          <button class="btn small help" data-help="find-help" title="More about it">?</button></div>
-        <p>Brings the cup <b>near</b> the red cube. <b>Align the cube under the cup before RECORD POINT</b>: the point
-          is where the arm is; the cube as found can be off from it.</p>
-        <div class="help-text" id="find-help" hidden>
-          <h2>Find the red cube</h2>
-          <p>Set the red cube down anywhere in view, a corner towards the camera. <b>FIND RED CUBE</b>: the arm moves
-            out of the picture, the camera finds the cube, and the cup comes over it at 54 mm and down to 42, 2 mm over
-            its top.</p>
-          <p>That is only near the cube. <b>Align the cube under the cup</b> -- the arrows, or the cube nudged by hand
-            -- watching the cube, not the screen. RECORD POINT keeps where the arm says the cup is: that is the point,
-            not where the camera found the cube.</p>
-          <p>On the cube's top: a dot where the arm was sent, and the cup's rim, yellow, where its servos then said it
-            was; the label says how far off it landed, X and Y.</p>
-        </div>
-        <span class="trial-result" id="find-result"></span>
-      </div>
+    <div class="results">
+      <p><b>Arm to desk</b> <span class="trial-result" id="touch-result"></span></p>
+      <p><b>Red cube</b> <span class="trial-result" id="find-result"></span></p>
     </div>
   </section>
 
@@ -166,68 +133,27 @@
       <h2>Refine the calibration</h2>
       <span id="refine-count"></span>
       <div class="tools">
-        <button class="btn ghost" id="clear" title="Forget every red cube point">CLEAR</button>
+        <button class="btn ghost" id="clear" title="Remove every point, the cubes' too">CLEAR</button>
       </div>
     </div>
-    <div class="refine-body">
-      <div class="refine-how">
-        <p>CALIBRATE fits the camera to the three cubes' edges alone -- reality, 40 mm cubes its only length -- finds
-          the arm's base by its nuts, and lays the arm on the camera: its axis where the nuts are, its turn from the
-          cubes' bearings. What is left at each point -- the cube further out or further round than the arm read it
-          -- is the arm's correction, which the library converts with from then on. CALIBRATE's three cubes are
-          points 1, 2 and 3; the red cube's points all over the desk then add to it, and SAVE writes the correction
-          all of them make, the camera and the arm's frame on it kept as CALIBRATE laid them: the pattern the points
-          share over the whole desk -- the reach off, the turn off, and from 5 points the arm's axis off its place and
-          the turn wider to the sides -- and a mesh of what it leaves at each point, exact there (XY off now 0),
-          fading out beyond the points. A point changes the correction most round itself. "Without it" is how far a
-          point's cube is from its reading through the correction of the other points: how well it does between
-          points. A point whose
-          reach is more than 5 mm off what the others say does not fit -- its badge red: its cube moved after RECORD
-          or the cup was off it -- and SAVE leaves it out. It shows from 4 points on. In the live view a point's ring
-          is where the camera saw its cube, its dot its reading. Z is how far from 40 mm tall the camera sees its
-          cube. One point far off while the others are not: the cup was off the cube's centre, the reading off, or
-          its edges were found wrong. RECORD POINT shows the snapshot zoomed in on the cube: REDO looks again, UNDO
-          forgets it. Forget a point (×), a cube's too, and record it again near there.
-          Take the three cubes away. Then, again and again, in a new place each time:</p>
-        <ol>
-          <li>Set the red cube down, <b>a corner towards the camera</b>: its top and two sides in view.</li>
-          <li>Click the grid where the cube stands: the cup comes down 2 mm over its top. Or <b>FIND RED CUBE</b>,
-            to come near it.</li>
-          <li><b>Align the cube</b> under the cup with the arrows, watching the cube, not the screen.</li>
-          <li><b>RECORD POINT</b>: where the arm says the cup is, then the arm moves away and the camera's snapshot
-            sees where the cube stands.</li>
-        </ol>
-        <p id="refine-ask"></p>
-      </div>
-      <div class="refine-save" id="refine-save">
-        <button class="btn primary" id="save">SAVE CALIBRATION<span class="alert-mark" id="save-alert" hidden
-          >!</span></button>
-        <p class="refine-fit" id="refine-fit"></p>
-        <p class="hint" id="refine-saved"></p>
-      </div>
-    </div>
+    <p class="refine-ask" id="refine-ask"></p>
+    <p class="refine-fit" id="refine-fit"></p>
     <div class="table-wrap">
       <table class="list" id="points">
         <thead>
           <tr>
             <th rowspan="2">#</th><th rowspan="2">X</th><th rowspan="2">Y</th>
-            <th rowspan="2" title="Where the saved calibration sees the cube, desk mm">seen X</th>
+            <th rowspan="2" title="Where the camera sees the cube">seen X</th>
             <th rowspan="2">seen Y</th>
-            <th colspan="2" class="group" title="Through the saved calibration and the arm's correction, as the library converts now">
-              off now</th>
-            <th rowspan="2" title="Where the correction of the other points puts this point's reading, against its cube as the
-camera sees it: how well the correction does between points. Its ring against its dot in the live view. A point whose reach is
-more than 5 mm off what the others say does not fit (its badge red): its cube moved after RECORD or the cup was off
-it. SAVE leaves it out of the correction; forget it and record it again">
-              without it</th>
+            <th colspan="2" class="group" title="With the calibration in use">off now</th>
+            <th rowspan="2" title="How far off this point would be if it were left out: how well the calibration
+does between points">without it</th>
             <th rowspan="2"></th>
           </tr>
           <tr class="sub">
-            <th title="How far the arm's reading, as the library converts it now, is from the cube as the saved
-calibration sees it. A point in the saved correction is 0; a new one says how well the calibration foresaw it">
-              XY</th>
-            <th title="How far from 40 mm tall the camera sees the cube, its base on the desk: + taller, - shorter.
-One point far off while the others are not is likely a bad snapshot: forget it, record it again.">Z</th>
+            <th title="How far the cube the camera sees is from where the arm said the cup was. 0 once saved">XY</th>
+            <th title="How much taller (+) or shorter (-) than it is the camera sees the cube. One point far off while
+the others are not: remove it and record it again">Z</th>
           </tr>
         </thead>
         <tbody></tbody>

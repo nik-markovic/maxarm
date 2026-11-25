@@ -1,5 +1,5 @@
-"""/IOTCONNECT: telemetry out, commands in, and the stream's channel handed to WebRTC (the property-alarm demo's
-`iotc.py`, `work/refs/iotc-eiq-imx95-property-alarm`, cut to what this app uses).
+"""/IOTCONNECT: telemetry out, commands in, and the stream's channel handed to WebRTC (the
+iotc-eiq-imx95-property-alarm demo's `iotc.py`, cut to what this app uses).
 
 Everything cloud-shaped is in this file, on one thread, and the rest of the app
 does not import it:
@@ -7,7 +7,7 @@ does not import it:
 - The app never waits on the network: the command threads write into
   `telemetry.TelemetryState`, and this file's thread reads it and sends.
 - The SDK calls `_on_c2d` on paho's MQTT thread, where anything slow stalls all
-  MQTT traffic, the acknowledgement included. So it only looks the command up,
+  MQTT traffic, the acknowledgment included. So it only looks the command up,
   hands it to `CommandService` and returns; the command runs on a command thread,
   and is acknowledged when it is done, with the same sentence the console prints.
 
@@ -21,7 +21,7 @@ What flows each way:
     C2D   the device template's commands (`files/device-template.json`), each
           acknowledged with its answer -- `agent`'s cut to MAX_AGENT_ACK_CHARS, a
           tooltip's worth, the whole of it the `answer` telemetry
-    KVS   the signalling channel and the AWS credentials `webrtc.py` signs with
+    KVS   the signaling channel and the AWS credentials `webrtc.py` signs with
 
 The cloud is optional: `main.py` starts this only when the device's identity and
 the calibration are in config/. Connecting happens on this file's thread, and a
@@ -71,7 +71,7 @@ TELEMETRY_INTERVAL_S = 10.0
 MIN_SEND_GAP_S = 1.0        # a burst of wakes must not turn into an MQTT flood
 RECONNECT_WAIT_S = 30.0     # after a failure that took the client down entirely
 CREDENTIALS_MARGIN_S = 120  # AWS credentials are renewed this long before they expire
-MAX_ACK_CHARS = 200         # an acknowledgement is shown as a tooltip: a sentence, not a page
+MAX_ACK_CHARS = 200         # an acknowledgment is shown as a tooltip: a sentence, not a page
 MAX_AGENT_ACK_CHARS = 60    # the model's answer is a paragraph: enough to know which; the rest is `answer`
 
 
@@ -159,7 +159,7 @@ class IotcClient:
         print(f"[iotc] KVS channel {channel_arn}, credentials good for {self._kvs.get_secs_to_expiry() / 60:.0f} "
               f"min", flush=True)
         if not channel_arn:
-            print("[iotc] no signalling channel: enable Video Streaming -> WebRTC in the template", flush=True)
+            print("[iotc] no signaling channel: enable Video Streaming -> WebRTC in the template", flush=True)
         elif self.streaming is not None:            # None: the app runs without the stream, aiortc not installed
             # A callable, not the credentials themselves: they are renewed on this thread, and the streamer signs
             # each new connection with whatever is current.

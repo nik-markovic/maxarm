@@ -1,5 +1,5 @@
-"""Commands, whatever they come from, run off the camera's and the cloud's threads (the property-alarm demo's design,
-`work/refs/iotc-eiq-imx95-property-alarm`).
+"""Commands, whatever they come from, run off the camera's and the cloud's threads (the design of
+the iotc-eiq-imx95-property-alarm demo).
 
 Every source funnels through `CommandService`: /IOTCONNECT C2D (`iotc.py`), the
 console (`console.py`), and whatever comes next -- speech. A source that

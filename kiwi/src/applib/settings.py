@@ -27,7 +27,7 @@ APPCFG_FILE = "appcfg.json"
 # How thick the tiles are (`tiles/find.py`), in TILE_HEIGHT_STEP_MM: what the tiles page offers.
 TILE_HEIGHT_RANGE_MM = (1.0, 8.0)
 TILE_HEIGHT_STEP_MM = 0.5
-# The tile offset: how far under a tile's top the cup grips it, its bellows pressed in that far: 1 mm (the owner's).
+# The tile offset: how far under a tile's top the cup grips it, its bellows pressed in that far.
 # What the tiles page offers: 1 mm over the top to 3 mm in, in TILE_OFFSET_STEP_MM; the cup never goes under the desk
 # (`tilework.py`).
 TILE_OFFSET_MM = 1.0
@@ -43,7 +43,7 @@ class Setting:
     about: str
 
 
-def _millimetres(what: str, low: float, high: float, step: float) -> Callable[[object], float]:
+def _millimeters(what: str, low: float, high: float, step: float) -> Callable[[object], float]:
     def accept(value: object) -> float:
         try:
             mm = round(float(value), 1)
@@ -65,9 +65,9 @@ def _reader(value: object) -> str:
 
 
 SETTINGS: Dict[str, Setting] = {
-    "tile_height_mm": Setting(TILE_HEIGHT_MM, _millimetres("tile height", *TILE_HEIGHT_RANGE_MM, TILE_HEIGHT_STEP_MM),
+    "tile_height_mm": Setting(TILE_HEIGHT_MM, _millimeters("tile height", *TILE_HEIGHT_RANGE_MM, TILE_HEIGHT_STEP_MM),
                               "how thick the tiles are, mm"),
-    "tile_offset_mm": Setting(TILE_OFFSET_MM, _millimetres("tile offset", *TILE_OFFSET_RANGE_MM, TILE_OFFSET_STEP_MM),
+    "tile_offset_mm": Setting(TILE_OFFSET_MM, _millimeters("tile offset", *TILE_OFFSET_RANGE_MM, TILE_OFFSET_STEP_MM),
                               "how far under a tile's top the cup grips it, mm"),
     "reader": Setting(READER, _reader, "where the person reading the word stands, round the arm"),
 }

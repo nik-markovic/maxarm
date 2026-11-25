@@ -2,8 +2,8 @@
 
 - `overlap()`: how much of a blob a drawn cube's silhouette covers.
 - `distance_to_outline()`: each pixel's distance to a blob's outline, for fitting a silhouette onto it.
-- `crop()` and `search()`: along each edge the cube shows, the strongest colour edge in the frame across it.
-  An outline counts only where the cube's colour is on its inner side: a shadow's edge, or the desk's grain,
+- `crop()` and `search()`: along each edge the cube shows, the strongest color edge in the frame across it.
+  An outline counts only where the cube's color is on its inner side: a shadow's edge, or the desk's grain,
   has the desk on both sides.
 """
 
@@ -43,11 +43,11 @@ def distance_to_outline(blob: Blob) -> Tuple[np.ndarray, np.ndarray]:
 
 @dataclass
 class Crop:
-    """What the edge search reads round one cube: its colour gradients and its colourfulness."""
+    """What the edge search reads round one cube: its color gradients and its colorfulness."""
     corner: np.ndarray
     gradient_x: np.ndarray
     gradient_y: np.ndarray
-    colourful: np.ndarray
+    colorful: np.ndarray
     size: float
 
 
@@ -57,7 +57,7 @@ def crop(frame: np.ndarray, blob: Blob, desk: np.ndarray) -> Crop:
     x0, y0 = max(0, x - margin), max(0, y - margin)
     x1, y1 = min(frame.shape[1], x + w + margin), min(frame.shape[0], y + h + margin)
     lab = cv2.cvtColor(cv2.GaussianBlur(frame[y0:y1, x0:x1], (0, 0), 1.2), cv2.COLOR_BGR2LAB).astype(np.float32)
-    weights = np.array([1.0, 2.0, 2.0], np.float32)       # colour, not just shade, sets a cube off
+    weights = np.array([1.0, 2.0, 2.0], np.float32)       # color, not just shade, sets a cube off
     gradient_x = np.stack([cv2.Sobel(lab[..., c], cv2.CV_32F, 1, 0, ksize=3) for c in range(3)], -1) * weights
     gradient_y = np.stack([cv2.Sobel(lab[..., c], cv2.CV_32F, 0, 1, ksize=3) for c in range(3)], -1) * weights
     chroma = cubes.chroma_from_desk(frame[y0:y1, x0:x1], desk)
@@ -66,7 +66,7 @@ def crop(frame: np.ndarray, blob: Blob, desk: np.ndarray) -> Crop:
 
 def search(crop: Crop, corners: np.ndarray, edges: List[Edge],
            reach_share: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Along each edge, the strongest colour edge within reach across it: (starts, ends, points found)."""
+    """Along each edge, the strongest color edge within reach across it: (starts, ends, points found)."""
     reach = max(3.0, reach_share * crop.size)
     offsets = np.arange(-reach, reach + 0.01, 0.5)
     middle = corners[:8].mean(axis=0)
@@ -103,8 +103,8 @@ def search(crop: Crop, corners: np.ndarray, edges: List[Edge],
     found = bases + ((offsets[best] + shift * 0.5)[:, None]) * normals
     keep = inner & (peak > 0.35 * np.median(peak))
     side = max(2.0, 0.02 * crop.size)
-    inside = sample(crop.colourful, found - side * normals - crop.corner)
-    outside = sample(crop.colourful, found + side * normals - crop.corner)
+    inside = sample(crop.colorful, found - side * normals - crop.corner)
+    outside = sample(crop.colorful, found + side * normals - crop.corner)
     keep &= ~np.array(outline) | (inside > outside)
     return np.array(starts)[keep], np.array(ends)[keep], found[keep]
 

@@ -16,7 +16,7 @@ import numpy as np
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 MODEL = Path(__file__).resolve().parents[3] / "files" / "letters.tflite"
 SIZE = 64                   # the reader's input, pixels square
-WINDOW_MM = 27.0            # what it sees: the 25 mm face and a millimetre round it
+WINDOW_MM = 27.0            # what it sees: the 25 mm face and a millimeter round it
 
 # Capitals that read as themselves turned, by quarter turns: an N upside down is an N. An M upside down reads as a
 # W, and the reader is taught so (`training/letters/render.py`): only the dot at the bottom right tells them apart.
@@ -31,20 +31,20 @@ class Reader:
         self.output = self.interpreter.get_output_details()[0]
 
     def probabilities(self, face: np.ndarray) -> np.ndarray:
-        """For one grey face, SIZE square: each capital's probability, that turn upright, then "not upright"."""
-        self.interpreter.set_tensor(self.input["index"], normalise(face)[None, :, :, None])
+        """For one gray face, SIZE square: each capital's probability, that turn upright, then "not upright"."""
+        self.interpreter.set_tensor(self.input["index"], normalize(face)[None, :, :, None])
         self.interpreter.invoke()
         raw = self.interpreter.get_tensor(self.output["index"])[0].astype(np.float32)
         scale, zero = self.output["quantization"]
         return (raw - zero) * scale if scale else raw
 
 
-def normalise(grey: np.ndarray) -> np.ndarray:
+def normalize(gray: np.ndarray) -> np.ndarray:
     """Face near white, ink near black, whatever the exposure: the same in training."""
-    grey = grey.astype(np.float32)
-    middle = grey[SIZE // 4:3 * SIZE // 4, SIZE // 4:3 * SIZE // 4]
+    gray = gray.astype(np.float32)
+    middle = gray[SIZE // 4:3 * SIZE // 4, SIZE // 4:3 * SIZE // 4]
     low, high = np.percentile(middle, 1), np.percentile(middle, 90)
-    return np.clip((grey - low) / max(high - low, 1.0) * 255, 0, 255).astype(np.uint8)
+    return np.clip((gray - low) / max(high - low, 1.0) * 255, 0, 255).astype(np.uint8)
 
 
 def _interpreter(model: Path):

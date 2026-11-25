@@ -30,7 +30,7 @@ from .geometry import Position
 from .spaces import Affine
 from .tunable import tunable
 
-# How far from the base axis a move may end: the owner's limits.
+# How far from the base axis a move may end.
 REACH_MAX_MM = 270.0
 REACH_MIN_MM = 95.0
 
@@ -43,11 +43,11 @@ BASE_LIMIT_HEIGHT_MM = tunable("BASE_LIMIT_HEIGHT_MM", 200.0)
 BASE_CORNER_MARGIN_MM = 10.0
 CORNER_LOWER_STEP_MM = 5.0
 
-# Added above the clearance wherever something travels sideways: the owner's spec.
+# Added above the clearance wherever something travels sideways.
 CLEARANCE_MARGIN_MM = 5.0
 # Corrections allowed to find the desk point over a base corner.
 CORNER_SOLVE_STEPS = 20
-# A sideways shift smaller than this is not travelling across the desk: it is
+# A sideways shift smaller than this is not traveling across the desk: it is
 # below the arm's own accuracy.
 CROSSING_MM = 2.0
 # The lowest desk height a move may ask for. A little under the surface is the
@@ -98,7 +98,7 @@ class Planner:
              crossing_height: Optional[float]) -> List[Position]:
         """The waypoints from `start` to `target`, `target` last. Raises `Refused`.
 
-        `crossing_height` is how high anything travelling sideways must be, or
+        `crossing_height` is how high anything traveling sideways must be, or
         None when there is no clearance to keep.
         """
         problem = (self.problem_on_the_way(target) if _is_climbing_or_staying(start, target)

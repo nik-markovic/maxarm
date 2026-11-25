@@ -10,7 +10,7 @@
 | `POST /api/suction` | on      | the pump on or off, waited out; on, whether the cup sealed |
 | `POST /api/reset`   |         | stop everything, let go, lift clear and go home            |
 | `GET /api/limits`   |         | reach, the base, the heights: for drawing and the sliders  |
-| `GET /api/state`    |         | connection, what is running, where the arm was sent and is |
+| `GET /api/state`    |         | connection, what is running, where the arm was sent and is, its height over the desk |
 
 Positions are true, both ways. A page that shows the firmware's raw ones converts
 with `true_z` and `true_xy` from the limits, the library's own constants
@@ -35,6 +35,7 @@ CROSS_SAFE_MM = 90.0
 
 def register(server: Server, worker: Worker) -> None:
     server.add_state(worker.state)
+    server.add_state(lambda: {"desk_height": desk_height(worker)})
     server.add_limits(limits)
     server.post("/api/connect", lambda body: worker.connect())
     server.post("/api/reset", lambda body: worker.reset())
@@ -86,6 +87,12 @@ def limits() -> dict:
                     "bearing_rounds": raw.BEARING_ROUNDS,
                     "mesh": converter.page_mesh(), "converter": converter.describe()},
     }
+
+
+def desk_height(worker: Worker):
+    """How high over the desk the arm was sent, mm: the saved `desk.json`'s, or the default desk's."""
+    motion = worker.motion
+    return motion.position(Space.DESK)[2] if motion.spaces.is_desk_known else None
 
 
 def crossing(motion, target: Position) -> float:

@@ -1,11 +1,11 @@
 """A cube as one snapshot showed it, and where a camera puts it: its base on the desk, and how tall it looks.
 
     numbers = measure(matrix, point, start(matrix, point))   # matrix: a camera for the point's frame
-    numbers[:2], numbers[3]                                 # true x, y under the cube's centre; its top, mm
+    numbers[:2], numbers[3]                                 # true x, y under the cube's center; its top, mm
     place(matrix, point, start(matrix, point)[:3])          # x, y and turn of the cube as a 40 mm one
 
 A sighting keeps the edges found round the cube in its snapshot: points of the
-frame where its colour changes, each on the line of one of the cube's edges.
+frame where its color changes, each on the line of one of the cube's edges.
 They are the frame's, so they hold for any camera. Through a given camera the
 cube is moved, turned, and made taller or shorter, its base on the desk, until
 its edges lie along them, as `locate.py` fits a cube. Through a right camera a
@@ -15,7 +15,7 @@ snapshot. Where it stands is measured with the cube 40 mm tall, as it is
 (`place()`): as CALIBRATE and FIND RED CUBE have it.
 
 A sighting from before the edges were kept has only the pixel under the cube's
-centre, as the camera of its day saw it: where the cube stands, not how tall.
+center, as the camera of its day saw it: where the cube stands, not how tall.
 """
 
 import math
@@ -39,9 +39,9 @@ ITERATIONS = 30
 
 @dataclass(frozen=True)
 class Sighting:
-    x: float                          # desk mm: where the arm says the cup is, over the cube's centre
+    x: float                          # desk mm: where the arm says the cup is, over the cube's center
     y: float
-    pixel: Tuple[float, float]        # where the camera of its day saw the desk under the cube's centre
+    pixel: Tuple[float, float]        # where the camera of its day saw the desk under the cube's center
     frame_size: Tuple[int, int]       # the snapshot's: the calibration's, or the same picture smaller
     turn_deg: Optional[float] = None  # the cube's turn, true mm, as its edges' corners are numbered
     edges: Optional[Edges] = None     # None for a sighting from before the edges were kept

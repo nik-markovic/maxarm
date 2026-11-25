@@ -25,11 +25,11 @@ its edges put it) and the firmware's position over it, made true by the formula
   to about 1 mm laid on its nuts, 4 mm on its whole shape (`FoundBase.sure_mm`); and
   the base's turn, to about BASE_TURN_DEG. The camera, trusted most: it sets the axis.
 - *The points' bearings*: each says which way the arm pointed at a place the camera
-  saw, to within SEEN_MM across (the cube by its edges, centred under the cup) and
-  one base servo pulse; far out, the owner's ~1.5 mm the arm can be off as well
+  saw, to within SEEN_MM across (the cube by its edges, centered under the cup) and
+  one base servo pulse; far out, the ~1.5 mm the arm can be off as well
   (FAR_MM); so the middle of the reach counts most. Together they set the turn, and
   where the lines they draw meet says where they put the axis.
-- *The points' reaches*: not trusted -- the camera and the owner's stacks disagree
+- *The points' reaches*: not trusted -- the camera and hand measurements disagree
   by 2-4 mm -- so they set nothing while the base is found; only without the base
   do they, with the bearings, place the axis.
 
@@ -45,7 +45,7 @@ fading out beyond the points.
 **What does not fit.** Each point is judged without it, by its reach: how much
 further out the camera saw its cube than the formula put the cup, against what the
 correction of the other points says there. The arm's reach is off by much the same all
-over the desk (+1 to +3 mm, 13 and 16 Nov), its turn is not (the sides up to ~1.5
+over the desk (+1 to +3 mm), its turn is not (the sides up to ~1.5
 deg apart), so the reach is what shows a recording gone wrong -- the cube moved
 after RECORD, or the cup off it. The worst, if further than DOES_NOT_FIT_MM, is
 named, left out of the mesh, and the others judged again without it, until the rest
@@ -70,16 +70,16 @@ from applib.camera.model import least_squares
 from applib.camera.sighting import Sighting, in_frame, on_desk, place, start
 
 # How far each thing is trusted, mm or degrees (see above).
-BASE_TURN_DEG = 0.5             # the base's turn by its edges (two frames, one camera: 0.3 deg apart, 13 Nov)
-SEEN_MM = 0.4                   # a cube's centre by its edges (~0.3), the cube centred under the cup (0.25, the owner)
-PULSE_DEG = 0.24                # one base servo pulse: the servos stop 1-2 short (MAXARM_MECHANICS)
-FAR_MM, MIDDLE_MM, FULL_MM = 1.5, 200.0, 265.0   # the arm off by up to FAR_MM at FULL_MM, from MIDDLE_MM out (owner)
-REACH_SPREAD_MM = 0.75          # the reach landing to landing (STATUS-jackal 19), used only without the base
+BASE_TURN_DEG = 0.5             # the base's turn by its edges (two frames, one camera: 0.3 deg apart)
+SEEN_MM = 0.4                   # a cube's center by its edges (~0.3), the cube centered under the cup (0.25)
+PULSE_DEG = 0.24                # one base servo pulse: the servos stop 1-2 short
+FAR_MM, MIDDLE_MM, FULL_MM = 1.5, 200.0, 265.0   # the arm off by up to FAR_MM at FULL_MM, from MIDDLE_MM out
+REACH_SPREAD_MM = 0.75          # the reach landing to landing, used only without the base
 HUBER = 2.0                     # a misfit beyond this many of its spreads counts less
 # The points' own axis is reported only with bearings this far apart: closer, their lines meet anywhere.
 AXIS_SPREAD_DEG = 30.0
-# A point whose reach is further than this from what its neighbours' mesh says is a recording gone wrong (STATUS-jackal
-# 21: good points within 3.6 mm, 13 and 16 Nov; a blue cube recorded wrong 12.7).
+# A point whose reach is further than this from what its neighbors' mesh says is a recording gone wrong (good
+# points came within 3.6 mm; a cube recorded wrong, 12.7).
 DOES_NOT_FIT_MM = 5.0
 STEPS = np.array([0.01, 0.01, 1e-5])
 
@@ -88,7 +88,7 @@ STEPS = np.array([0.01, 0.01, 1e-5])
 class TiePoint:
     id: int
     raw: Tuple[float, float, float]     # the firmware's position over the cube
-    seen: Tuple[float, float]           # the cube's centre on the desk as the camera sees it, the cubes' desk mm
+    seen: Tuple[float, float]           # the cube's center on the desk as the camera sees it, the cubes' desk mm
 
     @property
     def reading(self) -> np.ndarray:
@@ -103,7 +103,7 @@ class Tie:
     base: Optional[FoundBase]
     rows: List[Row]                     # the mesh's: the points that fit
     report: dict = field(default_factory=dict)
-    misfits: Dict[int, float] = field(default_factory=dict)        # point id: mm from where its neighbours put it
+    misfits: Dict[int, float] = field(default_factory=dict)        # point id: mm from where its neighbors put it
     left: Dict[int, Optional[np.ndarray]] = field(default_factory=dict)   # point id: its reading without it, true
 
     @property
@@ -137,7 +137,7 @@ def tie_points(alone: CameraFit, points) -> List[TiePoint]:
 
 
 def seen_desk(alone: CameraFit, sighting: Sighting) -> np.ndarray:
-    """The cube's centre on the desk as the camera sees it, the cubes' desk mm."""
+    """The cube's center on the desk as the camera sees it, the cubes' desk mm."""
     matrix = in_frame(alone.true_to_pixel, alone.frame_size, sighting)
     true = on_desk(matrix, sighting) if sighting.edges is None else place(matrix, sighting,
                                                                            start(matrix, sighting)[:3])[:2]
@@ -281,7 +281,7 @@ def _miss(tie: Tie, point: TiePoint, others: List[Row]) -> float:
 # --- the report --------------------------------------------------------------
 
 def _report(tie: Tie, found: Optional[FoundBase], points: Sequence[TiePoint]) -> dict:
-    """How each thing trusted fits the rest: the base against the points, each point against its neighbours, the
+    """How each thing trusted fits the rest: the base against the points, each point against its neighbors, the
     points that do not fit, and which fits worst."""
     report = {"points": len(points), "axis": [round(value, 2) for value in tie.axis],
               "turn_deg": round(tie.turn_deg, 3)}

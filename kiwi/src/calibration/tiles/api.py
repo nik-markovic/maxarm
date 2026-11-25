@@ -9,7 +9,7 @@ lays over the picture: the stream's overlay, the same code.
 | ----------------------------- | ------------- | --------------------------------------------------------------- |
 | `POST /api/tiles/locate`      |               | park the arm, take the snapshot, find the tiles -- as thick as  |
 |                               |               | the settings say -- read and place                              |
-| `POST /api/tiles/visit`       | n             | the cup over tile n's centre, down to 4 mm over its top face    |
+| `POST /api/tiles/visit`       | n             | the cup over tile n's center, down to 4 mm over its top face    |
 | `POST /api/tiles/place`       | letters,      | the tiles that spell them carried to the dropoff arc, in order, |
 |                               | offset        | each gripped `offset` mm under its top, now kept                |
 | `POST /api/settings`          | name: value   | the app's settings, `config/appcfg.json`: `tile_height_mm`,     |
@@ -17,8 +17,8 @@ lays over the picture: the stream's overlay, the same code.
 | `GET /api/tiles/scene.png`    | w, s, areas   | the tiles drawn for a picture `w` px wide at pixel ratio `s`;   |
 |                               |               | the work areas unless `areas` is 0                              |
 
-A visit tries the tile's centre: the cup comes down over it, and the person at the
-arm sees whether it is centred on the tile. A tile the arm cannot reach is refused,
+A visit tries the tile's center: the cup comes down over it, and the person at the
+arm sees whether it is centered on the tile. A tile the arm cannot reach is refused,
 nothing moved. Until LOCATE TILES, the tiles a word moved cannot be visited.
 """
 
@@ -97,7 +97,7 @@ class TilesSession:
         if not result:
             return result
         return MoveResult(result.status, result.position,
-                          f"the cup is {VISIT_ABOVE_MM:.0f} mm over the tile's centre, as the camera has it")
+                          f"the cup is {VISIT_ABOVE_MM:.0f} mm over the tile's center, as the camera has it")
 
     def place(self, body: dict) -> dict:
         try:
@@ -133,7 +133,7 @@ class TilesSession:
             return None
         scene = self.work.scene()
         layer = picture_layer(fit, width, max(0.25, min(scale, 8.0)),
-                              lambda canvas, view: draw_tiles(canvas, view, scene, query.get("areas") != "0"))
+                              lambda canvas, view: draw_tiles(canvas, view, scene))
         return layer.png(), "image/png"
 
     # --- for the page -----------------------------------------------------

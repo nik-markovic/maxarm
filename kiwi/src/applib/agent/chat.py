@@ -8,10 +8,9 @@ for it, for the page to show on request (`trace()`).
     chat.recap()            # 'Earlier: 2 minutes ago, for "go", you set down THEOREM. Set down before it: CAT.'
 
 The model is given no history: its window is 4096 tokens, prompt and answer together, and the tools' descriptions
-take a share of every prompt (STATUS-kiwi §5). What it is told instead is the property-alarm demo's event log
-(`applib/eventlog.py` there): what happened, in a few words, with how long ago -- the last request, the word it
-chose and what became of it, and the words set down before. Enough for "explain it", "place it after all" or
-"another one", which need the last word, and for not repeating one; a few dozen tokens.
+take a share of every prompt. What it is told instead is a short log of what happened, with how long ago -- the
+last request, the word it chose and what became of it, and the words set down before. Enough for "explain it",
+"place it after all" or "another one", which need the last word, and for not repeating one; a few dozen tokens.
 
 A booth has one visitor after another: after VISIT_QUIET_S without a request, or `forget()`, the recap starts
 again. The pages' messages stay until `forget()`, the newest MAX_MESSAGES. RAM only: after a restart nothing here
@@ -127,7 +126,7 @@ class Chat:
 
     def recap(self) -> str:
         """The last word of the turns before the one being answered; "" for a new visitor. Named as the system prompt
-        names it, spelled out for "explain". The words before it are not named: STATUS-kiwi §6."""
+        names it, spelled out for "explain". The words before it are not named."""
         now = time.monotonic()
         with self._lock:
             earlier = [turn for turn in self._turns[:-1] if now - turn.at <= VISIT_QUIET_S]

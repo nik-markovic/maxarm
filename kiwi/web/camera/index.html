@@ -16,25 +16,24 @@
 
   <section class="card view">
     <div class="card-head">
-      <h2>Desk space, from above</h2>
+      <h2>The desk, from above</h2>
       <div class="tools">
         <span class="hint">grid, mm</span>
         <div class="seg" id="steps"></div>
         <button class="btn rotate" id="rotate" title="Turn the view a quarter turn, to match how the arm stands">
           ⟳ Rotate view</button>
-        <span class="hint" id="facing"></span>
       </div>
     </div>
     <div class="view-body">
-      <canvas id="grid" title="Click to send the arm over that grid point, high enough to slide a cube under"></canvas>
+      <canvas id="grid" title="Click to bring the cup over that point, just over a cube's height"></canvas>
       <div class="zcol">
         <span class="zlabel">HEIGHT <em>desk</em></span>
         <output class="num" id="z-out" title="The height over the desk the arm is sent to"></output>
         <button class="btn higher" id="z-higher"
-          title="Let the slider go 20 mm higher, as often as wanted. Only the arm's limits stop it">▲ 20 mm</button>
-        <button class="btn safe" id="z-safe" title="Up to a height well clear of the cubes"></button>
+          title="Let the slider go 20 mm higher">▲ 20 mm</button>
+        <button class="btn safe" id="z-safe" title="Up, well clear of the cubes"></button>
         <button class="btn notch" id="z-notch"
-          title="Down to 2 mm over a cube's top: centre the cube under the cup here"></button>
+          title="Down to just over a cube's top: center the cube under the cup here"></button>
         <button class="btn zstep" id="z-up" title="1 mm up">Z+</button>
         <div class="zbar">
           <input type="range" class="vertical" id="z-slider" step="1">
@@ -45,19 +44,19 @@
         </div>
         <button class="btn zstep" id="z-down" title="1 mm down">Z−</button>
         <button class="btn lower" id="z-lower"
-          title="Let the slider go 2 mm lower, as often as wanted. Below the desk the cup presses into it"
+          title="Let the slider go 2 mm lower: below 0 the cup presses into the desk"
           >▼ 2 mm</button>
       </div>
     </div>
     <div class="legend">
-      <span><i class="swatch reach"></i>reach: 270 mm, ±120°</span>
-      <span><i class="swatch reach-min"></i>nearest target: 95 mm</span>
-      <span><i class="swatch base"></i>arm-base limit</span>
+      <span><i class="swatch reach"></i>furthest reach</span>
+      <span><i class="swatch reach-min"></i>nearest reach</span>
+      <span><i class="swatch base"></i>the arm's base</span>
       <span><i class="swatch target"></i>target</span>
       <span><i class="swatch says"></i>arm says</span>
       <span><i class="swatch suggested"></i>suggested place for a cube</span>
       <span><i class="swatch cube"></i>recorded cube</span>
-      <span><i class="swatch caution"></i>height: on the desk, into it</span>
+      <span><i class="swatch caution"></i>height: on the desk</span>
     </div>
   </section>
 
@@ -67,7 +66,6 @@
       <div class="tools">
         <span id="progress"></span>
         <button class="btn small" id="copy" title="Copy the target and what the arm says as one line">COPY</button>
-        <button class="btn guide" id="guide" title="How to place the camera and the cubes">? GUIDE</button>
       </div>
     </div>
 
@@ -79,12 +77,11 @@
       <span class="num says" id="says-x"></span><span class="num says" id="says-y"></span>
       <span class="num says" id="says-z"></span>
     </div>
-    <p class="hint space">Desk space, mm: z is the height over the desk. A cube's top is at 40.</p>
+    <p class="hint space">Millimeters; Z is the height over the desk.</p>
 
     <div class="cube-rows" id="cube-rows"></div>
 
-    <p class="hint">Click the grid to bring the arm over a place, set the cube down under the cup, bring the cup
-      down to the notch and centre the cube under it. RECORD keeps where the arm says it is.</p>
+    <p class="hint">Click the grid near a suggested place, slide the cube in under the cup, center it, RECORD.</p>
   </section>
 
   <section class="card shots">

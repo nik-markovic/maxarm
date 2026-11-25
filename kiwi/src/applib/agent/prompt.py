@@ -4,14 +4,13 @@
 
 The system prompt is the same for every request; the message carries what changes -- the letters, a line of what
 happened before (`chat.py`), the request. Both are read again on every model call of a request, and what the model
-writes costs far more than what it reads (STATUS-kiwi §6). Hence what it is asked to write: what the request wants --
+writes costs far more than what it reads. Hence what it is asked to write: what the request wants --
 the longest, a clue or the user's own word -- never the words themselves, which code finds (`finder.py`).
 
 The wording is tried, not chosen: whether the model makes a tool call or writes it out as text turns on it, down to
-the last sentence, and an example it is shown it copies, labels and all (STATUS-kiwi §6, §8). Without a choice to
+the last sentence, and an example it is shown it copies, labels and all. Without a choice to
 make, `want`, it answered "go" by explaining GO; and the explanation says the word "letter by letter", not "spell",
-which "spell AvnetDemo" was taken for (PILOT-kiwi, LLM Issues). `agenttools/agent-raw.py --system FILE` tries another
-wording on the board.
+which "spell AvnetDemo" was taken for.
 
 The model is Qwen2.5-7B-Instruct: it cannot see the letters in a word -- its tokens are pieces of words -- nor
 count them, so the letters are written a space apart, and every count is code's (`words.py`).

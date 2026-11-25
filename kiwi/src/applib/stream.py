@@ -47,7 +47,7 @@ MAX_MACROBLOCKS = 3600
 KEYFRAME_S = 2
 BITRATE_BPS = 1_500_000
 # x264's frames held to this much of the bitrate, by its VBV buffer: unheld, a keyframe takes over a second on the
-# wire, in more RTP packets than aiortc's own receiver holds for a frame (STATUS-jackal §9).
+# wire, in more RTP packets than aiortc's own receiver holds for a frame.
 FRAME_MOST_S = 0.4
 HARDWARE_ENCODER = "v4l2h264enc"
 # The hardware encoder's controls: profile 4 is Constrained Baseline.
@@ -56,7 +56,7 @@ HARDWARE_CONTROLS = "controls,h264_profile=4,video_bitrate={bitrate},h264_i_fram
 
 def stream_size(frame_size: Tuple[int, int]) -> Tuple[int, int]:
     """The camera's picture as large as fits in `MAX_MACROBLOCKS`: its shape kept, the width a multiple of 16, the
-    height of 8, which the i.MX95's encoder needs (STATUS-kiwi §10)."""
+    height of 8, which the i.MX95's encoder needs."""
     width, height = frame_size
     for columns in range(min(width, 4096) // 16, 0, -1):
         size = (16 * columns, 8 * round(2 * columns * height / width))

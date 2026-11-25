@@ -1,8 +1,8 @@
 """The camera the calibration fits, the cubes it is fitted to, and the least-squares solver.
 
 The camera is a pinhole with square pixels: a focal length and a principal point
-in pixels, and where it stands and which way it looks, in true millimetres with z
-up from the desk. Lens distortion is not modelled: the library's camera is one
+in pixels, and where it stands and which way it looks, in true millimeters with z
+up from the desk. Lens distortion is not modeled: the library's camera is one
 3x4 matrix.
 
 A cube is 40 mm, stands on the desk, and is turned about its vertical axis by
@@ -36,7 +36,7 @@ _FACES = (
 # All 12 edges: round the bottom, round the top, and the four uprights.
 _ALL_EDGES = tuple((k, (k + 1) % 4) for k in range(4)) + tuple((4 + k, 4 + (k + 1) % 4) for k in range(4)) \
     + tuple((k, k + 4) for k in range(4))
-# The bottom's diagonals: they cross under the cube's centre, where the arm records it.
+# The bottom's diagonals: they cross under the cube's center, where the arm records it.
 BASE_DIAGONALS = ((0, 2), (1, 3))
 
 
@@ -47,18 +47,18 @@ class Edge:
     is_outline: bool        # on the silhouette: the cube on one side, whatever is behind it on the other
 
 
-def cube_corners(centre: Sequence[float], turn: float, height: float = CUBE_MM) -> np.ndarray:
-    """The 8 corners, true mm: the cube standing on the desk at `centre`, turned `turn` radians; its top at
+def cube_corners(center: Sequence[float], turn: float, height: float = CUBE_MM) -> np.ndarray:
+    """The 8 corners, true mm: the cube standing on the desk at `center`, turned `turn` radians; its top at
     `height`, to measure how tall a cube looks."""
     c, s = math.cos(turn), math.sin(turn)
-    corners = [(centre[0] + CUBE_MM * (c * dx - s * dy), centre[1] + CUBE_MM * (s * dx + c * dy), z)
+    corners = [(center[0] + CUBE_MM * (c * dx - s * dy), center[1] + CUBE_MM * (s * dx + c * dy), z)
                for z in (0.0, height) for dx, dy in _SQUARE]
     return np.array(corners)
 
 
-def visible_edges(centre: Sequence[float], turn: float, camera_xyz: np.ndarray) -> List[Edge]:
+def visible_edges(center: Sequence[float], turn: float, camera_xyz: np.ndarray) -> List[Edge]:
     """The edges of the faces the camera sees, each marked as on the outline or between two faces."""
-    corners = cube_corners(centre, turn)
+    corners = cube_corners(center, turn)
     c, s = math.cos(turn), math.sin(turn)
     seen = {}
     for indices, (nx, ny, nz) in _FACES:
@@ -89,7 +89,7 @@ def project(matrix: np.ndarray, points: np.ndarray) -> np.ndarray:
 
 
 def rescaled(matrix: np.ndarray, size: Tuple[int, int], new_size: Tuple[int, int]) -> np.ndarray:
-    """A 3x4 camera for the same picture at another size, as the camera scales it: pixel centres kept."""
+    """A 3x4 camera for the same picture at another size, as the camera scales it: pixel centers kept."""
     sx, sy = new_size[0] / size[0], new_size[1] / size[1]
     scale = np.array([[sx, 0.0, 0.5 * sx - 0.5], [0.0, sy, 0.5 * sy - 0.5], [0.0, 0.0, 1.0]])
     return scale @ matrix
@@ -98,14 +98,14 @@ def rescaled(matrix: np.ndarray, size: Tuple[int, int], new_size: Tuple[int, int
 @dataclass(frozen=True)
 class Pinhole:
     focal: float            # pixels
-    centre: Tuple[float, float]   # the principal point, pixels
+    center: Tuple[float, float]   # the principal point, pixels
     rotation: np.ndarray    # 3-vector, Rodrigues: true mm to the camera's axes
     shift: np.ndarray       # 3-vector, mm: the desk's origin in the camera's axes
 
     @property
     def matrix(self) -> np.ndarray:
         """3x4: true (x, y, z, 1) to homogeneous pixels."""
-        intrinsic = np.array([[self.focal, 0.0, self.centre[0]], [0.0, self.focal, self.centre[1]],
+        intrinsic = np.array([[self.focal, 0.0, self.center[0]], [0.0, self.focal, self.center[1]],
                               [0.0, 0.0, 1.0]])
         return intrinsic @ np.column_stack((self._rotation_matrix(), self.shift))
 
@@ -117,8 +117,8 @@ class Pinhole:
     def project(self, points: np.ndarray) -> np.ndarray:
         """True (x, y, z) rows to pixel rows."""
         seen = np.asarray(points, float) @ self._rotation_matrix().T + self.shift
-        return np.column_stack((self.focal * seen[:, 0] / seen[:, 2] + self.centre[0],
-                                self.focal * seen[:, 1] / seen[:, 2] + self.centre[1]))
+        return np.column_stack((self.focal * seen[:, 0] / seen[:, 2] + self.center[0],
+                                self.focal * seen[:, 1] / seen[:, 2] + self.center[1]))
 
     def _rotation_matrix(self) -> np.ndarray:
         return cv2.Rodrigues(np.asarray(self.rotation, float))[0]

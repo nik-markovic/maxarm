@@ -92,7 +92,7 @@ def main() -> int:
     model = build()
     model.compile(optimizer=tf.keras.optimizers.Adam(2e-3),
                   loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-    # The best epoch is exported, not the last: dolphin's reader once collapsed to "not upright" a step after its best.
+    # The best epoch is exported, not the last: a reader once collapsed to "not upright" a step after its best.
     model.fit(train_x[..., None], train_y, batch_size=256, epochs=EPOCHS,
               validation_data=(valid_x[..., None], valid_y), verbose=2,
               callbacks=[tf.keras.callbacks.ReduceLROnPlateau(patience=2, factor=0.3),

@@ -1,12 +1,19 @@
-// Shared by every calibration page: the API, the header with RESET, the state poll, the toasts, the dialogs.
+// Shared by every calibration page: the API, the header with HELP and RESET, the state poll, the toasts, the dialogs.
 
+import { showHelp } from './help.js';
+
+// Each page's help is help.md in its own directory.
 const PAGES = [
-  { id: 'desk', title: 'Desk', href: '/desk/' },
-  { id: 'camera', title: 'Camera', href: '/camera/' },
-  { id: 'tests', title: 'Fine Tune', href: '/tests/' },
-  { id: 'tiles', title: 'Tiles', href: '/tiles/' },
-  { id: 'chat', title: 'Chat', href: '/chat/' },
+  { id: 'desk', title: 'Desk', href: '/desk/', help: 'Getting to know the arm' },
+  { id: 'camera', title: 'Camera', href: '/camera/', help: 'Camera calibration' },
+  { id: 'tests', title: 'Fine Tune', href: '/tests/', help: 'Fine Tune' },
+  { id: 'tiles', title: 'Tiles', href: '/tiles/', help: 'Tiles' },
+  { id: 'chat', title: 'Chat', href: '/chat/', help: 'Chat' },
 ];
+const INTRO_HIDDEN = 'intro-hidden';
+const INTRO = `These pages set the demo up once, where it stands: <b>Camera</b>, then <b>Fine Tune</b>.
+  <b>Desk</b> is for getting to know the arm; <b>Tiles</b> and <b>Chat</b> try the result. Each page's
+  <b>? HELP</b> says how.`;
 const POLL_MS = 500;
 const TOAST_MS = 5000;
 
@@ -85,17 +92,32 @@ export function report(reply, what) {
 }
 
 export function mountHeader(active) {
-  const tabs = PAGES.map((page) => `<a href="${page.href}" data-page="${page.id}"
-    class="${page.id === active ? 'active' : ''} ${page.isSoon ? 'soon' : ''}">${page.title}</a>`).join('');
-  document.querySelector('header.top').innerHTML = `
-    <div class="brand">${LOGO}<div>MaxArm calibration<small>Avnet demo</small></div></div>
+  const page = PAGES.find((each) => each.id === active);
+  const tabs = PAGES.map((each) => `<a href="${each.href}" data-page="${each.id}"
+    class="${each.id === active ? 'active' : ''}">${each.title}</a>`).join('');
+  const header = document.querySelector('header.top');
+  header.innerHTML = `
+    <div class="brand">${LOGO}<div>MaxArm setup<small>Avnet demo</small></div></div>
+    <button class="btn help-page" id="help" title="What this page is for, and how to use it">? HELP</button>
     <nav class="tabs">${tabs}</nav>
     <div class="status">
       <span class="pill idle" id="doing"><span class="dot"></span><span>idle</span></span>
       <span class="pill connecting" id="connection"><span class="dot"></span><span>connecting</span></span>
       <button class="btn small" id="retry" hidden>Retry</button>
-      <button class="btn reset" id="reset" title="Stop everything, let go, lift clear and go home">RESET</button>
+      <button class="btn reset" id="reset" title="Stop the arm, let go, lift clear and go home">RESET</button>
     </div>`;
+  if (!localStorage.getItem(INTRO_HIDDEN)) {
+    const intro = document.createElement('div');
+    intro.className = 'intro';
+    intro.innerHTML = `<span>${INTRO}</span><button class="btn small" title="Hide this note on every page">
+      Don't show again</button>`;
+    intro.querySelector('button').addEventListener('click', () => {
+      localStorage.setItem(INTRO_HIDDEN, '1');
+      intro.remove();
+    });
+    header.after(intro);
+  }
+  $('help').onclick = () => showHelp(`${page.href}help.md`, page.help);
   $('reset').onclick = async () => report(await api('reset', {}), 'RESET');
   $('retry').onclick = async () => report(await api('connect', {}), 'Connecting');
   for (const link of document.querySelectorAll('nav.tabs a')) {
@@ -112,7 +134,7 @@ export function showHeader(state) {
     ready: 'arm ready', connecting: 'connecting…', failed: connection.detail || 'not connected',
   }[connection.status];
   $('retry').hidden = connection.status !== 'failed' || !state;
-  // A page that cannot be used yet, the camera not calibrated say, is greyed, and says why.
+  // A page that cannot be used yet, the camera not calibrated say, is grayed, and says why.
   for (const link of document.querySelectorAll('nav.tabs a')) {
     const why = state && state.unavailable ? state.unavailable[link.dataset.page] : null;
     link.classList.toggle('unavailable', Boolean(why));

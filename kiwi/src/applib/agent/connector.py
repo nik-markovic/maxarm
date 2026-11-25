@@ -17,8 +17,8 @@ its own process and venv on this board, port 3000. Optional, and minutes to load
 | `failed`        | the service failed, or a request did; looked at again shortly                           |
 
 Ready is not the port alone: once the port opens, one request carrying the agent's tools is put to the model --
-nothing run, its answer dropped -- property-alarm's probe, which here also has the connector build its tool-call
-guide for those tools, seconds the first request that carries them would otherwise wait (STATUS-kiwi §6).
+nothing run, its answer dropped. It also has the connector build its tool-call guide for those tools, seconds the
+first request that carries them would otherwise wait.
 
 **Another model, Amazon Bedrock say,** is another class with `ModelSource`'s members -- `model()` a strands
 `BedrockModel` -- built in place of this one by `main.py`. The service, its tools, the prompt
@@ -45,17 +45,17 @@ ARA_MODEL = "Qwen2.5-7B-Instruct"
 NAME = "Qwen2.5-7B-Instruct on the Ara240"
 SERVICE = "iotc-aaf-connector"              # connector/install-service.sh
 CONNECTOR_DIR = Path(__file__).resolve().parents[3] / "connector"
-LOAD_S = 345                                # the model's load, the connector started to its port open (STATUS-kiwi §5)
+LOAD_S = 345                                # the model's load, the connector started to its port open
 
 # Sampling, per request, over the model's own default, which is greedy. Connector 2.2 takes these three and none of its
-# other llm_params -- no seed, no max_tokens; the repetition penalty only through our patch (STATUS-kiwi §6). Low: the
+# other llm_params -- no seed, no max_tokens; the repetition penalty only through our patch. Low: the
 # same request finds much the same words, and set down already, another is taken (`service.py`). Never all three 0:
 # greedy, the tool calls break.
 TEMPERATURE = 0.3
 TOP_K = 20
 TOP_P = 0.8
-# None: with one, the model writes more of its tool calls out as text, and repeats its guesses all the same
-# (STATUS-kiwi §6). A repeated guess is checked once.
+# None: with one, the model writes more of its tool calls out as text, and repeats its guesses all the same.
+# A repeated guess is checked once.
 REPEAT_PENALTY = 1.0
 REQUEST_TIMEOUT_S = 120.0   # one model call, a long prompt and a long answer with room to spare
 
