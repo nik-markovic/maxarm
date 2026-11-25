@@ -31,11 +31,18 @@ The cubes will be used to calibrate the camera and the arm with the
 Follow this screenshot of the calibration app to learn the steps for each cube.
 ![calibration-steps.png](media/calibration-steps.png)
 
-USe the page's *? HELP* button to learn more.
+Use the page's *? HELP* button to learn more.
+
+The camera needs to be raised above the desk and give a perspective vew
+that is not obscured by the arm when the arm is in RESET position.
+Generally, the camera should not be behind the arm, and most other positions will work
+even if camera itself is titled (like in our screenshots).
 
 This screenshot shows one of the possible camera placement scenarios and
 key points to take while placing the cubes and the camera.
 ![calibration-camera-view.png](media/calibration-camera-view.png)
+
+
 
 Use the **Camera** page to calibrate the camera and the arm and save the calibration.
 
