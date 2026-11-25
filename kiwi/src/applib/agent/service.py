@@ -51,7 +51,7 @@ from .dictionary import Dictionary
 from .finder import GIVEN, WordFinder
 from .repair import written_call
 from .watch import Watch
-from .words import (is_another, is_placing_refused, is_word_given, meaningful_clue, spaced, take_letters,
+from .words import (RELATION, is_another, is_placing_refused, is_word_given, meaningful_clue, spaced, take_letters,
                     wanted_length)
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ class AgentService:
     def _find(self, request: _Request, want: str, clue: str, word: str) -> Tuple[str, dict]:
         """The word the request wants (`finder.py`), and set down unless the request says not to or the arm is busy.
         What the model fills in decides, `want` only between a word and a clue both given; the length, and whether
-        to set the word down, are read from the request in code (STATUS-kiwi §6, §8)."""
+        to set the word down, are read from the request in code (STATUS-kiwi §6, §9)."""
         tiles, why_none = self._letters_now()
         if tiles is None:
             return why_none, {}
@@ -284,6 +284,9 @@ class AgentService:
         if word and not is_word_given(request.text):
             word, clue = "", clue or word               # "a fruit": a clue, not the word FRUIT
         clue = meaningful_clue(clue)
+        relation = RELATION.search(request.text)
+        if clue and relation and not RELATION.search(clue):
+            clue = f"{relation.group(0).lower()} {clue}"   # "noun for avenge", passed on as "avenge" (STATUS-kiwi §13)
         given = word if word and (want != "clue" or not clue) else ""
         place = not is_placing_refused(request.text)
         length = wanted_length(request.text)
@@ -291,12 +294,15 @@ class AgentService:
             length = wanted_length(self.chat.previous_request())
         found = self.finder.find(tiles, "" if given else clue, given, length, self.chat.words_used(),
                                  check=None if self._placing else self.desk.check)
+        if found.ideas:
+            request.trace.append({"kind": "ideas", "text": found.ideas, "seconds": found.ideas_seconds})
         if found.asked:
             request.trace.append({"kind": "pick", "text": found.asked, "seconds": found.seconds})
         spelled = [found.word] + (found.shown if found.kind != GIVEN else [])      # a given word may not fit
         request.fitting += [each for each in dict.fromkeys(spelled) if each and each not in request.fitting]
-        data = {"kind": found.kind, "clue": clue, "words": found.shown, "word": found.word, "said": found.said,
-                "missing": found.missing, "problem": found.problem, "place": place}
+        data = {"kind": found.kind, "clue": found.clue or clue, "words": found.shown, "word": found.word,
+                "said": found.said, "is_agreed": found.is_agreed, "missing": found.missing, "problem": found.problem,
+                "place": place}
         if not found.word and "in the way" in found.problem:     # PLACE's plan: tiles where the word would go
             # Said so: told "not clear", the model called STEAMED too long, an N left in the dropoff area (STATUS §9).
             data["dropoff"] = (self.desk.seen() or {}).get("dropoff", "")

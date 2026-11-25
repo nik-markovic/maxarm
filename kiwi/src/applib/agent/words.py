@@ -5,6 +5,9 @@
     take_letters("AEEHMORST", "HORSE")              # 'AEMT': the tiles left
     wanted_length("a 7-letter word")                # 7
     meaningful_clue("a 7-letter word")              # '': no clue, a length
+    without_relation("synonym for labyrinth")       # 'labyrinth': what the search by meaning is asked
+    content_words("a small swamp animal")           # ['small', 'swamp', 'animal']: what WordNet is asked
+    joined_words("a large body of water")           # ['large_body', 'body_of_water']: and as WordNet names more words
     is_placing_refused("a word, don't place it")    # True
 
 Which words there are is the dictionary's (`dictionary.py`).
@@ -88,6 +91,36 @@ def meaningful_clue(clue: str) -> str:
     without = re.sub(r"\b(\d{1,2}|" + "|".join(NUMBER_WORDS) + r")[\s-]*letters?\b", " ", clue.lower())
     is_meant = any(word not in NOT_MEANING for word in re.findall(r"[a-z]+", without))
     return " ".join(without.split()) if is_meant else ""
+
+
+# What a clue says of the word beside its meaning. The search by meaning leaves it out -- "synonym" and "noun" are
+# near MEAN, NAME, DENOTE, and a list of those is no help -- and the model, choosing, reads it (STATUS-kiwi §13).
+RELATION = re.compile(r"\b(?:(?:a|an|the|another|other)\s+)?(?:synonyms?|antonyms?|nouns?|verbs?|adjectives?|adverbs?"
+                      r"|words?|terms?)\s+(?:for|of|meaning|that\s+means|which\s+means)\b|\b(?:the\s+)?opposite\s+of\b"
+                      r"|\bsimilar\s+(?:to|for)\b", re.IGNORECASE)
+# Words of a clue that WordNet is not asked about: they say nothing of what the word means.
+NOT_ASKED = NOT_MEANING | {"something", "someone", "you", "to", "on", "for", "how", "that", "is", "it", "in", "at",
+                           "and", "or", "what", "which", "who", "kind", "type", "sort", "thing", "this", "by", "as"}
+
+
+def without_relation(clue: str) -> str:
+    """`clue` without what it says of the word's relation or form: 'synonym for labyrinth' is 'labyrinth'."""
+    return " ".join(RELATION.sub(" ", clue).split())
+
+
+def content_words(clue: str) -> list[str]:
+    """The words of `clue` that say what the word means, lower case: 'a small swamp animal' -> small, swamp,
+    animal; 'opposite of old' -> old."""
+    return [word for word in re.findall(r"[a-z]+", without_relation(clue).lower()) if word not in NOT_ASKED]
+
+
+def joined_words(clue: str) -> list[str]:
+    """Two or three words of `clue` in a row, joined as WordNet names what more words name -- 'a body part' ->
+    body_part, 'a large body of water' -> large_body, body_of_water -- none beginning or ending with a word that says
+    nothing of the meaning."""
+    words = re.findall(r"[a-z]+", without_relation(clue).lower())
+    return ["_".join(words[start:start + size]) for size in (2, 3) for start in range(len(words) - size + 1)
+            if words[start] not in NOT_ASKED and words[start + size - 1] not in NOT_ASKED]
 
 
 def spaced(letters: str) -> str:

@@ -29,8 +29,8 @@ const MODEL_PILLS = { ready: 'ready', loading: 'connecting', waiting: 'connectin
 const TOOL_ICONS = { find_word: '⌕', detect_tiles: '◎' };
 const STEP_WORDS = { carrying: 'carrying', placed: 'set down', waiting: 'next' };
 const TRACE_HEADS = { system: 'the system prompt', request: 'the message', model: 'the model',
-  tool: 'what the tool gave back', pick: 'asked of the model alone: which word fits the clue',
-  look: 'looked at the tiles first' };
+  tool: 'what the tool gave back', ideas: 'asked of the model alone: its own words for the clue',
+  pick: 'asked of the model alone: which word fits the clue', look: 'looked at the tiles first' };
 
 mountHeader('chat');
 let state = null;
@@ -190,9 +190,10 @@ function renderMessages() {
   }
   if (!parts.length) {
     parts.push('<div class="empty">Ask for a word. The model reads what you want, and code finds it among the words '
-      + 'the tiles spell -- the model cannot count letters: the longest, or for a clue those nearest it in meaning, '
-      + 'of which the model chooses one. The arm sets it down. Try <b>go</b>, <b>a 7-letter word</b>, a clue like '
-      + '<b>a farm animal</b>, <b>spell</b> a word of yours, then <b>elaborate</b>.</div>');
+      + 'the tiles spell -- the model cannot count letters: the longest, or for a clue those WordNet ties to it, '
+      + 'those nearest it in meaning and the model\'s own ideas, of which the model chooses one. The arm sets it '
+      + 'down. Try <b>go</b>, <b>a 7-letter word</b>, a clue like <b>a farm animal</b>, <b>spell</b> a word of yours, '
+      + 'then <b>elaborate</b>.</div>');
   }
   box.innerHTML = parts.join('');
   if (isPinned) box.scrollTop = box.scrollHeight;
@@ -237,7 +238,7 @@ function stepHtml(message) {
 }
 
 function wordsLead(message) {
-  if (message.kind === 'clue') return `<span class="lead">nearest “${escaped(message.clue)}” in meaning:</span> `;
+  if (message.kind === 'clue') return `<span class="lead">the tiles' words for “${escaped(message.clue)}”:</span> `;
   if (message.kind === 'length') {
     return `<span class="lead">${message.words[0].length}-letter words the tiles spell:</span> `;
   }
@@ -258,14 +259,17 @@ function verdict(message) {
   const { kind, word, said } = message;
   if (kind === 'given' && message.missing) return `→ the tiles lack ${escaped([...message.missing].join(', '))}`;
   if (kind === 'clue' && said === 'NONE') return `→ none of them is “${escaped(message.clue)}”, the model says`;
+  if (kind === 'clue' && !word && said && !message.problem) {
+    return `→ the model named ${escaped(said)}, not one of them: nothing is set down`;
+  }
   if (!word) {
     const why = message.problem ? `the arm cannot set it down: ${message.problem}` : withoutAdvice(message.text);
     const left = message.dropoff ? `; the dropoff area still holds ${[...message.dropoff].join(' ')}` : '';
     return `→ ${escaped(why + left)}`;
   }
-  const instead = kind === 'clue' ? 'nearest' : 'first';
-  const chose = kind !== 'clue' && kind !== 'length' ? '' : said === word ? 'the model chose it; '
-    : `the model named ${escaped(said || 'nothing')}, not one of them, so the ${instead}; `;
+  const named = `the model named ${escaped(said || 'nothing')}, not one of them, so the first; `;
+  const chose = kind !== 'clue' && kind !== 'length' ? '' : message.is_agreed ? 'the model\'s own idea, and WordNet\'s; '
+    : said === word ? 'the model chose it; ' : named;
   if (message.is_placed) return `→ ${chose}the arm sets down ${tileWord(word)}`;
   const why = message.place === false ? ', as asked'
     : message.busy ? `: the arm is setting down ${escaped(message.busy)}` : '';

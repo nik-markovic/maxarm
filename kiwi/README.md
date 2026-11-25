@@ -69,9 +69,10 @@ Each is answered by its acknowledgement, the answer the console prints -- `agent
 Optional: without it both apps run as before, and `agent` and the Chat page say where the model is -- not
 installed, not running, waiting for the Ara240, loading, about 6 minutes after the connector starts, or ready. The
 model, Qwen2.5-7B-Instruct, reads what a request wants; code finds the word among those the tiles spell, in the
-word list `files/words-en.tsv` -- the longest, or for a clue the nearest in meaning, by a small embedding model on
-the CPU that `scripts/install.sh` fetches, the model choosing one -- and the arm sets it down while the model explains
-it (`src/applib/agent/`, shared by both apps). The image
+word list `files/words-en.tsv` -- the longest, or for a clue the words WordNet ties to it (`files/words-wordnet.tsv`),
+those nearest it in meaning by a small embedding model on the CPU that `scripts/install.sh` fetches, and the model's
+own ideas, the model choosing one -- and the arm sets it down while the model explains it (`src/applib/agent/`,
+shared by both apps). `training/words/make-words.py` makes both files. The image
 brings the Ara240's runtime and the wheels of NXP's eIQ AAF Connector, which holds the model on the Ara240 behind
 an OpenAI-style endpoint, port 3000, on the board only. `connector/install.sh` installs the connector into its own
 `connector/venv/`, patched (`apply-patch.sh`), and fetches the model into `/usr/share/llm/`, where the image's
