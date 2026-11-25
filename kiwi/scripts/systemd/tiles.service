@@ -1,0 +1,17 @@
+# The tiles demo at boot: the calibration pages on port 8080, and /IOTCONNECT once the camera is calibrated and the
+# device's files are in config/ -- restart the service after either. Installed by ../install-service.sh. The arm it
+# connects itself, and again while it is not there: each try resets the arm's board, which homes the arm.
+[Unit]
+Description=MaxArm tiles demo: calibration pages on port 8080, /IOTCONNECT
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@DIR@
+ExecStart=@DIR@/run.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

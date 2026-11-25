@@ -64,10 +64,10 @@ from applib.camera.store import RefinePoint
 from applib.motion import OVER_CUBES_MM, Motion
 from applib.overlay import draw_cube, picture_layer
 from applib.redcube import NOTCH_MM, OVER_MM, RedCube
-from camera import check
-from camera.refine import off_by
-from common.server import BadRequest, Server, number
-from common.worker import Refused, Worker
+from applib.worker import Refused, Worker
+from calibration.camera import check
+from calibration.camera.refine import off_by
+from calibration.common.server import BadRequest, Server, number
 
 from . import record, refine
 
@@ -87,13 +87,13 @@ DEBUG_PICTURE_PX = (1200, 1200)
 
 
 class TestsSession:
-    def __init__(self, worker: Worker, feed: Feed, config_dir: Path) -> None:
+    def __init__(self, worker: Worker, feed: Feed, cube: RedCube, config_dir: Path) -> None:
         self.worker = worker
         self.feed = feed
         self.config_dir = Path(config_dir)
-        # The red cube, as FIND RED CUBE or RECORD POINT last found it; after FIND RED CUBE, where the arm was sent over
-        # it and where its servos then said it was, desk space.
-        self.cube = RedCube(feed)
+        # The red cube, as FIND RED CUBE or RECORD POINT last found it -- or the app's `find-cube` -- after FIND RED
+        # CUBE, where the arm was sent over it and where its servos then said it was, desk space.
+        self.cube = cube
         self.lock = threading.Lock()
         self.points: List[RefinePoint] = []        # read with each new camera.json
         self.kept: Optional[record.Kept] = None     # the last point recorded, while REDO or UNDO may change it

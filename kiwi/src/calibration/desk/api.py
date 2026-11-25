@@ -37,9 +37,9 @@ from maxarm import MoveResult, MoveStatus, Space
 from maxarm.spaces import DEFAULT_DESK_Z_MM
 
 from applib.motion import Motion
-from common.arm_api import describe
-from common.server import BadRequest, Server, number
-from common.worker import Refused, Worker
+from applib.worker import Refused, Worker
+from calibration.common.arm_api import describe
+from calibration.common.server import BadRequest, Server, number
 
 from . import plane, store
 from .store import Point

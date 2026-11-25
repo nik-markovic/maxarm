@@ -1,9 +1,9 @@
 """What the app's stream shows over the camera's picture: the tiles, the red cube, a bar saying what is going on, and
 each command's answer.
 
-    overlay = StreamOverlay(fit, size, work.scene, lambda: cube.found)
-    overlay.set_doing("Placing TEAM")          # what the arm is doing; "" when it is done
-    overlay.set_arm_problem("connecting")      # why the arm cannot be used; "" once it can
+    overlay = StreamOverlay(camera_file, size, work.scene, lambda: cube.found)
+    overlay.set_doing("Placing TEAM")          # what a command has the arm do; "" when it is done
+    overlay.watch_arm(app.arm_state)           # what the arm's worker does, for a page too, and why it cannot
     overlay.set_cloud_status("cloud: online")  # /IOTCONNECT's connection, shown only when it is not online
     overlay.watch_agent(agent.activity)        # the language model, if there is one
     overlay.show_answer("TEAM set down", True) # a command's answer, for a while
@@ -11,8 +11,10 @@ each command's answer.
     overlay.burn(frame)                        # or into a frame of the stream's size, for a picture
 
 The tiles and the cube are drawn as the Tiles and Fine Tune pages draw them
-(`tiles.py`, `cube.py`): one overlay, here and there. Along the bottom, a bar.
-Left, the arm: what it is doing and for how long, green; why it cannot be used,
+(`tiles.py`, `cube.py`): one overlay, here and there, by the calibration
+`camera.json` has now -- a new CALIBRATE or SAVE is drawn by from its next frame;
+without one, the bar alone. Along the bottom, a bar. Left, the arm: what it is
+doing, for a command or a page, and for how long, green; why it cannot be used,
 red; or ready, with the tiles last seen and when. Right, only what is worth
 seeing on a stream someone is already watching: the cloud when it is not
 online -- commands cannot come -- and the language model on the Ara240, if
@@ -38,6 +40,7 @@ import numpy as np
 
 from applib.agent.connector import FAILED, LOADING, READY, STOPPED, WAITING
 from applib.camera.fit import CameraFit
+from applib.camera.store import CameraFile
 from applib.redcube import NOTCH_MM
 
 from . import inks
@@ -71,36 +74,35 @@ ASCII = str.maketrans({"·": "-", "—": "-", "–": "-", "‘": "'", "’": "'"
 
 
 class StreamOverlay:
-    def __init__(self, fit: CameraFit, size: Tuple[int, int], scene: Callable[[], dict],
+    def __init__(self, camera_file: CameraFile, size: Tuple[int, int], scene: Callable[[], dict],
                  cube: Callable[[], Optional[dict]]) -> None:
         self.size = size
         self.scale = size[0] / DESIGN_WIDTH_PX
-        self.view = View(fit.desk_to_pixel, fit.frame_size, size, fit.desk_to_true)
+        self.camera_file = camera_file
+        self.fit: Optional[CameraFit] = None    # what `view` and the areas were drawn by
+        self.view: Optional[View] = None
         self.scene = scene
         self.cube = cube
         self.agent: Callable[[], Optional[dict]] = lambda: None
+        self.arm: Callable[[], Tuple[str, str]] = lambda: ("", "")
         self.is_cube_shown = False
         self.doing, self.doing_since = "", 0.0
-        self.arm_problem = ""
+        self.timed = ""                         # the doing `doing_since` times
         self.cloud = ""
         self.answer: Tuple[str, ...] = ()       # the latest answer's lines
         self.is_answer_ok, self.answer_until = True, 0.0
         self._measure = Canvas((1, 1), self.scale)      # for how wide text is drawn
         self._layer: Optional[Layer] = None
         self._key: Optional[str] = None
-        areas = Canvas(size, self.scale)
-        draw_areas(areas, self.view)
-        draw_reach(areas, self.view, 0.35)
-        self._areas = areas.layer()             # what never changes while the app runs: most of the drawing
+        self._areas: Optional[Layer] = None     # what changes only with the calibration: most of the drawing
 
     def set_doing(self, doing: str) -> None:
-        """What the arm is doing, timed from when it started doing anything."""
-        if doing and not self.doing:
-            self.doing_since = time.monotonic()
+        """What a command has the arm do: shown in place of the worker's own label for it."""
         self.doing = doing
 
-    def set_arm_problem(self, problem: str) -> None:
-        self.arm_problem = problem
+    def watch_arm(self, state: Callable[[], Tuple[str, str]]) -> None:
+        """What the arm's worker is doing -- "" when nothing -- and why the arm cannot be used, "" once it can."""
+        self.arm = state
 
     def set_cloud_status(self, status: str) -> None:
         """`iotc.py`'s 'cloud: connecting', 'online', 'reconnecting', 'offline'."""
@@ -126,10 +128,11 @@ class StreamOverlay:
 
     def current(self) -> Layer:
         """The layer as it should look now: the same object until something it shows changes."""
+        self._follow_calibration()
         scene, cube = self.scene(), (self.cube() if self.is_cube_shown else None)
         answer = self.answer if time.monotonic() < self.answer_until else ()
         rows = self._rows(scene)
-        key = repr((_scene_key(scene), cube and (cube["stamp"], cube.get("landed")), rows, answer, self.is_answer_ok))
+        key = repr((id(self.fit), _scene_key(scene), cube and (cube["stamp"], cube.get("landed")), rows, answer, self.is_answer_ok))
         if key != self._key:
             self._layer, self._key = self._draw(scene, cube, rows, answer), key
         return self._layer
@@ -155,13 +158,18 @@ class StreamOverlay:
         return rows
 
     def _arm(self, scene: dict) -> Tuple[str, tuple]:
-        if self.doing:
+        working, problem = self.arm()
+        doing = (self.doing or working) if working else ""
+        if doing and not self.timed:
+            self.doing_since = time.monotonic()
+        self.timed = doing
+        if doing:
             seconds = int(time.monotonic() - self.doing_since)
-            return f"{_doing(self.doing, scene)}   {seconds // 60}:{seconds % 60:02d}", GREEN
-        if self.arm_problem == "connecting":
+            return f"{_ascii(_doing(doing, scene))}   {seconds // 60}:{seconds % 60:02d}", GREEN
+        if problem == "connecting":
             return "Arm connecting: the board resets and homes it", YELLOW
-        if self.arm_problem:
-            return _ascii(f"Arm not connected: {self.arm_problem}"), RED
+        if problem:
+            return _ascii(f"Arm not connected: {problem}"), RED
         found = scene.get("found")
         if not found:
             return "Ready for a command   no tiles seen yet", MUTED
@@ -169,11 +177,26 @@ class StreamOverlay:
 
     # --- drawing ----------------------------------------------------------------------------------------------
 
+    def _follow_calibration(self) -> None:
+        """The view and the areas drawn again when camera.json has changed; none without one."""
+        fit, _ = self.camera_file.get()
+        if fit is self.fit:
+            return
+        self.fit = fit
+        self.view = View(fit.desk_to_pixel, fit.frame_size, self.size, fit.desk_to_true) if fit else None
+        self._areas = None
+        if self.view is not None:
+            areas = Canvas(self.size, self.scale)
+            draw_areas(areas, self.view)
+            draw_reach(areas, self.view, 0.35)
+            self._areas = areas.layer()
+
     def _draw(self, scene: dict, cube: Optional[dict], rows, answer: Tuple[str, ...]) -> Layer:
         canvas = Canvas(self.size, self.scale, under=self._areas)
-        draw_tiles(canvas, self.view, scene, show_areas=False)
-        if cube:
-            draw_cube(canvas, self.view, cube, NOTCH_MM)
+        if self.view is not None:
+            draw_tiles(canvas, self.view, scene, show_areas=False)
+            if cube:
+                draw_cube(canvas, self.view, cube, NOTCH_MM)
         top = self._draw_bar(canvas, rows)
         if answer:
             self._draw_answer(canvas, answer, top)

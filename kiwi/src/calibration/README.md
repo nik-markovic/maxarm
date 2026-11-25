@@ -12,10 +12,12 @@ arm can pick up, and sets a word of them down; then Chat, where the language mod
 word of the tiles for the arm to set down.
 
 ```
-../.venv/bin/python src/calibration/calibration.py                  # then open http://localhost:8080
-../.venv/bin/python src/calibration/calibration.py --host ::        # every address, for another machine's browser
-../.venv/bin/python agenttools/serve-fake.py                        # the same pages on a fake arm and camera
+../.venv/bin/python src/main.py --no-iotc               # then open http://localhost:8080
+../.venv/bin/python src/main.py --no-iotc --host ::     # every address, for another machine's browser
 ```
+
+The pages are served by the demo's one program, `src/main.py` (`run.sh` on the board), beside /IOTCONNECT;
+`calibration.py` builds them on its arm, camera, tiles and model.
 
 It needs `src/requirements.txt` (`src/requirements-pc.txt` on a PC); the web server is Python's own.
 The pages' own files are in the pilot's [`web/`](../../web/), a directory per page; their requests are answered here,
@@ -23,8 +25,9 @@ and what the /IOTCONNECT app does the same way is in [`applib/`](../applib/): th
 camera, the arm's moves, and what is drawn over the camera's picture.
 Connecting resets the board, which homes the arm: 4 s, sometimes 15. While the arm is not connected -- not there
 at the start, or lost on the way -- it is tried again every 30 s, and CONNECT tries at once.
-This process is the only thing that talks to the arm, and the only one using the camera: the /IOTCONNECT app cannot
-run beside it. Ctrl-C holds the arm where it is and closes the port.
+The pages and the /IOTCONNECT commands share the arm's one thread (`applib/worker.py`): one command at a time,
+whichever asks, and RESET or `stop` cuts short either's. They share the camera too: the pages' live view and the
+stream are two branches of its one pipeline. Ctrl-C holds the arm where it is and closes the port.
 
 ## The desk page
 
@@ -446,8 +449,8 @@ From the pilot's root:
 
 | directory              | holds                                                                                   |
 | ---------------------- | --------------------------------------------------------------------------------------- |
-| `src/calibration/`     | the app (`calibration.py`) and each page's requests: `common/` the web server, the     |
-|                        | arm's one thread (`worker.py`) and its controls (`arm_api.py`); `desk/` the plane and  |
+| `src/calibration/`     | the pages (`calibration.py`) and each page's requests: `common/` the web server and    |
+|                        | the arm's controls (`arm_api.py`); `desk/` the plane and                               |
 |                        | its files; `camera/` CALIBRATE, the check image (`check.py`), the                       |
 |                        | refinement (`refine.py`); `tests/` Fine Tune; `tiles/` the Tiles page; `chat/` the      |
 |                        | Chat page                                                                               |

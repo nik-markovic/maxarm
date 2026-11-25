@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# The /IOTCONNECT app, on the board, in the venv install.sh made:
+# The tiles demo, on the board, in the venv install.sh made: the calibration pages on http://<board>:8080, and
+# /IOTCONNECT -- commands, telemetry, the stream -- once the camera is calibrated and the device's files are in
+# config/. Ctrl-C to stop.
 #
-#   ./run.sh              # /IOTCONNECT, the stream, the console
-#   ./run.sh --no-iotc    # without the cloud: commands at the console
+#   ./run.sh                # the pages, /IOTCONNECT, the console
+#   ./run.sh --no-iotc      # without the cloud
+#   ./run.sh --no-webapp    # without the pages
 set -e
 cd "$(dirname "$(readlink -f "$0")")"
 
@@ -15,4 +18,4 @@ for governor in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
 done
 
 export PYTHONUNBUFFERED=1
-exec venv/bin/python src/main.py "$@"
+exec venv/bin/python src/main.py --host :: "$@"

@@ -13,7 +13,8 @@ from applib.overlay.stream import StreamOverlay  # noqa: E402
 from applib.stream import stream_size  # noqa: E402
 
 overlay_stream.draw_tiles = lambda *args, **kwargs: None     # fake tiles: only the bar is looked at
-fit, problem = CameraFile(ROOT / "config").get()
+camera_file = CameraFile(ROOT / "config")
+fit, problem = camera_file.get()
 size = stream_size(fit.frame_size)
 frame = cv2.resize(cv2.imread(str(ROOT / "config" / "camera-frame.png")), size)
 found = {"stamp": time.time_ns() - 190e9, "tiles": [{}] * 14}
@@ -36,11 +37,11 @@ states = {
                                          answer=("The arm is not connected; it is tried again every 30 s.", False)),
 }
 for name, state in states.items():
-    overlay = StreamOverlay(fit, size, lambda: state["scene"], lambda: None)
+    overlay = StreamOverlay(camera_file, size, lambda: state["scene"], lambda: None)
     if "agent" in state:
         overlay.watch_agent(lambda: state["agent"])
     overlay.set_doing(state.get("doing", ""))
-    overlay.set_arm_problem(state.get("problem", ""))
+    overlay.watch_arm(lambda: (state.get("doing", ""), state.get("problem", "")))
     overlay.set_cloud_status(state.get("cloud", "cloud: online"))
     if "answer" in state:
         overlay.show_answer(*state["answer"])

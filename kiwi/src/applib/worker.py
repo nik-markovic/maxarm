@@ -1,8 +1,8 @@
-"""The one thread that talks to the arm.
+"""The one thread that talks to the arm, for the pages and the /IOTCONNECT commands alike.
 
-Requests arrive on the web server's threads. Each becomes a command, and the
-commands run here one at a time, in order; the request waits for its command
-and returns how it went. A slider sends a command per change, so a command
+Requests arrive on the web server's threads, and commands on the app's. Each
+becomes a command, and the commands run here one at a time, in order; the
+caller waits for its command and returns how it went. A slider sends a command per change, so a command
 marked `latest_only` that is still waiting when another of its kind arrives is
 dropped -- "superseded" -- and only the newest runs. RESET cuts short whatever
 is running, drops everything waiting, and sends the arm home.
@@ -27,7 +27,9 @@ from maxarm import MoveResult, TransportError
 from applib.motion import RECONNECT_S, Motion, Refused
 
 Action = Callable[[Motion], Union[MoveResult, str, None]]
-__all__ = ["Refused", "Worker"]
+__all__ = ["READING", "Refused", "Worker"]
+
+READING = "reading where the arm is"        # `doing` after a command, once nothing else waits
 
 
 @dataclass
@@ -57,6 +59,7 @@ class Worker:
         self.count = 0
         self.connection = {"status": "connecting", "detail": ""}
         self._failed_at = 0.0                       # time.monotonic() when the arm last failed to connect, or was lost
+        self._said = ""                             # the failure last printed
         # The retry waits on this, not on `condition`: a command's notify() wakes one waiter, and must wake the arm's.
         self._stopped = threading.Event()
         self.is_running = True
@@ -72,6 +75,9 @@ class Worker:
         """Queue `action(motion)`, wait for it, and say how it went: status, detail, and the state after."""
         command = Command(kind, label, action, latest_only, uses_arm)
         with self.condition:
+            if not self.is_running:
+                command.finish("superseded", "shutting down")
+                return command.outcome
             if latest_only:
                 for waiting in [queued for queued in self.queue if queued.kind == kind]:
                     self.queue.remove(waiting)
@@ -90,6 +96,8 @@ class Worker:
                 self._failed(str(error))
                 raise
             self.connection = {"status": "ready", "detail": ""}
+            self._said = ""
+            print("arm        : connected and homed", flush=True)
             return result
         if not wait:
             threading.Thread(target=self.connect, daemon=True).start()
@@ -153,7 +161,7 @@ class Worker:
             with self.condition:
                 is_idle = not self.queue
             if self.motion.is_measured_stale and self.motion.is_connected and is_idle:
-                self.doing = "reading where the arm is"
+                self.doing = READING
                 self.motion.read()
             self.doing = None
 
@@ -175,6 +183,9 @@ class Worker:
         command.finish(status, detail)
 
     def _failed(self, detail: str) -> None:
+        if detail != self._said:                    # said once, not at every try
+            self._said = detail
+            print(f"arm        : {detail}; tried again every {RECONNECT_S:.0f} s", flush=True)
         self.connection = {"status": "failed", "detail": f"{detail} (tried again every {RECONNECT_S:.0f} s)"}
         self._failed_at = time.monotonic()
 

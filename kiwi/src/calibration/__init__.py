@@ -1,10 +1,9 @@
-"""The calibration apps, served by `calibration.py` as one web app with a page each.
-
-    ../.venv/bin/python src/calibration/calibration.py
+"""The calibration pages, served by `calibration.py` as one web app with a page each, from `../main.py` beside the
+/IOTCONNECT app (`--no-webapp` without them).
 
 | directory | holds                                                                     |
 | --------- | ------------------------------------------------------------------------- |
-| `common/` | the web server, the arm's one thread, the arm's controls                  |
+| `common/` | the web server, the arm's controls                                        |
 | `desk/`   | the desk calibration: touch points, the plane, `config/desk.json`         |
 | `camera/` | the camera calibration: the cubes' points, the fit that writes            |
 |           | `config/camera.json`, the check image, the refinement                     |

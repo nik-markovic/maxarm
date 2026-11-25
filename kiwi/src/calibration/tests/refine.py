@@ -21,10 +21,10 @@ from applib.camera.fit import CameraFit, stretch_of
 from applib.camera.model import project
 from applib.camera.sighting import in_frame
 from applib.camera.store import RefinePoint
-from camera import check
-from camera.anchor import Tie
-from camera.refine import Off, PointsDoNotFit, Sighting, off_by, refine_and_leave_out
-from common.worker import Refused
+from applib.worker import Refused
+from calibration.camera import check
+from calibration.camera.anchor import Tie
+from calibration.camera.refine import Off, PointsDoNotFit, Sighting, off_by, refine_and_leave_out
 
 # SAVE CALIBRATION takes this many points at the least -- each is judged by the mesh of the others, and three are
 # needed to tell which of two disagreeing points is wrong -- and the page asks for this many (the owner's: 10 at

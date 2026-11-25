@@ -4,8 +4,9 @@
 #
 #   connector/install.sh
 #
-# Optional, and kept out of ../install.sh on purpose: gigabytes and many minutes for the one command that needs it,
-# and the app runs without it. Then connector/run.sh, after every boot. Delete venv/ to install again from scratch.
+# Optional: the app runs without it. ../install.sh runs this, and install-service.sh after it, when it finds an
+# Ara240 in the board; with a card put in later, run both by hand. Gigabytes, and many minutes. Delete venv/ to
+# install again from scratch.
 #
 # What the connector needs comes with the image (LF_v6.18.37-2.1.0): the Ara240's runtime and its proxy
 # (ara2-proxy.service), and the connector's and optimum-ara's wheels in /usr/share/python-wheels. This adds venv/

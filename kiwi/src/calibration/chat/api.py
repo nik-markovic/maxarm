@@ -15,13 +15,17 @@ tiles are the Tiles page's -- the same detection, the same PLACE, with the tile 
 | `POST /api/chat/trace`  | n    | what went to and from the model for answer `n`: asked for apart, not polled     |
 
 The state's `chat` is `AgentService.state()`: where the model is, the conversation, the request being answered and
-the word being set down. Without strands-agents, the model is `off`.
+the word being set down. The service is the /IOTCONNECT app's `agent` command's too (`main.py`): one model, one
+request at a time, whichever asks; its tools run the app's `detect` and `place`. Without strands-agents, there is
+none, and the model is `off`.
 """
 
-from applib.agent import IS_STRANDS_AVAILABLE, AgentService, AraConnector, Desk, describe_status, word_check
+from typing import Optional
+
+from applib.agent import AgentService
 from applib.commands import CommandError
-from common.server import BadRequest, Server, number
-from tiles.api import TilesSession
+from calibration.common.server import BadRequest, Server, number
+from calibration.tiles.api import TilesSession
 
 MAX_TEXT = 300              # a request's characters at most: a sentence or two
 OFF = {"model": {"state": "off", "detail": "strands-agents is not installed (src/requirements.txt)", "since": None,
@@ -30,15 +34,9 @@ OFF = {"model": {"state": "off", "detail": "strands-agents is not installed (src
 
 
 class ChatSession:
-    def __init__(self, tiles: TilesSession) -> None:
+    def __init__(self, tiles: TilesSession, agent: Optional[AgentService]) -> None:
         self.tiles = tiles
-        self.agent = None
-        if IS_STRANDS_AVAILABLE:
-            desk = Desk(seen=tiles.work.letters_seen, detect=self._detect, check=word_check(tiles.work, tiles.settings),
-                        place=self._place)
-            self.agent = AgentService(AraConnector(on_change=_say_status), desk)
-        else:
-            print("agent      : off, strands-agents is not installed (src/requirements.txt)", flush=True)
+        self.agent = agent
 
     def register(self, server: Server) -> None:
         server.add_state(self.state)
@@ -79,28 +77,9 @@ class ChatSession:
             return {"status": "refused", "detail": "that answer is no longer kept"}
         return {"status": "done", "detail": "", "trace": trace}
 
-    # --- what the tools do ------------------------------------------------
-
-    def _detect(self) -> str:
-        return _done(self.tiles.locate({}))
-
-    def _place(self, word: str) -> str:
-        return _done(self.tiles.place_word(word))
-
     # --- for the page -----------------------------------------------------
 
     def state(self) -> dict:
         problem = self.tiles.camera_file.get()[1]
         return {"chat": self.agent.state() if self.agent is not None else OFF,
                 "unavailable": {"chat": problem} if problem else {}}
-
-
-def _done(outcome: dict) -> str:
-    """A worker's outcome as the tools take it: its detail, or CommandError saying why it was not done."""
-    if outcome["status"] != "done":
-        raise CommandError(outcome["detail"] or outcome["status"])
-    return outcome["detail"]
-
-
-def _say_status(status: dict) -> None:
-    print(f"agent      : {describe_status(status)}", flush=True)

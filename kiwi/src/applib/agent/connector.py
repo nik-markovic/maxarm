@@ -21,7 +21,7 @@ nothing run, its answer dropped -- property-alarm's probe, which here also has t
 guide for those tools, seconds the first request that carries them would otherwise wait (STATUS-kiwi §6).
 
 **Another model, Amazon Bedrock say,** is another class with `ModelSource`'s members -- `model()` a strands
-`BedrockModel` -- built in place of this one by `main.py` and `calibration.py`. The service, its tools, the prompt
+`BedrockModel` -- built in place of this one by `main.py`. The service, its tools, the prompt
 and the pages do not change; a model with a wider window could take a longer recap (`chat.py`).
 """
 

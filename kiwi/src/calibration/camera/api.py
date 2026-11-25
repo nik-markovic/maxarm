@@ -56,9 +56,9 @@ from applib.camera.model import CUBE_MM
 from applib.camera.store import CubePoint
 from applib.motion import OVER_CUBES_MM, Motion
 from applib.redcube import NOTCH_MM
-from common.arm_api import describe
-from common.server import BadRequest, Server, number
-from common.worker import Refused, Worker
+from applib.worker import Refused, Worker
+from calibration.common.arm_api import describe
+from calibration.common.server import BadRequest, Server, number
 
 from . import anchor, check
 

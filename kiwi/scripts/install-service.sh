@@ -1,26 +1,34 @@
 #!/usr/bin/env bash
-# Start one of the two apps at boot, as a systemd service, from where ../install.sh installed them. As root:
+# Start the demo (../run.sh) at every boot, as the systemd service tiles, from where ../install.sh installed it.
+# As root:
 #
-#   scripts/install-service.sh calibration    # the calibration app's pages, port 8080: ../calibrate.sh
-#   scripts/install-service.sh app            # the /IOTCONNECT app: ../run.sh
-#   scripts/install-service.sh none           # neither
+#   scripts/install-service.sh            install it, and start it now
+#   scripts/install-service.sh --remove   stop it, and take it out of /etc/systemd/system
 #
-# Only one can be on: each holds the arm and the camera. Logs: journalctl -u maxarm-calibration, -u maxarm-app.
-set -euo pipefail
+# Logs: journalctl -u tiles -f. Again after moving this directory: the service names its path.
+set -e
 cd "$(dirname "$(readlink -f "$0")")/.."
 
-CHOICE="${1:-}"
-case "$CHOICE" in calibration|app|none) ;; *) sed -n '2,8p' "$0"; exit 2 ;; esac
+UNIT=/etc/systemd/system/tiles.service
 
-for name in calibration app; do
-  sed "s|@KIWI@|$PWD|g" "scripts/systemd/maxarm-$name.service" > "/etc/systemd/system/maxarm-$name.service"
-done
-systemctl daemon-reload
-for name in calibration app; do
-  if [ "$name" != "$CHOICE" ]; then
-    systemctl disable --now "maxarm-$name.service"
+# The two apps' own services, from before they were one.
+for old in maxarm-calibration maxarm-app; do
+  if [ -f "/etc/systemd/system/$old.service" ]; then
+    systemctl disable --now "$old.service"
+    rm "/etc/systemd/system/$old.service"
   fi
 done
-if [ "$CHOICE" != none ]; then
-  systemctl enable --now "maxarm-$CHOICE.service"
+
+if [ "$1" = "--remove" ]; then
+  systemctl disable --now tiles.service 2> /dev/null || true
+  rm -f "$UNIT"
+  systemctl daemon-reload
+  echo "Removed the service tiles. Start the demo by hand: ./run.sh"
+  exit 0
 fi
+
+sed "s|@DIR@|$PWD|g" scripts/systemd/tiles.service > "$UNIT"
+systemctl daemon-reload
+systemctl enable tiles.service
+systemctl restart tiles.service
+echo "The service tiles is starting, and will at every boot. Logs: journalctl -u tiles -f"

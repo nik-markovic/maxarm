@@ -23,9 +23,11 @@ What flows each way:
           tooltip's worth, the whole of it the `answer` telemetry
     KVS   the signalling channel and the AWS credentials `webrtc.py` signs with
 
-The cloud is required: `connect()` raises, and `main.py` lets it stop the app,
-with the SDK's own message. Once connected, a network that comes and goes is
-retried rather than fatal.
+The cloud is optional: `main.py` starts this only when the device's identity and
+the calibration are in config/. Connecting happens on this file's thread, and a
+connection that fails -- a network not up yet at boot, a device the back end does
+not know yet -- is tried again every RECONNECT_WAIT_S, with the SDK's message, as
+is one that drops later; the rest of the app runs on meanwhile.
 """
 
 from __future__ import annotations
@@ -62,6 +64,7 @@ C2D_VERBS = {
     "find-cube": commands.FIND_CUBE,
     "reader-location": commands.READER_LOCATION,
     "agent": commands.AGENT,
+    "stop": commands.STOP,
 }
 
 TELEMETRY_INTERVAL_S = 10.0
@@ -92,13 +95,9 @@ class IotcClient:
 
     # --- lifecycle --------------------------------------------------------------------------------------------
 
-    def connect(self) -> None:
-        """Connect now, on the caller's thread, and raise if it cannot: nothing is caught here."""
-        self.on_status("cloud: connecting")
-        self._connect()
-
     def start(self) -> None:
-        """Send telemetry from here on, on this client's thread. `connect()` first."""
+        """Connect, and send telemetry from then on, on this client's thread."""
+        self.on_status("cloud: connecting")
         self._thread.start()
 
     def stop(self) -> None:
@@ -110,7 +109,7 @@ class IotcClient:
             self._client.disconnect()
 
     def _run(self) -> None:
-        """The publisher. A connection that drops is tried again; only the first one is fatal."""
+        """The publisher. A connection that fails or drops is tried again."""
         while not self._stop.is_set():
             try:
                 if self._client is None:

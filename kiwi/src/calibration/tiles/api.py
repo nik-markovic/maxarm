@@ -28,7 +28,6 @@ from maxarm import MoveResult, Space
 
 from applib import areas, word
 from applib.camera import store
-from applib.camera.feed import Feed
 from applib.camera.fit import CameraFit
 from applib.motion import Motion
 from applib.overlay import draw_tiles, inks, picture_layer
@@ -36,8 +35,8 @@ from applib.settings import (TILE_HEIGHT_RANGE_MM, TILE_HEIGHT_STEP_MM, TILE_OFF
                               Settings)
 from applib.tiles import TILE_MM, Tile
 from applib.tilework import DROP_OVER_MM, TileWork
-from common.server import BadRequest, Server, number
-from common.worker import Refused, Worker
+from applib.worker import Refused, Worker
+from calibration.common.server import BadRequest, Server, number
 
 # A visit comes over the tile at the height the areas allow for, then down to this far over its top face.
 VISIT_OVER_MM = areas.OVER_TILE_MM
@@ -45,11 +44,11 @@ VISIT_ABOVE_MM = 4.0
 
 
 class TilesSession:
-    def __init__(self, worker: Worker, feed: Feed, config_dir: Path) -> None:
+    def __init__(self, worker: Worker, work: TileWork, settings: Settings, config_dir: Path) -> None:
         self.worker = worker
         self.config_dir = Path(config_dir)
-        self.work = TileWork(feed, config_dir)
-        self.settings = Settings(config_dir)
+        self.work = work                    # the /IOTCONNECT app's too: what either found, the other shows
+        self.settings = settings
         self.camera_file = store.CameraFile(config_dir)
 
     def register(self, server: Server) -> None:
@@ -105,11 +104,7 @@ class TilesSession:
             self.settings.set(tile_offset_mm=number(body, "offset"))
         except ValueError as reason:
             raise BadRequest(str(reason)) from None
-        return self.place_word(str(body.get("letters", "")))
-
-    def place_word(self, letters: str) -> dict:
-        """The tiles that spell `letters` carried to the dropoff arc, gripped and turned as the settings say: PLACE's,
-        and the Chat page's."""
+        letters = str(body.get("letters", ""))
         offset, reader = self.settings.get("tile_offset_mm"), self.settings.get("reader")
         try:
             fit = self._usable()

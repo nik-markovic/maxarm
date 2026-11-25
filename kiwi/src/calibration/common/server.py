@@ -164,7 +164,7 @@ class _DualStackServer(ThreadingHTTPServer):
 
 
 class _RequestHandler(BaseHTTPRequestHandler):
-    server_version = "maxarm-calibration"
+    server_version = "tiles"
 
     def do_GET(self) -> None:
         self.server.app.handle(self, "GET")

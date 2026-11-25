@@ -1,16 +1,21 @@
-# kiwi — the /IOTCONNECT app and the calibration app, brought to the i.MX95
+# kiwi — the tiles demo, calibration pages and /IOTCONNECT in one program, on the i.MX95
 
 Spec: [`work/PILOT-kiwi.md`](../work/PILOT-kiwi.md).
 State of play: [`work/STATUS-kiwi.md`](../work/STATUS-kiwi.md).
 Started as a copy of `jackal/`, whose [`work/STATUS-jackal.md`](../work/STATUS-jackal.md) the code's section
 references still point to.
 
-Two apps on one library. **The calibration app** (`src/calibration/`, its pages in `web/`) calibrates the desk and
-the camera and tries them: desk, camera, Fine Tune and Tiles pages, as impala left them, and the Chat page, the
-language model on the Ara240 finding words of the tiles. **The /IOTCONNECT app**
-(`src/main.py`) takes commands from the dashboard or the console, sends what it found as telemetry, and streams the
-camera's picture with the tiles drawn over it over KVS WebRTC. Calibrate first; the two cannot run at once, as each
-holds the arm and the camera.
+One program, `src/main.py`, started by `run.sh`, in two parts on one arm, one camera and one language model.
+**The calibration pages** (`src/calibration/`, their files in `web/`, port 8080) calibrate the desk and the camera and
+try them: desk, camera, Fine Tune and Tiles pages, and the Chat page, the language model on the Ara240 finding words
+of the tiles. **/IOTCONNECT** (`src/app/`) takes commands from the dashboard or the console, sends what it found as
+telemetry, and streams the camera's picture with the tiles drawn over it over KVS WebRTC. `--no-webapp` leaves the
+pages out, `--no-iotc` the cloud.
+
+/IOTCONNECT starts only with the camera calibrated and the device's files in `config/` (below); until then the rest
+runs and says what is missing at the start: calibrate, or put the files there, and start `run.sh` again. Both parts
+drive the arm one command at a time, whichever asks, and RESET or `stop` cuts short either's. The pages' live view and
+the stream are two branches of the camera's one pipeline: neither takes the camera from the other.
 
 Both read the camera through GStreamer, which comes from the system, not pip: its Python bindings (`gi`) and their
 `Gst` and `GstVideo` typelibs, and the base and good plugins. The i.MX95's image has them; on Ubuntu,
@@ -24,20 +29,20 @@ mkdir -p ~/kiwi && cd ~/kiwi
 # TODO(owner): the package's download location
 wget -O tiles.tgz https://downloads.iotconnect.io/partners/nxp/packages/tiles.tgz
 tar zxf tiles.tgz
-./install.sh            # once, and again after unpacking a newer package: the arm's USB driver, venv/, packages
-./calibrate.sh          # calibrate, then try it: http://<board>:8080
-./run.sh                # the app: /IOTCONNECT, the stream, the console
-./run.sh --no-iotc      # the app without the cloud: commands at the console
-scripts/install-service.sh calibration   # or `app`: that one started at every boot; `none`: neither
-connector/install.sh    # optional, with an Ara240, once: the model for `agent` and Chat (11 GB, many minutes)
-connector/install-service.sh  # then at every boot (or connector/run.sh after each): the model ready minutes later
+./install.sh            # once, and again after unpacking a newer package: the arm's USB driver, venv/, packages;
+                        # with an Ara240 in the board, its model too, started at every boot (11 GB, many minutes)
+./run.sh                # the pages on http://<board>:8080, /IOTCONNECT once it can, the console
+./run.sh --no-iotc      # without the cloud
+./run.sh --no-webapp    # without the pages
+scripts/install-service.sh   # run.sh at every boot, as the service `tiles`; --remove takes it out
 ```
+
+An Ara240 put in after `install.sh`: `connector/install.sh`, then `connector/install-service.sh`.
 
 The package is made on a PC by `scripts/package.sh`. `config/` is not in it, so a newer one unpacked over the old
 keeps the calibration and the device's identity.
 
-On a PC, in a venv of your own if you like: `scripts/install.sh`, then `python src/calibration/calibration.py` and
-`python src/main.py`.
+On a PC, in a venv of your own if you like: `scripts/install.sh`, then `python src/main.py`.
 
 ## /IOTCONNECT
 
@@ -66,19 +71,19 @@ Each is answered by its acknowledgement, the answer the console prints -- `agent
 
 ## The Ara240
 
-Optional: without it both apps run as before, and `agent` and the Chat page say where the model is -- not
+Optional: without it the demo runs as before, and `agent` and the Chat page say where the model is -- not
 installed, not running, waiting for the Ara240, loading, about 6 minutes after the connector starts, or ready. The
 model, Qwen2.5-7B-Instruct, reads what a request wants; code finds the word among those the tiles spell, in the
 word list `files/words-en.tsv` -- the longest, or for a clue the words WordNet ties to it (`files/words-wordnet.tsv`),
 those nearest it in meaning by a small embedding model on the CPU that `scripts/install.sh` fetches, and the model's
 own ideas, the model choosing one -- and the arm sets it down while the model explains it (`src/applib/agent/`,
-shared by both apps). `training/words/make-words.py` makes both files. The image
+one service for the Chat page and the `agent` command, one request at a time). `training/words/make-words.py` makes both files. The image
 brings the Ara240's runtime and the wheels of NXP's eIQ AAF Connector, which holds the model on the Ara240 behind
 an OpenAI-style endpoint, port 3000, on the board only. `connector/install.sh` installs the connector into its own
 `connector/venv/`, patched (`apply-patch.sh`), and fetches the model into `/usr/share/llm/`, where the image's
 `ara2-fetch-models` puts it. `connector/install-service.sh` starts it at every boot, as the systemd service
 `iotc-aaf-connector` (`--remove` takes it out); without the service, `connector/run.sh` starts it in the
-background, its log `connector/server.log`. With or without, `run.sh` restarts it and `run.sh --stop` stops it.
+background, its log `connector/server.log`. With or without, `connector/run.sh` restarts it and `connector/run.sh --stop` stops it.
 `connector/config/server_config.json` is its configuration.
 
 | telemetry       | is                                                                                          |
@@ -102,7 +107,7 @@ command's answer shows over the bar, yellow, red when refused. It is a branch of
 live view's 5 frames a second at most: H.264 from the board's hardware encoder where GStreamer has one, else x264 in
 PyAV at its fastest, encoded once for every viewer (`src/applib/stream.py`).
 
-## What the two apps share
+## What the pages and /IOTCONNECT share
 
 The calibration's choices carry over: the camera's mode and focus (`config/camera-view.json`, `camera.json`), and the
 app's settings, the tiles' height, the grip and the reader (`config/appcfg.json`, only what differs from the
@@ -113,20 +118,20 @@ pages' live view as a layer.
 
 | directory           | holds                                                                                    |
 | ------------------- | ---------------------------------------------------------------------------------------- |
-| `src/main.py`       | the /IOTCONNECT app: the composition root                                                |
-| `src/app/`          | what the app does, command by command (`app.py`)                                         |
-| `src/applib/`       | how, for both apps: the tiles, the letters, the camera, the arm's moves, the overlay,    |
-|                     | the settings, the language model and its tools (`agent/`); and the app's commands,       |
-|                     | telemetry, /IOTCONNECT, the stream and WebRTC                                            |
+| `src/main.py`       | the program: the composition root of the pages and /IOTCONNECT                           |
+| `src/app/`          | what the commands do, command by command (`app.py`)                                      |
+| `src/applib/`       | how, for both: the tiles, the letters, the camera, the arm's one thread (`worker.py`)    |
+|                     | and moves, the overlay, the settings, the language model and its tools (`agent/`); and   |
+|                     | the commands, telemetry, /IOTCONNECT, the stream and WebRTC                              |
 | `src/maxarm/`       | the arm's library                                                                        |
-| `src/calibration/`  | the calibration app and its pages' requests; guide in its `README.md`                    |
-| `web/`              | the calibration app's pages: HTML, scripts, styles                                       |
+| `src/calibration/`  | the calibration pages' requests; guide in its `README.md`                                |
+| `web/`              | the calibration pages: HTML, scripts, styles                                             |
 | `config/`           | the calibration, the settings and the device's identity; per rig, not in git             |
 | `files/`            | the letter reader, `letters.tflite`, what it was built from, and the device template;    |
 |                     | `ch341/<uname -r>/ch341.ko`, the arm's USB serial driver for that i.MX95 image           |
 | `training/`         | `letters/`: the reader's recipe                                                          |
 | `scripts/`          | `install.sh`, `install-ch341.sh`; `package.sh` makes `tiles.tgz`, `build-ch341.sh` the driver |
-|                     | `install-service.sh` starts an app at boot (`systemd/`)                                    |
+|                     | `install-service.sh` starts the demo at boot (`systemd/`)                                |
 | `connector/`        | the Ara240's language model: NXP's connector, installed and run by its scripts           |
 | `agenttools/`       | the fake board and camera, the overlay drawn on the owner's stills, checks; not shipped  |
 

@@ -22,9 +22,9 @@ from maxarm.arm import home_position
 from maxarm.geometry import Position
 
 from applib.motion import HOVER_MM
+from applib.worker import Worker
 
 from .server import Server, number
-from .worker import Worker
 
 # A landing from the desk page crosses ABOVE_TARGET_MM over its target, never under CROSS_SAFE_MM (the page's SAFE,
 # clear of 40 mm cubes) -- or, when the cup is already lower, at the cup's own height, never under the hover. Higher
