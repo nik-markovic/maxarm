@@ -42,7 +42,7 @@ Use the **Camera** page to calibrate the camera and the arm and save the calibra
 # Calibration Fine-Tuning
 
 The **Fine Tune** page allows you to validate the calibration against your arm
-and add more points, in addition to the three colored cubes to further 
+and add more points, in addition to the three colored cubes, to further 
 improve the arm's accuracy.
 
 Before you begin, it is advisable to take a look at the colored zones of the
@@ -52,8 +52,7 @@ The green area is where tiles are places and the blue area is where the arm the 
 The best way to fine tune the calibration is to use **Fine Tune** page is to:
 1. First, clear the desk.
 1. Use the *Arm To Desk* function to click various points on the desk.
-1. Based on the screenshot guide below, decide if the arm needs improvement in a given desk area:
-![arm-to-desk.jpg](media/arm-to-desk.jpg)
+1. Based on the screenshot guide below, decide if the arm needs improvement in a given desk area: ![arm-to-desk.jpg](media/arm-to-desk.jpg)
 1.  Either:
    - Send the arm to the area using the left desk grid...
    - Or place the red cube in the area and click *Find Red Cube*.
