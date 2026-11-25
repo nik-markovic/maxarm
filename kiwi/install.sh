@@ -29,7 +29,7 @@ if grep -qx 0x1e58 /sys/bus/pci/devices/*/vendor; then
 else
   echo
   echo "No Ara240 in the board: the agent command and the Chat page stay off."
-  echo "With one later: connector/install.sh, then connector/install-service.sh."
+  echo "With one later: ./install.sh again, or connector/install.sh, then connector/install-service.sh."
 fi
 
 echo
